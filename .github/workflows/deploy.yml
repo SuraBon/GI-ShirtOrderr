@@ -31,7 +31,11 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        env:
+          VITE_GAS_URL: ${{ secrets.VITE_GAS_URL || vars.VITE_GAS_URL }}
+        run: |
+          npm run build
+          cp dist/index.html dist/404.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
