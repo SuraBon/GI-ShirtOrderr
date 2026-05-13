@@ -49,64 +49,6 @@ const SIZE_TABLES = {
   "กางเกงช็อป": [["28", '28"'], ["30", '30"'], ["32", '32"'], ["34", '34"'], ["36", '36"'], ["38", '38"'], ["40", '40"'], ["42", '42"'], ["44", '44"']]
 };
 
-const mockBatches = [
-  {
-    batchId: "ORD-20260501-01",
-    branch: "สำนักงานใหญ่",
-    supervisorName: "สมชาย ใจดี",
-    supervisorPhone: "081-234-5678",
-    submittedAt: "2026-05-01T09:20:00",
-    orders: [
-      { name: "สมชาย ใจดี", employeeId: "EMP-1001", gender: "ชาย", items: [{ type: "เสื้อโปโล", size: "L", qty: 2 }, { type: "เสื้อช็อป", size: "XL", qty: 1 }] },
-      { name: "สมหญิง รักงาน", employeeId: "EMP-1002", gender: "หญิง", items: [{ type: "เสื้อโปโล", size: "M", qty: 1 }, { type: "กางเกงช็อป", size: "30", qty: 1 }] }
-    ]
-  },
-  {
-    batchId: "ORD-20260504-02",
-    branch: "สาขาเชียงใหม่",
-    supervisorName: "นที เชียงแสน",
-    supervisorPhone: "089-555-1212",
-    submittedAt: "2026-05-04T13:10:00",
-    orders: [
-      { name: "กมลวรรณ ศรีทอง", employeeId: "EMP-1201", gender: "หญิง", items: [{ type: "เสื้อโปโล", size: "S", qty: 2 }, { type: "เสื้อช็อป", size: "M", qty: 1 }] },
-      { name: "ปกรณ์ ดีพร้อม", employeeId: "", gender: "ชาย", items: [{ type: "เสื้อช็อป", size: "อื่นๆ: 54 นิ้ว", qty: 1 }] }
-    ]
-  },
-  {
-    batchId: "ORD-20260509-03",
-    branch: "สาขาภูเก็ต",
-    supervisorName: "มุกดา ทะเลงาม",
-    supervisorPhone: "086-987-1111",
-    submittedAt: "2026-05-09T10:45:00",
-    orders: [
-      { name: "พิมพ์ชนก สว่าง", employeeId: "EMP-1301", gender: "หญิง", items: [{ type: "เสื้อโปโล", size: "XL", qty: 1 }, { type: "กางเกงช็อป", size: "30", qty: 1 }] },
-      { name: "ชานนท์ ไกร", employeeId: "EMP-1302", gender: "ชาย", items: [{ type: "เสื้อช็อป", size: "2XL", qty: 2 }] }
-    ]
-  },
-  {
-    batchId: "ORD-20260512-04",
-    branch: "สาขาอุดร",
-    supervisorName: "ธนา พรหมมา",
-    supervisorPhone: "088-456-7890",
-    submittedAt: "2026-05-12T11:05:00",
-    orders: [
-      { name: "ธนา พรหมมา", employeeId: "EMP-1401", gender: "ชาย", items: [{ type: "เสื้อช็อป", size: "XL", qty: 2 }, { type: "กางเกงช็อป", size: "36", qty: 2 }] },
-      { name: "จิราพร พูลผล", employeeId: "EMP-1402", gender: "หญิง", items: [{ type: "เสื้อโปโล", size: "M", qty: 2 }] }
-    ]
-  },
-  {
-    batchId: "ORD-20260513-05",
-    branch: "สาขาหาดใหญ่",
-    supervisorName: "อารีย์ สายใต้",
-    supervisorPhone: "082-111-9012",
-    submittedAt: "2026-05-13T08:30:00",
-    orders: [
-      { name: "อานนท์ หาดใหญ่", employeeId: "EMP-1501", gender: "ชาย", items: [{ type: "เสื้อโปโล", size: "3XL", qty: 2 }] },
-      { name: "ลลิตา แก้ว", employeeId: "EMP-1502", gender: "หญิง", items: [{ type: "กางเกงช็อป", size: "32", qty: 1 }, { type: "เสื้อช็อป", size: "S", qty: 1 }] }
-    ]
-  }
-];
-
 function getSizeRows(type, gender) {
   if (type === "เสื้อโปโล") return SIZE_TABLES[`เสื้อโปโล ${gender}`] || [];
   return SIZE_TABLES[type] || [];
@@ -410,7 +352,6 @@ function OrderApp({ demoMode }) {
     <>
       <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
       <main className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pb-6 pt-3 sm:px-6 lg:gap-5 lg:pb-12 lg:pt-5">
-        {demoMode && <DemoBanner />}
         <OrderSetupCard state={state} dispatch={dispatch} />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <SectionTitle icon={Users} title="รายชื่อพนักงาน" compact />
@@ -453,7 +394,6 @@ function DashboardApp({ demoMode, onOpenOrder }) {
     <>
       <DashboardHeader onOpenOrder={onOpenOrder} />
       <main className="relative z-10 mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-4 pb-10 pt-3 sm:px-6 lg:gap-5 lg:pt-5">
-        {demoMode && <DemoBanner />}
         <Dashboard demoMode={demoMode} />
       </main>
     </>
@@ -550,14 +490,6 @@ function DashboardHeader({ onOpenOrder }) {
         </div>
       </div>
     </header>
-  );
-}
-
-function DemoBanner() {
-  return (
-    <div className="rounded-xl border border-[#F6D88B] bg-[#FFF7DC] px-3 py-2 text-xs font-semibold text-[#7A5200] shadow-sm sm:text-sm">
-      Demo Mode — กรุณาตั้งค่า Google Sheets URL เพื่อใช้งานจริง
-    </div>
   );
 }
 
@@ -1012,12 +944,12 @@ function Dashboard({ demoMode }) {
         setBatches(remoteBatches.length ? remoteBatches : storedBatches);
       } else {
         await new Promise((resolve) => setTimeout(resolve, 400));
-        setBatches(storedBatches.length ? storedBatches : mockBatches.map(normalizeBatch));
+        setBatches(storedBatches);
       }
     } catch {
       const storedBatches = readStoredBatches();
-      setBatches(storedBatches.length ? storedBatches : mockBatches.map(normalizeBatch));
-      toast.error("โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ กำลังแสดงข้อมูลสำรอง");
+      setBatches(storedBatches);
+      toast.error("โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
