@@ -273,6 +273,14 @@ function isEmployeeComplete(employee) {
   );
 }
 
+function hasEmployeeData(employee) {
+  return Boolean(
+    employee.name.trim() ||
+    employee.gender ||
+    employee.items.some((item) => item.size || item.customSize.trim() || Number(item.qty || 0) > 0)
+  );
+}
+
 function isGasConfigured() {
   return Boolean(APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_SCRIPT_URL"));
 }
@@ -322,7 +330,7 @@ function App() {
 }
 
 function OrderApp({ gasConfigured }) {
-  const [employeeCount, setEmployeeCount] = useState(1);
+  const [employeeCount, setEmployeeCount] = useState("1");
   const [activeStep, setActiveStep] = useState(1);
   const [sizeOpen, setSizeOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -339,15 +347,36 @@ function OrderApp({ gasConfigured }) {
   const totalPieces = summaryRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
 
   useEffect(() => {
-    dispatch({ type: "syncCount", count: employeeCount });
-  }, [employeeCount]);
+    setEmployeeCount(String(state.employees.length));
+  }, [state.employees.length]);
 
   function addEmployeeFromButton() {
-    setEmployeeCount((count) => count + 1);
+    dispatch({ type: "add" });
     window.setTimeout(() => {
       const cards = document.querySelectorAll("[data-employee-card]");
       cards[cards.length - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 120);
+  }
+
+  function applyEmployeeCount() {
+    const targetCount = Math.max(1, Number(employeeCount || 1));
+    const currentCount = state.employees.length;
+    if (targetCount === currentCount) {
+      toast.info("จำนวนรายการตรงกับที่สร้างไว้แล้ว");
+      return;
+    }
+
+    if (targetCount < currentCount) {
+      const removedEmployees = state.employees.slice(targetCount);
+      const willRemoveFilledRows = removedEmployees.some(hasEmployeeData);
+      if (willRemoveFilledRows && !window.confirm("การลดจำนวนจะทำให้ข้อมูลพนักงานรายการท้าย ๆ ถูกลบ คุณต้องการดำเนินการต่อหรือไม่?")) {
+        setEmployeeCount(String(currentCount));
+        return;
+      }
+    }
+
+    dispatch({ type: "syncCount", count: targetCount });
+    toast.success(`สร้างรายการพนักงาน ${targetCount} รายการแล้ว`);
   }
 
   function validateCompanyStep() {
@@ -425,7 +454,7 @@ function OrderApp({ gasConfigured }) {
       toast.success("บันทึกคำสั่งซื้อเรียบร้อยแล้ว");
       setSummaryOpen(false);
       setActiveStep(1);
-      setEmployeeCount(1);
+      setEmployeeCount("1");
       dispatch({ type: "reset", count: 1 });
     } catch {
       toast.error("ส่งข้อมูลไม่สำเร็จ");
@@ -447,12 +476,15 @@ function OrderApp({ gasConfigured }) {
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <SectionTitle icon={Users} title="รายชื่อพนักงาน" compact />
-              <Field label="จำนวนพนักงาน">
-                <div className="w-full sm:w-40">
+              <Field label="ระบุจำนวนพนักงานที่ต้องการสั่งชุด">
+                <div className="grid w-full gap-2 sm:w-[22rem] sm:grid-cols-[1fr_auto]">
                   <TextInput value={employeeCount} onChange={(value) => {
                     const nextCount = digitsOnly(value);
-                    setEmployeeCount(nextCount === "" ? "" : Math.max(1, Number(nextCount)));
+                    setEmployeeCount(nextCount);
                   }} placeholder="ใส่จำนวน" inputMode="numeric" pattern="[0-9]*" />
+                  <button onClick={applyEmployeeCount} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-5 font-bold text-white shadow-sm transition hover:-translate-y-0.5">
+                    <UserPlus /> สร้างรายการ
+                  </button>
                 </div>
               </Field>
             </div>
