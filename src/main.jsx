@@ -1396,7 +1396,6 @@ function buildTotalSummary(rows) {
 function buildDashboardMetrics(batches) {
   const rows = flattenBatches(batches);
   return {
-    totalBatches: batches.length,
     totalEmployees: batches.reduce((sum, batch) => sum + batch.orders.length, 0),
     totalPieces: rows.reduce((sum, row) => sum + Number(row.qty || 0), 0),
     pendingBatches: batches.filter((batch) => batch.status !== ORDER_STATUS_DELIVERED).length,

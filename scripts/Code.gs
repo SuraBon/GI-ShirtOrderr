@@ -1,18 +1,18 @@
 const SHEET_NAME = "Orders";
 const HEADERS = [
-  "BatchID",
-  "Status",
-  "StatusUpdatedAt",
-  "SubmittedAt",
-  "CompanyName",
-  "Branch",
-  "SupervisorName",
-  "SupervisorPhone",
-  "EmployeeName",
-  "Gender",
-  "Type",
-  "Size",
-  "Qty"
+  "รหัสคำสั่งซื้อ",
+  "สถานะ",
+  "อัปเดตสถานะ",
+  "วันที่ส่ง",
+  "ชื่อบริษัท",
+  "สาขา",
+  "ผู้ติดต่อ",
+  "เบอร์ติดต่อ",
+  "ชื่อพนักงาน",
+  "เพศ",
+  "ประเภท",
+  "ไซส์",
+  "จำนวน"
 ];
 
 function doGet() {
