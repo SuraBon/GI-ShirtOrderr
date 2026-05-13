@@ -1127,8 +1127,7 @@ function Dashboard({ demoMode }) {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat icon={ClipboardList} value={metrics.totalBatches} label="ชุดคำสั่งซื้อ" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat icon={Users} value={metrics.totalEmployees} label="พนักงาน" />
         <Stat icon={ClipboardList} value={metrics.pendingBatches} label="รอจัดส่ง" />
         <Stat icon={PackageCheck} value={metrics.deliveredBatches} label="จัดส่งแล้ว" />
