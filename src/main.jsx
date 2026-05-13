@@ -323,6 +323,7 @@ function App() {
 
 function OrderApp({ gasConfigured }) {
   const [employeeCount, setEmployeeCount] = useState(1);
+  const [activeStep, setActiveStep] = useState(1);
   const [sizeOpen, setSizeOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -349,19 +350,47 @@ function OrderApp({ gasConfigured }) {
     }, 120);
   }
 
+  function validateCompanyStep() {
+    if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
+      toast.error("กรอกชื่อบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อให้ครบก่อน");
+      setActiveStep(1);
+      return false;
+    }
+    return true;
+  }
+
+  function validateEmployeeStep() {
+    if (!state.employees.length || !state.employees.every(isEmployeeComplete)) {
+      toast.error("กรอกชื่อ เลือกเพศ ประเภทชุด ไซส์ และจำนวนของพนักงานให้ครบก่อน");
+      setActiveStep(2);
+      return false;
+    }
+    return true;
+  }
+
+  function goToStep(step) {
+    if (step > 1 && !validateCompanyStep()) return;
+    if (step > 2 && !validateEmployeeStep()) return;
+    setActiveStep(step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goNextStep() {
+    goToStep(Math.min(3, activeStep + 1));
+  }
+
+  function goBackStep() {
+    setActiveStep((step) => Math.max(1, step - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function openSummary() {
+    if (!validateCompanyStep() || !validateEmployeeStep()) return;
     if (!gasConfigured) {
       toast.error("ยังไม่ได้ตั้งค่า Google Sheets URL กรุณาตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ");
       return;
     }
-    if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
-      toast.error("กรอกชื่อบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อให้ครบก่อนส่งคำสั่งซื้อ");
-      return;
-    }
-    if (!state.employees.every(isEmployeeComplete)) {
-      toast.error("กรอกชื่อ เลือกเพศ ประเภทชุด ไซส์ และจำนวนให้ครบก่อนส่งคำสั่งซื้อ");
-      return;
-    }
+    setActiveStep(3);
     setSummaryOpen(true);
   }
 
@@ -395,6 +424,7 @@ function OrderApp({ gasConfigured }) {
       await new Promise((resolve) => setTimeout(resolve, 650));
       toast.success("บันทึกคำสั่งซื้อเรียบร้อยแล้ว");
       setSummaryOpen(false);
+      setActiveStep(1);
       setEmployeeCount(1);
       dispatch({ type: "reset", count: 1 });
     } catch {
@@ -409,29 +439,181 @@ function OrderApp({ gasConfigured }) {
       <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
       <main className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pb-6 pt-3 sm:px-6 lg:gap-5 lg:pb-12 lg:pt-5">
         {!gasConfigured && <SetupWarning />}
-        <OrderSetupCard state={state} dispatch={dispatch} />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <SectionTitle icon={Users} title="รายชื่อพนักงาน" compact />
-          <Field label="จำนวนพนักงาน">
-            <div className="w-full sm:w-40">
-              <TextInput value={employeeCount} onChange={(value) => {
-                const nextCount = digitsOnly(value);
-                setEmployeeCount(nextCount === "" ? "" : Math.max(1, Number(nextCount)));
-              }} placeholder="ใส่จำนวน" inputMode="numeric" pattern="[0-9]*" />
+        <OrderStepNav activeStep={activeStep} onStepClick={goToStep} />
+
+        {activeStep === 1 && <OrderSetupCard state={state} dispatch={dispatch} />}
+
+        {activeStep === 2 && (
+          <>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <SectionTitle icon={Users} title="รายชื่อพนักงาน" compact />
+              <Field label="จำนวนพนักงาน">
+                <div className="w-full sm:w-40">
+                  <TextInput value={employeeCount} onChange={(value) => {
+                    const nextCount = digitsOnly(value);
+                    setEmployeeCount(nextCount === "" ? "" : Math.max(1, Number(nextCount)));
+                  }} placeholder="ใส่จำนวน" inputMode="numeric" pattern="[0-9]*" />
+                </div>
+              </Field>
             </div>
-          </Field>
-        </div>
-        <EmployeeCards employees={state.employees} dispatch={dispatch} />
-        <EmployeeTable employees={state.employees} dispatch={dispatch} />
-        <button onClick={addEmployeeFromButton} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#8FA4C7] bg-white/80 font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
-          <UserPlus /> เพิ่มพนักงาน
-        </button>
-        <DesktopSubmit totalPieces={totalPieces} isSubmitting={isSubmitting} onSubmit={openSummary} />
+            <EmployeeCards employees={state.employees} dispatch={dispatch} />
+            <EmployeeTable employees={state.employees} dispatch={dispatch} />
+            <button onClick={addEmployeeFromButton} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#8FA4C7] bg-white/80 font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
+              <UserPlus /> เพิ่มพนักงาน
+            </button>
+          </>
+        )}
+
+        {activeStep === 3 && (
+          <OrderReviewCard
+            state={state}
+            rows={summaryRows}
+            totalPieces={totalPieces}
+            onEditCompany={() => goToStep(1)}
+            onEditEmployees={() => goToStep(2)}
+          />
+        )}
+
+        <OrderStepActions activeStep={activeStep} totalPieces={totalPieces} isSubmitting={isSubmitting} onBack={goBackStep} onNext={goNextStep} onSubmit={openSummary} />
       </main>
-      <MobileSubmit totalPieces={totalPieces} isSubmitting={isSubmitting} onSubmit={openSummary} />
       <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
       <OrderSummaryDialog open={summaryOpen} setOpen={setSummaryOpen} rows={summaryRows} totalPieces={totalPieces} isSubmitting={isSubmitting} onConfirm={submitOrder} />
     </>
+  );
+}
+
+const ORDER_STEPS = [
+  { id: 1, title: "ข้อมูลบริษัท/สาขา", icon: FileText },
+  { id: 2, title: "รายชื่อพนักงาน", icon: Users },
+  { id: 3, title: "ตรวจสอบคำสั่งซื้อ", icon: PackageCheck }
+];
+
+function OrderStepNav({ activeStep, onStepClick }) {
+  return (
+    <Card className="p-3 sm:p-4">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {ORDER_STEPS.map(({ id, title, icon: Icon }) => {
+          const active = activeStep === id;
+          const done = activeStep > id;
+          return (
+            <button
+              key={id}
+              onClick={() => onStepClick(id)}
+              className={cn(
+                "flex min-h-14 items-center gap-3 rounded-xl border px-3 text-left transition",
+                active ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B] shadow-sm" : "border-[#D8DEEA] bg-white text-[#44536A]",
+                done && "border-[#B7D7C3] bg-[#F0FDF4] text-[#166534]"
+              )}
+            >
+              <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl font-black", active ? "bg-[#002B5B] text-white" : done ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#EEF4FF] text-[#002B5B]")}>
+                {done ? <Check /> : <Icon />}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-black uppercase text-current/70">Step {id}</span>
+                <span className="block break-words text-sm font-black sm:text-base">{title}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function OrderStepActions({ activeStep, totalPieces, isSubmitting, onBack, onNext, onSubmit }) {
+  return (
+    <div className="sticky bottom-3 z-20 rounded-2xl border border-[#D8DEEA] bg-white/95 p-3 shadow-lg backdrop-blur lg:static lg:shadow-sm">
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 place-items-center rounded-xl bg-[#EEF4FF] text-xl font-black text-[#002B5B]">{totalPieces}</span>
+          <div>
+            <p className="font-black text-[#071638]">{activeStep === 3 ? "จำนวนรวมก่อนส่ง" : "จำนวนรวม"}</p>
+            <p className="text-sm font-semibold text-[#64748B]">Step {activeStep} จาก 3</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:flex">
+          <button onClick={onBack} disabled={activeStep === 1 || isSubmitting} className="min-h-12 rounded-xl border border-[#CBD5E1] bg-white px-5 font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-40">
+            ย้อนกลับ
+          </button>
+          {activeStep < 3 ? (
+            <button onClick={onNext} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-6 font-bold text-white">
+              ถัดไป
+            </button>
+          ) : (
+            <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-6 font-bold text-white disabled:opacity-60">
+              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งซื้อ
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderReviewCard({ state, rows, totalPieces, onEditCompany, onEditEmployees }) {
+  return (
+    <div className="grid gap-4">
+      <Card>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <SectionTitle icon={PackageCheck} title="ตรวจสอบคำสั่งซื้อ" />
+          <button onClick={onEditEmployees} className="min-h-10 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-bold text-[#002B5B]">
+            แก้ไขรายชื่อ
+          </button>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ReviewMetric label="บริษัท" value={state.companyName || "-"} />
+          <ReviewMetric label="สาขา" value={state.branch || "-"} />
+          <ReviewMetric label="ผู้ติดต่อ" value={state.supervisorName || "-"} />
+          <ReviewMetric label="เบอร์" value={state.supervisorPhone || "-"} />
+        </div>
+        <button onClick={onEditCompany} className="mt-4 min-h-10 rounded-xl border border-[#CBD5E1] bg-white px-4 text-sm font-bold text-[#002B5B]">
+          แก้ไขข้อมูลบริษัท/สาขา
+        </button>
+      </Card>
+
+      <Card className="overflow-hidden p-0">
+        <div className="flex items-center justify-between gap-3 border-b border-[#E7EAF0] p-4 sm:p-5">
+          <h2 className="text-lg font-extrabold text-[#071638]">สรุปรายการทั้งหมด</h2>
+          <span className="rounded-xl bg-[#EEF4FF] px-4 py-2 text-sm font-black text-[#002B5B]">{totalPieces} ชิ้น</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px] text-left text-sm">
+            <thead className="bg-[#EEF4FF] text-xs font-black uppercase tracking-[.12em] text-[#44536A]">
+              <tr>
+                <th className="px-4 py-3">ชื่อพนักงาน</th>
+                <th className="px-4 py-3">ประเภท</th>
+                <th className="px-4 py-3">ไซส์</th>
+                <th className="px-4 py-3 text-right">จำนวน</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="border-t border-[#E7EAF0]">
+                  <td className="px-4 py-3 font-bold text-[#071638]">{row.name}</td>
+                  <td className="px-4 py-3">{row.type}</td>
+                  <td className="px-4 py-3">{row.size}</td>
+                  <td className="px-4 py-3 text-right font-black">{row.qty}</td>
+                </tr>
+              ))}
+              {!rows.length && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีรายการสำหรับตรวจสอบ</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ReviewMetric({ label, value }) {
+  return (
+    <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3">
+      <p className="text-xs font-bold text-[#64748B]">{label}</p>
+      <p className="mt-1 break-words font-extrabold text-[#071638]">{value}</p>
+    </div>
   );
 }
 
