@@ -30,7 +30,7 @@ import "./index.css";
 const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || "YOUR_SCRIPT_URL_HERE";
 const DASHBOARD_PATH = "/";
 const ORDER_PATH = "#/order";
-const DASHBOARD_PASSCODE = "1234";
+const DASHBOARD_PASSCODE = import.meta.env.VITE_DASHBOARD_PASSCODE || "";
 const ORDER_STORAGE_KEY = "gi-shirt-order-batches";
 const DEFAULT_COMPANY_NAME = "โกลด์ อินทิเกรท จำกัด";
 const ORDER_STATUS_PENDING = "รอจัดส่ง";
