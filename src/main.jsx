@@ -450,7 +450,7 @@ function DashboardApp({ demoMode, onOpenOrder }) {
   return (
     <>
       <DashboardHeader onOpenOrder={onOpenOrder} />
-      <main className="relative z-10 mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-4 pb-10 pt-3 sm:px-6 lg:gap-5 lg:pt-5">
+      <main className="relative z-10 mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-4 pb-10 pt-3 sm:px-6 lg:gap-4 lg:pt-5">
         <Dashboard demoMode={demoMode} />
       </main>
     </>
@@ -1101,15 +1101,15 @@ function Dashboard({ demoMode }) {
 
   return (
     <>
-      <section className="rounded-3xl border border-[#D8E3F5] bg-white px-4 py-4 shadow-sm sm:px-5">
+      <section className="rounded-2xl border border-[#D8E3F5] bg-white/96 px-4 py-4 shadow-sm sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-black tracking-tight text-[#071638] sm:text-3xl">Dashboard</h2>
+            <h2 className="text-xl font-extrabold tracking-tight text-[#071638] sm:text-2xl">Dashboard</h2>
             <p className="mt-1 text-sm font-semibold text-[#64748B]">ดูชุดคำสั่งซื้อและยอดรวมจากข้อมูลที่หน้า Order ส่งเข้ามา</p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <button onClick={loadData} className="flex min-h-10 items-center justify-center rounded-xl border border-[#BFD0EA] bg-white px-4 text-sm font-black text-[#002B5B]">Refresh</button>
-            <button onClick={exportCsv} className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-black text-[#002B5B]">
+            <button onClick={loadData} className="flex min-h-10 items-center justify-center rounded-xl border border-[#BFD0EA] bg-white px-4 text-sm font-bold text-[#002B5B]">Refresh</button>
+            <button onClick={exportCsv} className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-bold text-[#002B5B]">
               <Download /> Export CSV
             </button>
           </div>
@@ -1121,23 +1121,25 @@ function Dashboard({ demoMode }) {
           <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={["ทุกสาขา", ...BRANCHES]} /></Field>
           <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={["ทุกสถานะ", ...ORDER_STATUSES]} /></Field>
           <Field label="ค้นหา"><TextInput value={query} onChange={setQuery} placeholder="ค้นหา BatchID บริษัท ผู้ติดต่อ เบอร์ หรือชื่อพนักงาน" /></Field>
-          <button onClick={clearFilters} className="min-h-14 rounded-2xl border border-[#CBD5E1] bg-white px-5 font-black text-[#002B5B] shadow-sm">
+          <button onClick={clearFilters} className="min-h-12 rounded-xl border border-[#CBD5E1] bg-white px-5 font-bold text-[#002B5B] shadow-sm">
             ล้างตัวกรอง
           </button>
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat icon={ClipboardList} value={metrics.totalBatches} label="ชุดคำสั่งซื้อ" />
+        <Stat icon={Users} value={metrics.totalEmployees} label="พนักงาน" />
         <Stat icon={ClipboardList} value={metrics.pendingBatches} label="รอจัดส่ง" />
         <Stat icon={PackageCheck} value={metrics.deliveredBatches} label="จัดส่งแล้ว" />
       </div>
 
       <Tabs.Root defaultValue="orders" className="grid gap-4">
         <Tabs.List className="grid grid-cols-2 rounded-2xl border border-[#D8DEEA] bg-white p-1 shadow-sm">
-          <Tabs.Trigger value="orders" className="min-h-12 rounded-xl text-sm font-black text-[#64748B] data-[state=active]:bg-[#002B5B] data-[state=active]:text-white">
+          <Tabs.Trigger value="orders" className="min-h-11 rounded-xl text-sm font-bold text-[#64748B] data-[state=active]:bg-[#002B5B] data-[state=active]:text-white">
             ชุดคำสั่งซื้อ ({filteredBatches.length})
           </Tabs.Trigger>
-          <Tabs.Trigger value="totals" className="min-h-12 rounded-xl text-sm font-black text-[#64748B] data-[state=active]:bg-[#002B5B] data-[state=active]:text-white">
+          <Tabs.Trigger value="totals" className="min-h-11 rounded-xl text-sm font-bold text-[#64748B] data-[state=active]:bg-[#002B5B] data-[state=active]:text-white">
             สรุปยอดรวม ({metrics.totalPieces} ชิ้น)
           </Tabs.Trigger>
         </Tabs.List>
@@ -1172,38 +1174,38 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete }) {
   }
 
   return (
-    <div className="rounded-3xl border border-[#D8DEEA] bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#9EB7DD] hover:shadow-md">
+    <div className="rounded-2xl border border-[#D8DEEA] bg-white/96 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#9EB7DD] hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[.14em] text-[#64748B]">{batch.batchId}</p>
-          <h3 className="mt-2 text-xl font-black text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</h3>
-          <p className="mt-1 text-sm font-black text-[#002B5B]">{batch.branch}</p>
+          <p className="text-[12px] font-bold text-[#64748B]">{batch.batchId}</p>
+          <h3 className="mt-1 text-lg font-extrabold text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</h3>
+          <p className="mt-1 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
           <p className="mt-1 text-sm font-semibold text-[#64748B]">
             {new Date(batch.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
           </p>
         </div>
         <StatusBadge status={batch.status} />
       </div>
-      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <MiniMetric label="บริษัท" value={batch.companyName || "-"} />
         <MiniMetric label="ผู้ติดต่อ" value={batch.supervisorName || "-"} />
         <MiniMetric label="พนักงาน" value={totalEmployees} />
         <MiniMetric label="จำนวน" value={`${totalPieces} ชิ้น`} />
       </div>
-      <p className="mt-3 text-xs font-bold text-[#64748B]">อัปเดตสถานะ: {new Date(batch.statusUpdatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
+      <p className="mt-3 text-xs font-semibold text-[#64748B]">อัปเดตสถานะ: {new Date(batch.statusUpdatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {buildTypeTotals(flattenBatches([batch])).map((row) => (
-          <span key={row.type} className="rounded-full border border-[#D8DEEA] px-3 py-1 text-xs font-black text-[#44536A]">{row.type}: {row.qty}</span>
+          <span key={row.type} className="rounded-full border border-[#D8DEEA] px-3 py-1 text-xs font-bold text-[#44536A]">{row.type}: {row.qty}</span>
         ))}
       </div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
         <Field label="สถานะ">
           <Select value={batch.status} values={ORDER_STATUSES} onChange={(status) => onStatusChange(batch.batchId, status)} />
         </Field>
-        <button onClick={onOpen} className="min-h-14 rounded-2xl bg-[#002B5B] px-5 font-black text-white">
+        <button onClick={onOpen} className="min-h-12 rounded-xl bg-[#002B5B] px-5 font-bold text-white">
           ดูรายละเอียด
         </button>
-        <button onClick={confirmDelete} className="min-h-14 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] px-5 font-black text-[#B91C1C]">
+        <button onClick={confirmDelete} className="min-h-12 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-5 font-bold text-[#B91C1C]">
           ลบ
         </button>
       </div>
@@ -1214,7 +1216,7 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete }) {
 function StatusBadge({ status }) {
   const delivered = status === ORDER_STATUS_DELIVERED;
   return (
-    <span className={cn("shrink-0 rounded-full px-3 py-1 text-xs font-black", delivered ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>
+    <span className={cn("shrink-0 rounded-full px-3 py-1 text-xs font-bold", delivered ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>
       {status}
     </span>
   );
@@ -1222,9 +1224,9 @@ function StatusBadge({ status }) {
 
 function MiniMetric({ label, value }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-[#F4F7FC] px-3 py-3">
+    <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3">
       <p className="truncate text-xs font-bold text-[#64748B]">{label}</p>
-      <p className="mt-1 truncate font-black text-[#071638]">{value}</p>
+      <p className="mt-1 truncate font-extrabold text-[#071638]">{value}</p>
     </div>
   );
 }
@@ -1234,11 +1236,11 @@ function TotalSummaryView({ summaryRows, typeTotals }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[.82fr_1.18fr]">
       <Card>
-        <h2 className="text-lg font-black text-[#071638]">ยอดรวมตามประเภทชุด</h2>
+        <h2 className="text-lg font-extrabold text-[#071638]">ยอดรวมตามประเภทชุด</h2>
         <div className="mt-4 grid gap-3">
           {typeTotals.length ? typeTotals.map((row) => (
             <div key={row.type}>
-              <div className="mb-2 flex items-center justify-between text-sm font-black">
+              <div className="mb-2 flex items-center justify-between text-sm font-bold">
                 <span>{row.type}</span>
                 <span>{row.qty} ชิ้น</span>
               </div>
@@ -1251,10 +1253,10 @@ function TotalSummaryView({ summaryRows, typeTotals }) {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-black text-[#071638]">ยอดรวมตามไซส์</h2>
-        <div className="mt-4 overflow-hidden rounded-2xl border border-[#E2E8F0]">
+        <h2 className="text-lg font-extrabold text-[#071638]">ยอดรวมตามไซส์</h2>
+        <div className="mt-4 overflow-hidden rounded-xl border border-[#E2E8F0]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#EEF4FF] text-xs font-black uppercase tracking-[.12em] text-[#44536A]">
+            <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
               <tr>
                 <th className="px-4 py-3">ประเภท</th>
                 <th className="px-4 py-3">ไซส์</th>
@@ -1266,7 +1268,7 @@ function TotalSummaryView({ summaryRows, typeTotals }) {
                 <tr key={`${row.type}-${row.size}`} className="border-t border-[#E2E8F0]">
                   <td className="px-4 py-3 font-bold">{row.type}</td>
                   <td className="px-4 py-3">{row.size}</td>
-                  <td className="px-4 py-3 text-right font-black">{row.qty}</td>
+                  <td className="px-4 py-3 text-right font-extrabold">{row.qty}</td>
                 </tr>
               )) : (
                 <tr><td colSpan={3} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีข้อมูล</td></tr>
@@ -1289,13 +1291,13 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
     <Dialog.Root open={Boolean(batch)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-[1.5rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           {batch && (
             <>
               <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
                 <div>
-                  <Dialog.Title className="text-2xl font-black text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</Dialog.Title>
-                  <p className="mt-1 text-sm font-black text-[#002B5B]">{batch.branch}</p>
+                  <Dialog.Title className="text-xl font-extrabold text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</Dialog.Title>
+                  <p className="mt-1 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
                   <p className="mt-1 text-sm font-semibold text-[#64748B]">{batch.batchId}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1309,28 +1311,28 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                   <MiniMetric label="ผู้ติดต่อ" value={batch.supervisorName || "-"} />
                   <MiniMetric label="เบอร์ติดต่อ" value={batch.supervisorPhone || "-"} />
                   <MiniMetric label="จำนวนรวม" value={`${getBatchPieces(batch)} ชิ้น`} />
-                  <div className="min-w-0 rounded-2xl bg-[#F4F7FC] px-3 py-3">
+                  <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3">
                     <p className="truncate text-xs font-bold text-[#64748B]">สถานะ</p>
-                    <select value={batch.status} onChange={(event) => onStatusChange(batch.batchId, event.target.value)} className="mt-1 min-h-9 w-full rounded-xl border border-[#D8DEEA] bg-white px-2 text-sm font-black text-[#071638] outline-none focus:border-[#002B5B]">
+                    <select value={batch.status} onChange={(event) => onStatusChange(batch.batchId, event.target.value)} className="mt-1 min-h-9 w-full rounded-xl border border-[#D8DEEA] bg-white px-2 text-sm font-bold text-[#071638] outline-none focus:border-[#002B5B]">
                       {ORDER_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
                     </select>
                   </div>
                 </div>
-                <p className="mb-4 rounded-2xl bg-[#EEF4FF] px-4 py-3 text-sm font-bold text-[#002B5B]">
+                <p className="mb-4 rounded-xl bg-[#EEF4FF] px-4 py-3 text-sm font-bold text-[#002B5B]">
                   อัปเดตสถานะล่าสุด: {new Date(batch.statusUpdatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
                 </p>
                 <div className="grid gap-3">
                   {batch.orders.map((order) => (
-                    <div key={`${batch.batchId}-${order.name}`} className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white">
+                    <div key={`${batch.batchId}-${order.name}`} className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
                       <div className="flex items-center justify-between bg-[#EEF4FF] px-4 py-3">
                         <div>
-                          <p className="font-black text-[#071638]">{order.name}</p>
+                          <p className="font-extrabold text-[#071638]">{order.name}</p>
                           <p className="text-xs font-bold text-[#64748B]">{order.gender}</p>
                         </div>
-                        <span className="text-sm font-black text-[#002B5B]">{order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0)} ชิ้น</span>
+                        <span className="text-sm font-extrabold text-[#002B5B]">{order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0)} ชิ้น</span>
                       </div>
                       <table className="w-full table-fixed text-left text-sm">
-                        <thead className="text-xs font-black uppercase tracking-[.12em] text-[#44536A]">
+                        <thead className="text-xs font-bold text-[#44536A]">
                           <tr>
                             <th className="px-3 py-3 sm:px-4">ประเภท</th>
                             <th className="w-20 px-3 py-3 sm:w-24 sm:px-4">ไซส์</th>
@@ -1342,7 +1344,7 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                             <tr key={`${order.name}-${item.type}-${item.size}`} className="border-t border-[#E2E8F0]">
                               <td className="break-words px-3 py-3 font-bold sm:px-4">{item.type}</td>
                               <td className="break-words px-3 py-3 sm:px-4">{item.size}</td>
-                              <td className="px-3 py-3 text-right font-black sm:px-4">{item.qty}</td>
+                              <td className="px-3 py-3 text-right font-extrabold sm:px-4">{item.qty}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1350,7 +1352,7 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                     </div>
                   ))}
                 </div>
-                <button onClick={confirmDelete} className="mt-4 min-h-12 w-full rounded-2xl border border-[#FECACA] bg-[#FEF2F2] font-black text-[#B91C1C]">
+                <button onClick={confirmDelete} className="mt-4 min-h-12 w-full rounded-xl border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C]">
                   ลบชุดคำสั่งซื้อนี้
                 </button>
               </div>
@@ -1364,7 +1366,7 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
 
 function EmptyDashboardState({ text, compact = false }) {
   return (
-    <div className={cn("rounded-3xl border border-dashed border-[#CBD5E1] bg-white/70 text-center font-bold text-[#64748B]", compact ? "p-4" : "p-10")}>
+    <div className={cn("rounded-2xl border border-dashed border-[#CBD5E1] bg-white/70 text-center font-bold text-[#64748B]", compact ? "p-4" : "p-10")}>
       {text}
     </div>
   );
@@ -1406,8 +1408,8 @@ function buildDashboardMetrics(batches) {
 function Stat({ icon: Icon, value, label }) {
   return (
     <Card className="p-4 sm:p-5">
-      <div className="grid size-10 place-items-center rounded-2xl bg-[#EEF4FF] text-[#002B5B]"><Icon /></div>
-      <p className="mt-4 text-3xl font-black text-[#071638]">{value}</p>
+      <div className="grid size-9 place-items-center rounded-xl bg-[#EEF4FF] text-[#002B5B]"><Icon /></div>
+      <p className="mt-3 text-2xl font-extrabold text-[#071638]">{value}</p>
       <p className="mt-1 text-xs font-bold text-[#64748B]">{label}</p>
     </Card>
   );
@@ -1416,7 +1418,7 @@ function Stat({ icon: Icon, value, label }) {
 function SkeletonDashboard() {
   return (
     <div className="relative z-10 mx-auto grid w-full max-w-[1240px] gap-4 px-4 py-6 sm:px-6">
-      {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-32 animate-pulse rounded-3xl bg-white/80" />)}
+      {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-32 animate-pulse rounded-2xl bg-white/80" />)}
     </div>
   );
 }
