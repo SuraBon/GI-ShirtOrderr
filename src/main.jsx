@@ -29,7 +29,7 @@ import "./index.css";
 
 const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || "YOUR_SCRIPT_URL_HERE";
 const DASHBOARD_PATH = "/";
-const ORDER_PATH = "/order";
+const ORDER_PATH = "#/order";
 const DASHBOARD_PASSCODE = "1234";
 const ORDER_STORAGE_KEY = "gi-shirt-order-batches";
 const DEFAULT_COMPANY_NAME = "โกลด์ อินทิเกรท จำกัด";
@@ -37,7 +37,26 @@ const ORDER_STATUS_PENDING = "รอจัดส่ง";
 const ORDER_STATUS_DELIVERED = "จัดส่งแล้ว";
 const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED];
 
-const BRANCHES = ["สำนักงานใหญ่", "สาขาเชียงใหม่", "สาขาภูเก็ต", "สาขาอุดร", "สาขาหาดใหญ่"];
+const BRANCHES = [
+  "GI(สาขาใหญ่)",
+  "EV7(สาขาใหญ่)",
+  "The Mall บางกะปิ",
+  "The Mall บางแค",
+  "Warehouse",
+  "กาญจนาภิเษก",
+  "บางนา ทาวเวอร์",
+  "พิบูลสงคราม",
+  "มหาชัย",
+  "มีนบุรี",
+  "วิภาวดี",
+  "ศาลายา",
+  "อยุธยา",
+  "อุบลราชธานี",
+  "เซ็นทรัลพระราม 2",
+  "เลียบคลอง 2",
+  "เลียบด่วนรามอินทรา",
+  "เอ็มสเฟียร์"
+];
 const CLOTHING_TYPES = ["เสื้อโปโล", "เสื้อช็อป", "กางเกงช็อป"];
 const GENDERS = ["ชาย", "หญิง"];
 const OTHER_SIZE = "อื่นๆ";
@@ -150,6 +169,14 @@ function orderReducer(state, action) {
           ? { ...employee, items: employee.items.map((item) => item.type === action.itemType ? { ...item, ...action.patch } : item) }
           : employee)
       };
+    case "reset":
+      return {
+        companyName: DEFAULT_COMPANY_NAME,
+        branch: BRANCHES[0],
+        supervisorName: "",
+        supervisorPhone: "",
+        employees: Array.from({ length: action.count || 1 }, (_, index) => createEmployee(index))
+      };
     default:
       return state;
   }
@@ -246,20 +273,41 @@ function isEmployeeComplete(employee) {
   );
 }
 
+function isGasConfigured() {
+  return Boolean(APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_SCRIPT_URL"));
+}
+
+function getRoute() {
+  const hashRoute = window.location.hash.replace(/^#/, "");
+  if (hashRoute) return hashRoute;
+  if (window.location.pathname.endsWith("/order")) return "/order";
+  if (window.location.pathname.endsWith("/dashboard")) return "/dashboard";
+  return "/";
+}
+
 function App() {
-  const [path, setPath] = useState(window.location.pathname);
-  const demoMode = APPS_SCRIPT_URL.includes("YOUR_SCRIPT_URL") || !APPS_SCRIPT_URL;
+  const [path, setPath] = useState(getRoute);
+  const gasConfigured = isGasConfigured();
 
   function navigate(pathname) {
-    window.history.pushState({}, "", pathname);
-    setPath(pathname);
+    if (pathname.startsWith("#")) {
+      window.location.hash = pathname.slice(1);
+      setPath(getRoute());
+    } else {
+      window.history.pushState({}, "", pathname);
+      setPath(getRoute());
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   useEffect(() => {
-    const onPopState = () => setPath(window.location.pathname);
+    const onPopState = () => setPath(getRoute());
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    window.addEventListener("hashchange", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("hashchange", onPopState);
+    };
   }, []);
 
   const isDashboard = path === DASHBOARD_PATH || path === "/dashboard";
@@ -267,20 +315,20 @@ function App() {
   return (
     <div className="min-h-screen bg-[#F5F7FB] text-[#071638]">
       <ReactBitsAurora />
-      {isDashboard ? <DashboardApp demoMode={demoMode} onOpenOrder={() => navigate(ORDER_PATH)} /> : <OrderApp demoMode={demoMode} />}
+      {isDashboard ? <DashboardApp demoMode={!gasConfigured} onOpenOrder={() => navigate(ORDER_PATH)} /> : <OrderApp gasConfigured={gasConfigured} />}
       <Toaster richColors position="top-center" />
     </div>
   );
 }
 
-function OrderApp({ demoMode }) {
+function OrderApp({ gasConfigured }) {
   const [employeeCount, setEmployeeCount] = useState(1);
   const [sizeOpen, setSizeOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [state, dispatch] = useReducer(orderReducer, {
     companyName: DEFAULT_COMPANY_NAME,
-    branch: "สำนักงานใหญ่",
+    branch: BRANCHES[0],
     supervisorName: "",
     supervisorPhone: "",
     employees: Array.from({ length: 1 }, (_, index) => createEmployee(index))
@@ -302,6 +350,14 @@ function OrderApp({ demoMode }) {
   }
 
   function openSummary() {
+    if (!gasConfigured) {
+      toast.error("ยังไม่ได้ตั้งค่า Google Sheets URL กรุณาตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ");
+      return;
+    }
+    if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
+      toast.error("กรอกชื่อบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อให้ครบก่อนส่งคำสั่งซื้อ");
+      return;
+    }
     if (!state.employees.every(isEmployeeComplete)) {
       toast.error("กรอกชื่อ เลือกเพศ ประเภทชุด ไซส์ และจำนวนให้ครบก่อนส่งคำสั่งซื้อ");
       return;
@@ -332,15 +388,15 @@ function OrderApp({ demoMode }) {
 
     setIsSubmitting(true);
     try {
-      if (!demoMode) {
-        const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
-        const result = await response.json().catch(() => null);
-        if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
-      }
+      const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
       saveStoredBatch(payload);
       await new Promise((resolve) => setTimeout(resolve, 650));
       toast.success("บันทึกคำสั่งซื้อเรียบร้อยแล้ว");
       setSummaryOpen(false);
+      setEmployeeCount(1);
+      dispatch({ type: "reset", count: 1 });
     } catch {
       toast.error("ส่งข้อมูลไม่สำเร็จ");
     } finally {
@@ -352,6 +408,7 @@ function OrderApp({ demoMode }) {
     <>
       <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
       <main className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pb-6 pt-3 sm:px-6 lg:gap-5 lg:pb-12 lg:pt-5">
+        {!gasConfigured && <SetupWarning />}
         <OrderSetupCard state={state} dispatch={dispatch} />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <SectionTitle icon={Users} title="รายชื่อพนักงาน" compact />
@@ -495,7 +552,7 @@ function DashboardHeader({ onOpenOrder }) {
 
 function Card({ children, className, ...props }) {
   return (
-    <section {...props} className={cn("shadcn-card reactbits-soft-border reactbits-fade-up rounded-3xl border border-[#DCE5F4] bg-white/92 p-5 shadow-sm backdrop-blur sm:p-6", className)}>
+    <section {...props} className={cn("shadcn-card reactbits-soft-border reactbits-fade-up rounded-2xl border border-[#DCE5F4] bg-white/96 p-4 shadow-sm backdrop-blur sm:p-5", className)}>
       {children}
     </section>
   );
@@ -504,10 +561,10 @@ function Card({ children, className, ...props }) {
 function SectionTitle({ icon: Icon, title, compact }) {
   return (
     <div className="flex items-center gap-3">
-      <span className={cn("grid place-items-center rounded-2xl bg-[#E9F1FF] text-[#002B5B]", compact ? "size-10" : "size-12")}>
+      <span className={cn("grid place-items-center rounded-xl bg-[#E9F1FF] text-[#002B5B]", compact ? "size-9" : "size-11")}>
         <Icon />
       </span>
-      <h2 className={cn("font-black tracking-tight text-[#071638]", compact ? "text-xl" : "text-2xl")}>{title}</h2>
+      <h2 className={cn("font-extrabold tracking-tight text-[#071638]", compact ? "text-lg" : "text-xl")}>{title}</h2>
     </div>
   );
 }
@@ -515,7 +572,7 @@ function SectionTitle({ icon: Icon, title, compact }) {
 function Field({ label, children }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-xs font-black uppercase tracking-[.14em] text-[#44536A]">{label}</span>
+      <span className="text-[13px] font-bold text-[#44536A]">{label}</span>
       {children}
     </label>
   );
@@ -532,7 +589,7 @@ function TextInput({ value, onChange, placeholder, inputMode, type = "text", pat
       placeholder={placeholder}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
-      className="min-h-14 w-full rounded-2xl border border-[#CBD5E1] bg-white px-4 text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
+      className="min-h-12 w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 text-[15px] text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
     />
   );
 }
@@ -544,7 +601,7 @@ function Select({ value, values, onChange, placeholder = "เลือกไซ�
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-14 w-full appearance-none rounded-2xl border border-[#CBD5E1] bg-white px-4 pr-11 text-[#071638] shadow-sm outline-none transition focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
+        className="min-h-12 w-full appearance-none rounded-xl border border-[#CBD5E1] bg-white px-3.5 pr-10 text-[15px] text-[#071638] shadow-sm outline-none transition focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
       >
         {values.map((item, index) => <option key={`${item}-${index}`} value={item}>{item || placeholder}</option>)}
       </select>
@@ -557,7 +614,7 @@ function OrderSetupCard({ state, dispatch }) {
   return (
     <Card>
       <SectionTitle icon={FileText} title="ข้อมูลการสั่งชุด" />
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)] lg:items-end">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)] lg:items-end">
         <Field label="ชื่อบริษัท">
           <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
         </Field>
@@ -572,6 +629,14 @@ function OrderSetupCard({ state, dispatch }) {
         </Field>
       </div>
     </Card>
+  );
+}
+
+function SetupWarning() {
+  return (
+    <div className="rounded-2xl border border-[#F6D88B] bg-[#FFF8E3] px-4 py-3 text-sm font-semibold leading-6 text-[#725000] shadow-sm">
+      ยังไม่ได้ตั้งค่า Google Sheets URL ระบบจะไม่อนุญาตให้ส่งคำสั่งซื้อจนกว่าจะตั้งค่า VITE_GAS_URL
+    </div>
   );
 }
 
@@ -594,9 +659,9 @@ function EmployeeCards({ employees, dispatch }) {
         const hasNext = index + 1 < employees.length;
         return (
           <Card key={employee.id} className={cn("p-0 transition", employee.expanded && "ring-2 ring-[#002B5B]")} data-employee-card={employee.id}>
-            <button onClick={() => dispatch({ type: "toggleExpand", id: employee.id })} className="flex min-h-16 w-full items-center justify-between gap-3 p-4 text-left">
+            <button onClick={() => dispatch({ type: "toggleExpand", id: employee.id })} className="flex min-h-14 w-full items-center justify-between gap-3 p-3 text-left">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#E8F0FF] text-lg font-black text-[#002B5B]">{index + 1}</span>
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#E8F0FF] text-base font-extrabold text-[#002B5B]">{index + 1}</span>
                 <div className="min-w-0">
                   <p className="truncate font-black text-[#071638]">{employee.name || "ยังไม่ระบุชื่อ"}</p>
                   <p className="mt-1 text-xs font-semibold text-[#64748B]">{employee.gender || "เลือกเพศ"}</p>
@@ -605,7 +670,7 @@ function EmployeeCards({ employees, dispatch }) {
               <span className={cn("rounded-full px-3 py-1 text-xs font-black", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "ยังไม่ครบ"}</span>
             </button>
             {employee.expanded && (
-              <div className="grid gap-5 border-t border-[#E2E8F0] p-4">
+              <div className="grid gap-4 border-t border-[#E2E8F0] p-3">
                 <Field label="ชื่อ-นามสกุล">
                   <TextInput value={employee.name} onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
                 </Field>
@@ -616,11 +681,11 @@ function EmployeeCards({ employees, dispatch }) {
                 <ItemEditors employee={employee} dispatch={dispatch} />
                 <div className={cn("grid gap-3", hasNext ? "grid-cols-[1fr_56px]" : "grid-cols-[56px] justify-end")}>
                   {hasNext && (
-                    <button onClick={() => saveAndOpenNext(index)} disabled={!complete} className="reactbits-shine flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#002B5B] font-black text-white disabled:cursor-not-allowed disabled:opacity-45">
+                    <button onClick={() => saveAndOpenNext(index)} disabled={!complete} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">
                       <Check /> ถัดไป
                     </button>
                   )}
-                  <button onClick={() => dispatch({ type: "delete", id: employee.id })} className="grid min-h-14 place-items-center rounded-2xl border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]">
+                  <button onClick={() => dispatch({ type: "delete", id: employee.id })} className="grid min-h-12 place-items-center rounded-xl border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]">
                     <Trash2 />
                   </button>
                 </div>
@@ -640,7 +705,7 @@ function GarmentChoices({ employee, dispatch }) {
         {CLOTHING_TYPES.map((type) => {
           const checked = employee.items.some((item) => item.type === type);
           return (
-            <label key={type} className={cn("flex min-h-14 items-center gap-2 rounded-2xl border px-3 font-black transition", checked ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B]" : "border-[#CBD5E1] bg-white text-[#071638]")}>
+            <label key={type} className={cn("flex min-h-12 items-center gap-2 rounded-xl border px-3 font-bold transition", checked ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B]" : "border-[#CBD5E1] bg-white text-[#071638]")}>
               <input type="checkbox" checked={checked} onChange={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="size-5 accent-[#002B5B]" />
               <span className="min-w-0 break-words leading-tight">{type}</span>
             </label>
@@ -656,7 +721,7 @@ function GenderChoices({ employee, dispatch }) {
     <Field label="เพศ">
       <div className="grid gap-3">
         {GENDERS.map((gender) => (
-          <button key={gender} onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })} className={cn("min-h-14 rounded-2xl border font-black transition", employee.gender === gender ? "border-[#002B5B] bg-[#002B5B] text-white shadow-md" : "border-[#CBD5E1] bg-white text-[#071638]")}>
+          <button key={gender} onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })} className={cn("min-h-12 rounded-xl border font-bold transition", employee.gender === gender ? "border-[#002B5B] bg-[#002B5B] text-white shadow-md" : "border-[#CBD5E1] bg-white text-[#071638]")}>
             {gender}
           </button>
         ))}
@@ -671,13 +736,13 @@ function ItemEditors({ employee, dispatch }) {
   }
 
   return (
-    <div className="rounded-3xl bg-[#EDF4FF] p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#002B5B]"><Shirt /> รายละเอียดชุด</div>
+    <div className="rounded-2xl bg-[#EDF4FF] p-3">
+      <div className="mb-3 flex items-center gap-2 text-sm font-extrabold text-[#002B5B]"><Shirt /> รายละเอียดชุด</div>
       <div className="grid gap-3">
         {CLOTHING_TYPES.map((type) => {
           const item = employee.items.find((item) => item.type === type);
           return (
-            <div key={type} className="rounded-2xl bg-white p-3 shadow-sm">
+            <div key={type} className="rounded-xl bg-white p-3 shadow-sm">
               {item ? (
                 <>
                   <div className="grid grid-cols-[1fr_110px] items-center gap-3">
@@ -702,13 +767,21 @@ function ItemEditors({ employee, dispatch }) {
 }
 
 function EmployeeTable({ employees, dispatch }) {
+  const [query, setQuery] = useState("");
+  const filteredEmployees = employees.filter((employee) =>
+    [employee.name, employee.gender, ...employee.items.map((item) => `${item.type} ${item.size} ${item.customSize}`)]
+      .join(" ")
+      .toLowerCase()
+      .includes(query.trim().toLowerCase())
+  );
+
   return (
     <Card className="hidden overflow-hidden p-0 lg:block">
-      <div className="flex items-center justify-between border-b border-[#E7EAF0] p-6">
-        <h2 className="text-2xl font-black text-[#071638]">รายการสั่งซื้อพนักงาน</h2>
+      <div className="flex items-center justify-between border-b border-[#E7EAF0] p-5">
+        <h2 className="text-xl font-extrabold text-[#071638]">รายการสั่งซื้อพนักงาน</h2>
         <div className="relative w-80">
           <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]" />
-          <input className="min-h-12 w-full rounded-full border border-[#CBD5E1] bg-white pl-12 pr-4 outline-none focus:border-[#002B5B]" placeholder="ค้นหาชื่อพนักงาน" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#CBD5E1] bg-white pl-11 pr-4 text-[15px] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" placeholder="ค้นหาชื่อพนักงาน" />
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -717,7 +790,9 @@ function EmployeeTable({ employees, dispatch }) {
             <tr>{["#", "ชื่อ", "เพศ", "ประเภทชุด", "ไซส์/จำนวน", "จัดการ"].map((header) => <th key={header} className="px-5 py-4 text-center">{header}</th>)}</tr>
           </thead>
           <tbody>
-            {employees.map((employee, index) => (
+            {filteredEmployees.map((employee) => {
+              const index = employees.findIndex((item) => item.id === employee.id);
+              return (
               <tr key={employee.id} className="border-b border-[#E7EAF0] align-top">
                 <td className="px-5 py-6 text-center text-lg font-black">{index + 1}</td>
                 <td className="px-5 py-6"><GridInput value={employee.name} placeholder="ระบุชื่อพนักงาน" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} /></td>
@@ -734,7 +809,12 @@ function EmployeeTable({ employees, dispatch }) {
                   </button>
                 </td>
               </tr>
-            ))}
+            );})}
+            {!filteredEmployees.length && (
+              <tr>
+                <td colSpan={6} className="px-5 py-10 text-center font-bold text-[#64748B]">ไม่พบพนักงานตามคำค้นหา</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -796,12 +876,12 @@ function GridSelect({ value, values, onChange, placeholder = "เลือกไ
 function MobileSubmit({ totalPieces, isSubmitting, onSubmit }) {
   return (
     <div className="relative z-10 mx-auto w-full max-w-[1180px] px-4 pb-6 sm:px-6 lg:hidden">
-      <div className="grid grid-cols-[90px_1fr] gap-3 rounded-3xl border border-[#D8DEEA] bg-white/95 p-3 shadow-sm backdrop-blur">
-        <div className="flex min-h-14 flex-col justify-center rounded-2xl bg-[#EEF4FF] px-3 text-[#002B5B]">
+      <div className="grid grid-cols-[86px_1fr] gap-3 rounded-2xl border border-[#D8DEEA] bg-white/95 p-3 shadow-sm backdrop-blur">
+        <div className="flex min-h-12 flex-col justify-center rounded-xl bg-[#EEF4FF] px-3 text-[#002B5B]">
           <span className="text-xl font-black">{totalPieces}</span>
           <span className="text-xs font-bold">รายการ</span>
         </div>
-        <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#002B5B] font-black text-white">
+        <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#002B5B] font-bold text-white">
           {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันการสั่งชุด
         </button>
       </div>
@@ -811,15 +891,15 @@ function MobileSubmit({ totalPieces, isSubmitting, onSubmit }) {
 
 function DesktopSubmit({ totalPieces, isSubmitting, onSubmit }) {
   return (
-    <div className="hidden items-center justify-between rounded-3xl border border-[#D8DEEA] bg-white/95 p-4 shadow-sm backdrop-blur lg:flex">
+    <div className="hidden items-center justify-between rounded-2xl border border-[#D8DEEA] bg-white/95 p-4 shadow-sm backdrop-blur lg:flex">
       <div className="flex items-center gap-3">
-        <span className="grid size-12 place-items-center rounded-2xl bg-[#EEF4FF] text-xl font-black text-[#002B5B]">{totalPieces}</span>
+        <span className="grid size-11 place-items-center rounded-xl bg-[#EEF4FF] text-xl font-black text-[#002B5B]">{totalPieces}</span>
         <div>
           <p className="font-black text-[#071638]">จำนวนรวม</p>
           <p className="text-sm font-semibold text-[#64748B]">ตรวจสอบรายการก่อนส่งคำสั่งซื้อ</p>
         </div>
       </div>
-      <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-14 min-w-72 items-center justify-center gap-2 rounded-2xl bg-[#002B5B] px-6 font-black text-white">
+      <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 min-w-72 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-6 font-bold text-white">
         {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันการสั่งชุด
       </button>
     </div>
