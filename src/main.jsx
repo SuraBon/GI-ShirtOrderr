@@ -27,7 +27,7 @@ import {
 import { cn } from "./lib/utils";
 import "./index.css";
 
-const APPS_SCRIPT_URL = "YOUR_SCRIPT_URL_HERE";
+const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || "YOUR_SCRIPT_URL_HERE";
 const DASHBOARD_PATH = "/";
 const ORDER_PATH = "/order";
 const DASHBOARD_PASSCODE = "1234";
