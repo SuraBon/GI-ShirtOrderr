@@ -391,7 +391,9 @@ function OrderApp({ demoMode }) {
     setIsSubmitting(true);
     try {
       if (!demoMode) {
-        await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
       }
       saveStoredBatch(payload);
       await new Promise((resolve) => setTimeout(resolve, 650));
@@ -1004,13 +1006,18 @@ function Dashboard({ demoMode }) {
       const storedBatches = readStoredBatches();
       if (!demoMode) {
         const response = await fetch(APPS_SCRIPT_URL);
-        const data = await response.json();
+        const result = await response.json();
+        const data = Array.isArray(result) ? result : result?.data;
         const remoteBatches = Array.isArray(data) && data[0]?.orders ? data.map(normalizeBatch) : [];
         setBatches(remoteBatches.length ? remoteBatches : storedBatches);
       } else {
         await new Promise((resolve) => setTimeout(resolve, 400));
         setBatches(storedBatches.length ? storedBatches : mockBatches.map(normalizeBatch));
       }
+    } catch {
+      const storedBatches = readStoredBatches();
+      setBatches(storedBatches.length ? storedBatches : mockBatches.map(normalizeBatch));
+      toast.error("โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ กำลังแสดงข้อมูลสำรอง");
     } finally {
       setLoading(false);
     }
