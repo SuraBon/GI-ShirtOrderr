@@ -71,6 +71,16 @@ select option {
   }
 }
 
+@keyframes employee-attention-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+  45% {
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.16);
+  }
+}
+
 .reactbits-aurora {
   position: fixed;
   inset: 0;
@@ -144,6 +154,36 @@ select option {
   width: 42%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
   animation: rb-shimmer 3.8s ease-in-out infinite;
+}
+
+.employee-scroll-region {
+  scrollbar-width: thin;
+  scrollbar-color: #9eb7dd #edf4ff;
+  overscroll-behavior: contain;
+}
+
+.employee-scroll-region::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.employee-scroll-region::-webkit-scrollbar-track {
+  background: #edf4ff;
+  border-radius: 999px;
+}
+
+.employee-scroll-region::-webkit-scrollbar-thumb {
+  background: #9eb7dd;
+  border: 2px solid #edf4ff;
+  border-radius: 999px;
+}
+
+.employee-scroll-region::-webkit-scrollbar-thumb:hover {
+  background: #6f8fbd;
+}
+
+.employee-attention {
+  animation: employee-attention-pulse 1.4s ease-in-out 2;
 }
 
 .reactbits-soft-border {

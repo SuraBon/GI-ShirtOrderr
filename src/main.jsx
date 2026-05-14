@@ -60,6 +60,7 @@ const BRANCHES = [
 const CLOTHING_TYPES = ["เสื้อโปโล", "เสื้อช็อป", "กางเกงช็อป"];
 const GENDERS = ["ชาย", "หญิง"];
 const OTHER_SIZE = "อื่นๆ";
+const PHONE_LENGTH = 10;
 
 const SIZE_TABLES = {
   "เสื้อโปโล ชาย": [["S", '38"'], ["M", '40"'], ["L", '42"'], ["XL", '44"'], ["2XL", '46"'], ["3XL", '48"'], ["4XL", '50"'], ["5XL", '52"']],
@@ -93,6 +94,10 @@ function digitsOnly(value) {
   return String(value ?? "").replace(/\D/g, "");
 }
 
+function phoneDigitsOnly(value) {
+  return digitsOnly(value).slice(0, PHONE_LENGTH);
+}
+
 function employeeIdOnly(value) {
   return String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
@@ -106,6 +111,23 @@ function createEmployee(index = 0) {
     expanded: index === 0,
     items: []
   };
+}
+
+function canDeleteEmployee(employees) {
+  return employees.length > 1;
+}
+
+function scrollInsideEmployeeList(target) {
+  const scrollRegion = target?.closest(".employee-scroll-region");
+  if (!target || !scrollRegion) {
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  const targetRect = target.getBoundingClientRect();
+  const regionRect = scrollRegion.getBoundingClientRect();
+  const top = targetRect.top - regionRect.top + scrollRegion.scrollTop - ((scrollRegion.clientHeight - targetRect.height) / 2);
+  scrollRegion.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
 function orderReducer(state, action) {
@@ -123,9 +145,12 @@ function orderReducer(state, action) {
     case "add":
       return { ...state, employees: [...state.employees, createEmployee(state.employees.length)] };
     case "delete":
+      if (!canDeleteEmployee(state.employees)) return state;
       return { ...state, employees: state.employees.filter((employee) => employee.id !== action.id) };
     case "toggleExpand":
       return { ...state, employees: state.employees.map((employee) => employee.id === action.id ? { ...employee, expanded: !employee.expanded } : employee) };
+    case "focusEmployee":
+      return { ...state, employees: state.employees.map((employee) => ({ ...employee, expanded: employee.id === action.id })) };
     case "saveAndOpenNext":
       return {
         ...state,
@@ -273,6 +298,21 @@ function isEmployeeComplete(employee) {
   );
 }
 
+function getEmployeeMissingFields(employee) {
+  const missing = [];
+  if (!employee.name.trim()) missing.push("ชื่อ");
+  if (!employee.gender) missing.push("เพศ");
+  if (!employee.items.length) {
+    missing.push("ประเภทชุด");
+    return missing;
+  }
+
+  if (employee.items.some((item) => !item.size)) missing.push("ไซส์");
+  if (employee.items.some((item) => Number(item.qty || 0) <= 0)) missing.push("จำนวน");
+  if (employee.items.some((item) => item.size === OTHER_SIZE && !item.customSize.trim())) missing.push("ระบุไซส์เพิ่มเติม");
+  return missing;
+}
+
 function hasEmployeeData(employee) {
   return Boolean(
     employee.name.trim() ||
@@ -335,6 +375,7 @@ function OrderApp({ gasConfigured }) {
   const [sizeOpen, setSizeOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [invalidEmployeeId, setInvalidEmployeeId] = useState("");
   const [state, dispatch] = useReducer(orderReducer, {
     companyName: DEFAULT_COMPANY_NAME,
     branch: BRANCHES[0],
@@ -350,11 +391,31 @@ function OrderApp({ gasConfigured }) {
     setEmployeeCount(String(state.employees.length));
   }, [state.employees.length]);
 
+  useEffect(() => {
+    const invalidEmployee = state.employees.find((employee) => employee.id === invalidEmployeeId);
+    if (invalidEmployeeId && invalidEmployee && isEmployeeComplete(invalidEmployee)) {
+      setInvalidEmployeeId("");
+    }
+  }, [invalidEmployeeId, state.employees]);
+
+  function jumpToEmployee(employeeId) {
+    setActiveStep(2);
+    setInvalidEmployeeId(employeeId);
+    dispatch({ type: "focusEmployee", id: employeeId });
+    window.setTimeout(() => {
+      const targetSelector = window.matchMedia("(min-width: 1024px)").matches ? `[data-employee-row="${employeeId}"]` : `[data-employee-card="${employeeId}"]`;
+      const target = document.querySelector(targetSelector);
+      scrollInsideEmployeeList(target);
+      target?.querySelector("input:not([type='checkbox']), select, button")?.focus({ preventScroll: true });
+    }, 120);
+  }
+
   function addEmployeeFromButton() {
     dispatch({ type: "add" });
     window.setTimeout(() => {
-      const cards = document.querySelectorAll("[data-employee-card]");
-      cards[cards.length - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const targetSelector = window.matchMedia("(min-width: 1024px)").matches ? "[data-employee-row]" : "[data-employee-card]";
+      const employees = document.querySelectorAll(targetSelector);
+      scrollInsideEmployeeList(employees[employees.length - 1]);
     }, 120);
   }
 
@@ -385,15 +446,27 @@ function OrderApp({ gasConfigured }) {
       setActiveStep(1);
       return false;
     }
+
+    if (state.supervisorPhone.length !== PHONE_LENGTH) {
+      toast.error(`กรอกเบอร์ติดต่อเป็นตัวเลข ${PHONE_LENGTH} หลัก`);
+      setActiveStep(1);
+      return false;
+    }
+
     return true;
   }
 
   function validateEmployeeStep() {
-    if (!state.employees.length || !state.employees.every(isEmployeeComplete)) {
-      toast.error("กรอกชื่อ เลือกเพศ ประเภทชุด ไซส์ และจำนวนของพนักงานให้ครบก่อน");
+    const invalidEmployee = state.employees.find((employee) => !isEmployeeComplete(employee));
+    if (!state.employees.length || invalidEmployee) {
+      const index = invalidEmployee ? state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1 : 1;
+      const missing = invalidEmployee ? getEmployeeMissingFields(invalidEmployee).join(", ") : "";
+      toast.error(`พนักงานลำดับ ${index} ยังไม่ครบ${missing ? `: ${missing}` : ""}`);
       setActiveStep(2);
+      if (invalidEmployee) jumpToEmployee(invalidEmployee.id);
       return false;
     }
+    setInvalidEmployeeId("");
     return true;
   }
 
@@ -466,7 +539,7 @@ function OrderApp({ gasConfigured }) {
   return (
     <>
       <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
-      <main className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pb-6 pt-3 sm:px-6 lg:gap-5 lg:pb-12 lg:pt-5">
+      <main className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-col gap-3 px-4 pb-6 pt-3 sm:px-6 lg:gap-5 lg:pb-12 lg:pt-5">
         {!gasConfigured && <SetupWarning />}
         <OrderStepNav activeStep={activeStep} onStepClick={goToStep} />
 
@@ -476,23 +549,25 @@ function OrderApp({ gasConfigured }) {
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <SectionTitle icon={Users} title="รายชื่อพนักงาน" compact />
-              <Field label="ระบุจำนวนพนักงานที่ต้องการสั่งชุด">
-                <div className="grid w-full gap-2 sm:w-[22rem] sm:grid-cols-[1fr_auto]">
-                  <TextInput value={employeeCount} onChange={(value) => {
-                    const nextCount = digitsOnly(value);
-                    setEmployeeCount(nextCount);
-                  }} placeholder="ใส่จำนวน" inputMode="numeric" pattern="[0-9]*" />
-                  <button onClick={applyEmployeeCount} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-5 font-bold text-white shadow-sm transition hover:-translate-y-0.5">
-                    <UserPlus /> สร้างรายการ
-                  </button>
-                </div>
-              </Field>
+              <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[22rem_auto] sm:items-end">
+                <Field label="ระบุจำนวนพนักงานที่ต้องการสั่งชุด">
+                  <div className="grid w-full grid-cols-[1fr_auto] gap-2">
+                    <TextInput value={employeeCount} onChange={(value) => {
+                      const nextCount = digitsOnly(value);
+                      setEmployeeCount(nextCount);
+                    }} placeholder="ใส่จำนวน" inputMode="numeric" pattern="[0-9]*" />
+                    <button onClick={applyEmployeeCount} className="reactbits-shine flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-[#002B5B] px-3 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 sm:min-h-12 sm:gap-2 sm:px-5 sm:text-[15px]">
+                      <UserPlus /> สร้างรายการ
+                    </button>
+                  </div>
+                </Field>
+                <button onClick={addEmployeeFromButton} className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-dashed border-[#8FA4C7] bg-white/80 px-4 text-sm font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:bg-white sm:min-h-12 sm:px-5 sm:text-[15px] lg:hidden">
+                  <UserPlus /> เพิ่มพนักงาน
+                </button>
+              </div>
             </div>
-            <EmployeeCards employees={state.employees} dispatch={dispatch} />
-            <EmployeeTable employees={state.employees} dispatch={dispatch} />
-            <button onClick={addEmployeeFromButton} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#8FA4C7] bg-white/80 font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
-              <UserPlus /> เพิ่มพนักงาน
-            </button>
+            <EmployeeCards employees={state.employees} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} />
+            <EmployeeTable employees={state.employees} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} onAddEmployee={addEmployeeFromButton} />
           </>
         )}
 
@@ -785,14 +860,14 @@ function SectionTitle({ icon: Icon, title, compact }) {
 
 function Field({ label, children }) {
   return (
-    <label className="flex flex-col gap-2">
-      <span className="text-[13px] font-bold text-[#44536A]">{label}</span>
+    <label className="flex flex-col gap-1.5 sm:gap-2">
+      <span className="text-xs font-bold text-[#44536A] sm:text-[13px]">{label}</span>
       {children}
     </label>
   );
 }
 
-function TextInput({ value, onChange, placeholder, inputMode, type = "text", pattern, autoCapitalize, disabled = false }) {
+function TextInput({ value, onChange, placeholder, inputMode, type = "text", pattern, autoCapitalize, disabled = false, maxLength }) {
   return (
     <input
       type={type}
@@ -800,10 +875,11 @@ function TextInput({ value, onChange, placeholder, inputMode, type = "text", pat
       inputMode={inputMode}
       pattern={pattern}
       autoCapitalize={autoCapitalize}
+      maxLength={maxLength}
       placeholder={placeholder}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
-      className="min-h-12 w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 text-[15px] text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
+      className="min-h-10 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:min-h-12 sm:px-3.5 sm:text-[15px]"
     />
   );
 }
@@ -815,11 +891,11 @@ function Select({ value, values, onChange, placeholder = "เลือกไซ�
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-12 w-full appearance-none rounded-xl border border-[#CBD5E1] bg-white px-3.5 pr-10 text-[15px] text-[#071638] shadow-sm outline-none transition focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
+        className="min-h-10 w-full appearance-none rounded-xl border border-[#CBD5E1] bg-white px-3 pr-9 text-sm text-[#071638] shadow-sm outline-none transition focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:min-h-12 sm:px-3.5 sm:pr-10 sm:text-[15px]"
       >
         {values.map((item, index) => <option key={`${item}-${index}`} value={item}>{item || placeholder}</option>)}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#64748B]" />
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#64748B] sm:right-4 sm:size-5" />
     </div>
   );
 }
@@ -839,7 +915,7 @@ function OrderSetupCard({ state, dispatch }) {
           <TextInput value={state.supervisorName} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorName: value } })} placeholder="ระบุชื่อ-นามสกุล" />
         </Field>
         <Field label="เบอร์ติดต่อ">
-          <TextInput value={state.supervisorPhone} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorPhone: value } })} placeholder="08X-XXX-XXXX" inputMode="tel" />
+          <TextInput value={state.supervisorPhone} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorPhone: phoneDigitsOnly(value) } })} placeholder="08X-XXX-XXXX" inputMode="numeric" pattern="[0-9]*" />
         </Field>
       </div>
     </Card>
@@ -854,73 +930,139 @@ function SetupWarning() {
   );
 }
 
-function EmployeeCards({ employees, dispatch }) {
+function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
+  const canDelete = canDeleteEmployee(employees);
+  const [editingEmployeeId, setEditingEmployeeId] = useState("");
+  const selectedEmployee = employees.find((employee) => employee.id === editingEmployeeId) || null;
+  const selectedIndex = selectedEmployee ? employees.findIndex((employee) => employee.id === selectedEmployee.id) : -1;
+
+  useEffect(() => {
+    if (invalidEmployeeId) setEditingEmployeeId(invalidEmployeeId);
+  }, [invalidEmployeeId]);
+
+  useEffect(() => {
+    if (editingEmployeeId && !employees.some((employee) => employee.id === editingEmployeeId)) {
+      setEditingEmployeeId("");
+    }
+  }, [editingEmployeeId, employees]);
+
   function saveAndOpenNext(index) {
     const nextIndex = index + 1 < employees.length ? index + 1 : -1;
     const nextEmployee = employees[nextIndex];
     dispatch({ type: "saveAndOpenNext", nextIndex });
     if (nextEmployee) {
+      setEditingEmployeeId(nextEmployee.id);
       window.setTimeout(() => {
-        document.querySelector(`[data-employee-card="${nextEmployee.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        scrollInsideEmployeeList(document.querySelector(`[data-employee-card="${nextEmployee.id}"]`));
       }, 80);
+    } else {
+      setEditingEmployeeId("");
     }
   }
 
   return (
-    <div className="grid gap-4 lg:hidden">
-      {employees.map((employee, index) => {
-        const complete = isEmployeeComplete(employee);
-        const hasNext = index + 1 < employees.length;
-        return (
-          <Card key={employee.id} className={cn("p-0 transition", employee.expanded && "ring-2 ring-[#002B5B]")} data-employee-card={employee.id}>
-            <button onClick={() => dispatch({ type: "toggleExpand", id: employee.id })} className="flex min-h-14 w-full items-center justify-between gap-3 p-3 text-left">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#E8F0FF] text-base font-extrabold text-[#002B5B]">{index + 1}</span>
-                <div className="min-w-0">
-                  <p className="truncate font-black text-[#071638]">{employee.name || "ยังไม่ระบุชื่อ"}</p>
-                  <p className="mt-1 text-xs font-semibold text-[#64748B]">{employee.gender || "เลือกเพศ"}</p>
+    <>
+      <div className="employee-scroll-region max-h-[min(44rem,72vh)] overflow-y-auto scroll-smooth pr-1 lg:hidden">
+        <div className="grid gap-3">
+          {employees.map((employee, index) => {
+            const complete = isEmployeeComplete(employee);
+            const missingFields = getEmployeeMissingFields(employee);
+            const isInvalidTarget = invalidEmployeeId === employee.id;
+            return (
+              <Card key={employee.id} className={cn("p-0 transition", isInvalidTarget && "employee-attention border-[#FCA5A5] bg-[#FFF7F7] ring-2 ring-[#EF4444]")} data-employee-card={employee.id}>
+                <button onClick={() => setEditingEmployeeId(employee.id)} className="flex min-h-12 w-full items-center justify-between gap-2 p-2.5 text-left sm:min-h-14 sm:gap-3 sm:p-3">
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#E8F0FF] text-sm font-extrabold text-[#002B5B] sm:size-10 sm:text-base">{index + 1}</span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-[#071638] sm:text-[15px]">{employee.name || "ยังไม่ระบุชื่อ"}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#64748B]">{employee.gender || "เลือกเพศ"}</p>
+                      {!complete && (
+                        <p className="mt-1 text-xs font-black text-[#B91C1C]">ยังขาด: {missingFields.join(", ")}</p>
+                      )}
+                    </div>
+                  </div>
+                  <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-black sm:px-3 sm:text-xs", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "ยังไม่ครบ"}</span>
+                </button>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      <Dialog.Root open={Boolean(selectedEmployee)} onOpenChange={(open) => !open && setEditingEmployeeId("")}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm lg:hidden" />
+          <Dialog.Content className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white lg:hidden">
+            {selectedEmployee && (
+              <>
+                <div className="flex min-h-14 items-center justify-between border-b border-[#E7EAF0] bg-white px-4">
+                  <div className="min-w-0">
+                    <Dialog.Title className="truncate text-base font-black text-[#071638]">
+                      พนักงานลำดับ {selectedIndex + 1}
+                    </Dialog.Title>
+                    <p className="truncate text-xs font-bold text-[#64748B]">{selectedEmployee.name || "ยังไม่ระบุชื่อ"}</p>
+                  </div>
+                  <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด">
+                    <X />
+                  </Dialog.Close>
                 </div>
-              </div>
-              <span className={cn("rounded-full px-3 py-1 text-xs font-black", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "ยังไม่ครบ"}</span>
-            </button>
-            {employee.expanded && (
-              <div className="grid gap-4 border-t border-[#E2E8F0] p-3">
-                <Field label="ชื่อ-นามสกุล">
-                  <TextInput value={employee.name} onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
-                </Field>
-                <div className="grid grid-cols-[.85fr_1.15fr] gap-3">
-                  <GenderChoices employee={employee} dispatch={dispatch} />
-                  <GarmentChoices employee={employee} dispatch={dispatch} />
+
+                <div className="employee-scroll-region min-h-0 flex-1 overflow-y-auto bg-[#F5F7FB] p-3">
+                  <div className="grid gap-3">
+                    <Field label="ชื่อ-นามสกุล">
+                      <TextInput value={selectedEmployee.name} onChange={(value) => dispatch({ type: "patchEmployee", id: selectedEmployee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
+                    </Field>
+                    <div className="grid grid-cols-[.85fr_1.15fr] gap-2.5">
+                      <GenderChoices employee={selectedEmployee} dispatch={dispatch} />
+                      <GarmentChoices employee={selectedEmployee} dispatch={dispatch} />
+                    </div>
+                    <ItemEditors employee={selectedEmployee} dispatch={dispatch} />
+                  </div>
                 </div>
-                <ItemEditors employee={employee} dispatch={dispatch} />
-                <div className={cn("grid gap-3", hasNext ? "grid-cols-[1fr_56px]" : "grid-cols-[56px] justify-end")}>
-                  {hasNext && (
-                    <button onClick={() => saveAndOpenNext(index)} disabled={!complete} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">
+
+                <div className={cn("grid gap-2.5 border-t border-[#E7EAF0] bg-white p-3", selectedIndex + 1 < employees.length ? "grid-cols-[1fr_48px]" : "grid-cols-[48px] justify-end")}>
+                  {selectedIndex + 1 < employees.length && (
+                    <button onClick={() => saveAndOpenNext(selectedIndex)} disabled={!isEmployeeComplete(selectedEmployee)} className="reactbits-shine flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#002B5B] text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">
                       <Check /> ถัดไป
                     </button>
                   )}
-                  <button onClick={() => dispatch({ type: "delete", id: employee.id })} className="grid min-h-12 place-items-center rounded-xl border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]">
+                  <button
+                    onClick={() => {
+                      if (!canDelete) return;
+                      setEditingEmployeeId("");
+                      dispatch({ type: "delete", id: selectedEmployee.id });
+                    }}
+                    disabled={!canDelete}
+                    aria-label={canDelete ? "Delete employee" : "At least one employee is required"}
+                    title={canDelete ? "Delete employee" : "At least one employee is required"}
+                    className={cn(
+                      "grid min-h-11 place-items-center rounded-xl border transition",
+                      canDelete
+                        ? "border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]"
+                        : "cursor-not-allowed border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8]"
+                    )}
+                  >
                     <Trash2 />
                   </button>
                 </div>
-              </div>
+              </>
             )}
-          </Card>
-        );
-      })}
-    </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 }
 
 function GarmentChoices({ employee, dispatch }) {
   return (
     <Field label="เลือกประเภทชุด">
-      <div className="grid gap-3">
+      <div className="grid gap-2.5 sm:gap-3">
         {CLOTHING_TYPES.map((type) => {
           const checked = employee.items.some((item) => item.type === type);
           return (
-            <label key={type} className={cn("flex min-h-12 items-center gap-2 rounded-xl border px-3 font-bold transition", checked ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B]" : "border-[#CBD5E1] bg-white text-[#071638]")}>
-              <input type="checkbox" checked={checked} onChange={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="size-5 accent-[#002B5B]" />
+            <label key={type} className={cn("flex min-h-10 items-center gap-2 rounded-xl border px-2.5 text-sm font-bold transition sm:min-h-12 sm:px-3 sm:text-[15px]", checked ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B]" : "border-[#CBD5E1] bg-white text-[#071638]")}>
+              <input type="checkbox" checked={checked} onChange={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="size-4 accent-[#002B5B] sm:size-5" />
               <span className="min-w-0 break-words leading-tight">{type}</span>
             </label>
           );
@@ -933,9 +1075,9 @@ function GarmentChoices({ employee, dispatch }) {
 function GenderChoices({ employee, dispatch }) {
   return (
     <Field label="เพศ">
-      <div className="grid gap-3">
+      <div className="grid gap-2.5 sm:gap-3">
         {GENDERS.map((gender) => (
-          <button key={gender} onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })} className={cn("min-h-12 rounded-xl border font-bold transition", employee.gender === gender ? "border-[#002B5B] bg-[#002B5B] text-white shadow-md" : "border-[#CBD5E1] bg-white text-[#071638]")}>
+          <button key={gender} onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })} className={cn("min-h-10 rounded-xl border text-sm font-bold transition sm:min-h-12 sm:text-[15px]", employee.gender === gender ? "border-[#002B5B] bg-[#002B5B] text-white shadow-md" : "border-[#CBD5E1] bg-white text-[#071638]")}>
             {gender}
           </button>
         ))}
@@ -946,31 +1088,31 @@ function GenderChoices({ employee, dispatch }) {
 
 function ItemEditors({ employee, dispatch }) {
   if (!employee.items.length) {
-    return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-4 text-sm font-semibold text-[#64748B]">เลือกประเภทชุดอย่างน้อย 1 รายการ</div>;
+    return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#64748B] sm:p-4">เลือกประเภทชุดอย่างน้อย 1 รายการ</div>;
   }
 
   return (
-    <div className="rounded-2xl bg-[#EDF4FF] p-3">
-      <div className="mb-3 flex items-center gap-2 text-sm font-extrabold text-[#002B5B]"><Shirt /> รายละเอียดชุด</div>
-      <div className="grid gap-3">
+    <div className="rounded-2xl bg-[#EDF4FF] p-2.5 sm:p-3">
+      <div className="mb-2 flex items-center gap-2 text-sm font-extrabold text-[#002B5B] sm:mb-3"><Shirt /> รายละเอียดชุด</div>
+      <div className="grid gap-2.5 sm:gap-3">
         {CLOTHING_TYPES.map((type) => {
           const item = employee.items.find((item) => item.type === type);
           return (
-            <div key={type} className="rounded-xl bg-white p-3 shadow-sm">
+            <div key={type} className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
               {item ? (
                 <>
-                  <div className="grid grid-cols-[1fr_110px] items-center gap-3">
+                  <div className="grid grid-cols-[1fr_88px] items-center gap-2.5 sm:grid-cols-[1fr_110px] sm:gap-3">
                     <Select value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} />
                     <TextInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
                   </div>
                   {item.size === OTHER_SIZE && (
-                    <div className="mt-3">
+                    <div className="mt-2.5 sm:mt-3">
                       <TextInput value={item.customSize} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} placeholder="ระบุไซส์เพิ่มเติม" />
                     </div>
                   )}
                 </>
               ) : (
-                <span className="block min-h-14" aria-hidden="true" />
+                <span className="block min-h-10 sm:min-h-14" aria-hidden="true" />
               )}
             </div>
           );
@@ -980,8 +1122,14 @@ function ItemEditors({ employee, dispatch }) {
   );
 }
 
-function EmployeeTable({ employees, dispatch }) {
+function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }) {
   const [query, setQuery] = useState("");
+  const canDelete = canDeleteEmployee(employees);
+
+  useEffect(() => {
+    if (invalidEmployeeId) setQuery("");
+  }, [invalidEmployeeId]);
+
   const filteredEmployees = employees.filter((employee) =>
     [employee.name, employee.gender, ...employee.items.map((item) => `${item.type} ${item.size} ${item.customSize}`)]
       .join(" ")
@@ -991,25 +1139,39 @@ function EmployeeTable({ employees, dispatch }) {
 
   return (
     <Card className="hidden overflow-hidden p-0 lg:block">
-      <div className="flex items-center justify-between border-b border-[#E7EAF0] p-5">
+      <div className="flex items-center justify-between gap-4 border-b border-[#E7EAF0] p-5">
         <h2 className="text-xl font-extrabold text-[#071638]">รายการสั่งซื้อพนักงาน</h2>
-        <div className="relative w-80">
-          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#CBD5E1] bg-white pl-11 pr-4 text-[15px] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" placeholder="ค้นหาชื่อพนักงาน" />
+        <div className="flex items-center gap-2">
+          <div className="relative w-80">
+            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#CBD5E1] bg-white pl-11 pr-4 text-[15px] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" placeholder="ค้นหาชื่อพนักงาน" />
+          </div>
+          <button onClick={onAddEmployee} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-[#8FA4C7] bg-white/90 px-4 font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
+            <UserPlus /> เพิ่มพนักงาน
+          </button>
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="employee-scroll-region max-h-[34rem] overflow-auto scroll-smooth">
         <table className="w-full min-w-[980px] text-center text-sm">
-          <thead className="bg-[#EEF4FF] text-xs uppercase tracking-[.16em] text-[#1F2937]">
+          <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs uppercase tracking-[.16em] text-[#1F2937]">
             <tr>{["#", "ชื่อ", "เพศ", "ประเภทชุด", "ไซส์/จำนวน", "จัดการ"].map((header) => <th key={header} className="px-5 py-4 text-center">{header}</th>)}</tr>
           </thead>
           <tbody>
             {filteredEmployees.map((employee) => {
               const index = employees.findIndex((item) => item.id === employee.id);
+              const complete = isEmployeeComplete(employee);
+              const missingFields = getEmployeeMissingFields(employee);
+              const isInvalidTarget = invalidEmployeeId === employee.id;
               return (
-              <tr key={employee.id} className="border-b border-[#E7EAF0] align-top">
-                <td className="px-5 py-6 text-center text-lg font-black">{index + 1}</td>
-                <td className="px-5 py-6"><GridInput value={employee.name} placeholder="ระบุชื่อพนักงาน" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} /></td>
+              <tr key={employee.id} data-employee-row={employee.id} className={cn("border-b border-[#E7EAF0] align-top", isInvalidTarget && "employee-attention bg-[#FFF7F7] outline outline-2 outline-[#EF4444] outline-offset-[-2px]")}>
+                <td className="px-5 py-6 text-center">
+                  <span className="text-lg font-black">{index + 1}</span>
+                  {!complete && <span className="mt-2 block rounded-full bg-[#FEF3C7] px-2 py-1 text-[11px] font-black text-[#92400E]">ยังไม่ครบ</span>}
+                </td>
+                <td className="px-5 py-6">
+                  <GridInput value={employee.name} placeholder="ระบุชื่อพนักงาน" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
+                  {!complete && <p className="mt-2 text-left text-xs font-black text-[#B91C1C]">ยังขาด: {missingFields.join(", ")}</p>}
+                </td>
                 <td className="px-5 py-6"><GridSelect value={employee.gender} values={["", ...GENDERS]} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} /></td>
                 <td className="px-5 py-6">
                   <DesktopGarmentChoices employee={employee} dispatch={dispatch} />
@@ -1018,7 +1180,18 @@ function EmployeeTable({ employees, dispatch }) {
                   <DesktopItemEditors employee={employee} dispatch={dispatch} />
                 </td>
                 <td className="px-5 py-6 text-center">
-                  <button onClick={() => dispatch({ type: "delete", id: employee.id })} className="grid size-11 place-items-center rounded-2xl border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]">
+                  <button
+                    onClick={() => dispatch({ type: "delete", id: employee.id })}
+                    disabled={!canDelete}
+                    aria-label={canDelete ? "Delete employee" : "At least one employee is required"}
+                    title={canDelete ? "Delete employee" : "At least one employee is required"}
+                    className={cn(
+                      "grid size-11 place-items-center rounded-2xl border transition",
+                      canDelete
+                        ? "border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]"
+                        : "cursor-not-allowed border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8]"
+                    )}
+                  >
                     <Trash2 />
                   </button>
                 </td>
