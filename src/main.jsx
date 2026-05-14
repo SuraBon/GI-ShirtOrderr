@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useReducer, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -32,6 +32,7 @@ const DASHBOARD_PATH = "/";
 const ORDER_PATH = "#/order";
 const DASHBOARD_PASSCODE = import.meta.env.VITE_DASHBOARD_PASSCODE || "";
 const ORDER_STORAGE_KEY = "gi-shirt-order-batches";
+const ORDER_DRAFT_KEY = "gi-shirt-order-draft";
 const DEFAULT_COMPANY_NAME = "โกลด์ อินทิเกรท จำกัด";
 const ORDER_STATUS_PENDING = "รอจัดส่ง";
 const ORDER_STATUS_DELIVERED = "จัดส่งแล้ว";
@@ -98,6 +99,13 @@ function phoneDigitsOnly(value) {
   return digitsOnly(value).slice(0, PHONE_LENGTH);
 }
 
+function formatPhone(value) {
+  const phone = phoneDigitsOnly(value);
+  if (phone.length <= 3) return phone;
+  if (phone.length <= 6) return `${phone.slice(0, 3)}-${phone.slice(3)}`;
+  return `${phone.slice(0, 3)}-${phone.slice(3, 6)}-${phone.slice(6)}`;
+}
+
 function employeeIdOnly(value) {
   return String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
@@ -111,6 +119,54 @@ function createEmployee(index = 0) {
     expanded: index === 0,
     items: []
   };
+}
+
+function createInitialOrderState() {
+  return {
+    companyName: DEFAULT_COMPANY_NAME,
+    branch: BRANCHES[0],
+    supervisorName: "",
+    supervisorPhone: "",
+    employees: Array.from({ length: 1 }, (_, index) => createEmployee(index))
+  };
+}
+
+function normalizeDraftEmployee(employee, index) {
+  return {
+    ...createEmployee(index),
+    ...employee,
+    id: employee?.id || crypto.randomUUID(),
+    name: employee?.name || "",
+    gender: employee?.gender || "",
+    expanded: index === 0,
+    items: Array.isArray(employee?.items)
+      ? employee.items.map((item) => ({
+        type: item.type || "",
+        size: item.size || "",
+        customSize: item.customSize || "",
+        qty: digitsOnly(item.qty || "")
+      })).filter((item) => CLOTHING_TYPES.includes(item.type))
+      : []
+  };
+}
+
+function readOrderDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(ORDER_DRAFT_KEY) || "null");
+    if (!draft || typeof draft !== "object") return createInitialOrderState();
+    const employees = Array.isArray(draft.employees) && draft.employees.length
+      ? draft.employees.map(normalizeDraftEmployee)
+      : createInitialOrderState().employees;
+    return {
+      companyName: draft.companyName || DEFAULT_COMPANY_NAME,
+      branch: BRANCHES.includes(draft.branch) ? draft.branch : BRANCHES[0],
+      supervisorName: draft.supervisorName || "",
+      supervisorPhone: phoneDigitsOnly(draft.supervisorPhone || ""),
+      employees
+    };
+  } catch {
+    return createInitialOrderState();
+  }
 }
 
 function canDeleteEmployee(employees) {
@@ -140,6 +196,16 @@ function orderReducer(state, action) {
       const count = Math.max(1, Number(action.count || 1));
       const employees = state.employees.slice(0, count);
       while (employees.length < count) employees.push(createEmployee(employees.length));
+      return { ...state, employees };
+    }
+    case "setNamesFromPaste": {
+      const names = action.names.filter(Boolean);
+      if (!names.length) return state;
+      const employees = names.map((name, index) => ({
+        ...(state.employees[index] || createEmployee(index)),
+        name,
+        expanded: index === 0
+      }));
       return { ...state, employees };
     }
     case "add":
@@ -194,14 +260,22 @@ function orderReducer(state, action) {
           ? { ...employee, items: employee.items.map((item) => item.type === action.itemType ? { ...item, ...action.patch } : item) }
           : employee)
       };
-    case "reset":
+    case "copyEmployeeSetup": {
+      const source = state.employees.find((employee) => employee.id === action.sourceId);
+      if (!source) return state;
       return {
-        companyName: DEFAULT_COMPANY_NAME,
-        branch: BRANCHES[0],
-        supervisorName: "",
-        supervisorPhone: "",
-        employees: Array.from({ length: action.count || 1 }, (_, index) => createEmployee(index))
+        ...state,
+        employees: state.employees.map((employee) => employee.id === action.id
+          ? {
+            ...employee,
+            gender: source.gender,
+            items: source.items.map((item) => ({ ...item }))
+          }
+          : employee)
       };
+    }
+    case "reset":
+      return createInitialOrderState();
     default:
       return state;
   }
@@ -376,20 +450,26 @@ function OrderApp({ gasConfigured }) {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalidEmployeeId, setInvalidEmployeeId] = useState("");
-  const [state, dispatch] = useReducer(orderReducer, {
-    companyName: DEFAULT_COMPANY_NAME,
-    branch: BRANCHES[0],
-    supervisorName: "",
-    supervisorPhone: "",
-    employees: Array.from({ length: 1 }, (_, index) => createEmployee(index))
-  });
+  const [pastedNames, setPastedNames] = useState("");
+  const skipDraftSaveRef = useRef(false);
+  const [state, dispatch] = useReducer(orderReducer, undefined, readOrderDraft);
 
   const summaryRows = useMemo(() => buildOrderSummaryRows(state.employees), [state.employees]);
   const totalPieces = summaryRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  const completedEmployees = useMemo(() => state.employees.filter(isEmployeeComplete).length, [state.employees]);
+  const firstIncompleteEmployee = useMemo(() => state.employees.find((employee) => !isEmployeeComplete(employee)) || null, [state.employees]);
 
   useEffect(() => {
     setEmployeeCount(String(state.employees.length));
   }, [state.employees.length]);
+
+  useEffect(() => {
+    if (skipDraftSaveRef.current) {
+      skipDraftSaveRef.current = false;
+      return;
+    }
+    localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(state));
+  }, [state]);
 
   useEffect(() => {
     const invalidEmployee = state.employees.find((employee) => employee.id === invalidEmployeeId);
@@ -417,6 +497,28 @@ function OrderApp({ gasConfigured }) {
       const employees = document.querySelectorAll(targetSelector);
       scrollInsideEmployeeList(employees[employees.length - 1]);
     }, 120);
+  }
+
+  function applyPastedNames() {
+    const names = pastedNames.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
+    if (!names.length) {
+      toast.error("วางรายชื่ออย่างน้อย 1 บรรทัด");
+      return;
+    }
+    dispatch({ type: "setNamesFromPaste", names });
+    setPastedNames("");
+    toast.success(`สร้างรายชื่อ ${names.length} คนแล้ว`);
+  }
+
+  function jumpToFirstIncompleteEmployee() {
+    const invalidEmployee = state.employees.find((employee) => !isEmployeeComplete(employee));
+    if (!invalidEmployee) {
+      toast.success("กรอกครบทุกคนแล้ว");
+      return;
+    }
+    const index = state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1;
+    toast.info(`ไปที่พนักงานลำดับ ${index}`);
+    jumpToEmployee(invalidEmployee.id);
   }
 
   function applyEmployeeCount() {
@@ -525,6 +627,8 @@ function OrderApp({ gasConfigured }) {
       saveStoredBatch(payload);
       await new Promise((resolve) => setTimeout(resolve, 650));
       toast.success("บันทึกคำสั่งซื้อเรียบร้อยแล้ว");
+      localStorage.removeItem(ORDER_DRAFT_KEY);
+      skipDraftSaveRef.current = true;
       setSummaryOpen(false);
       setActiveStep(1);
       setEmployeeCount("1");
@@ -567,6 +671,21 @@ function OrderApp({ gasConfigured }) {
             </div>
             <EmployeeCards employees={state.employees} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} />
             <EmployeeTable employees={state.employees} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} onAddEmployee={addEmployeeFromButton} />
+            <Card className="p-3 sm:p-4">
+              <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+                <Field label="วางรายชื่อหลายบรรทัด">
+                  <textarea
+                    value={pastedNames}
+                    onChange={(event) => setPastedNames(event.target.value)}
+                    placeholder={"สมชาย ใจดี\nสมหญิง ใจงาม"}
+                    className="min-h-24 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
+                  />
+                </Field>
+                <button onClick={applyPastedNames} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5">
+                  <Users /> สร้างจากรายชื่อ
+                </button>
+              </div>
+            </Card>
           </>
         )}
 
@@ -580,7 +699,18 @@ function OrderApp({ gasConfigured }) {
           />
         )}
 
-        <OrderStepActions activeStep={activeStep} totalPieces={totalPieces} isSubmitting={isSubmitting} onBack={goBackStep} onNext={goNextStep} onSubmit={openSummary} />
+        <OrderStepActions
+          activeStep={activeStep}
+          totalPieces={totalPieces}
+          completedEmployees={completedEmployees}
+          totalEmployees={state.employees.length}
+          hasIncompleteEmployee={Boolean(firstIncompleteEmployee)}
+          isSubmitting={isSubmitting}
+          onBack={goBackStep}
+          onNext={goNextStep}
+          onSubmit={openSummary}
+          onJumpIncomplete={jumpToFirstIncompleteEmployee}
+        />
       </main>
       <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
       <OrderSummaryDialog open={summaryOpen} setOpen={setSummaryOpen} rows={summaryRows} totalPieces={totalPieces} isSubmitting={isSubmitting} onConfirm={submitOrder} />
@@ -626,7 +756,7 @@ function OrderStepNav({ activeStep, onStepClick }) {
   );
 }
 
-function OrderStepActions({ activeStep, totalPieces, isSubmitting, onBack, onNext, onSubmit }) {
+function OrderStepActions({ activeStep, totalPieces, completedEmployees, totalEmployees, hasIncompleteEmployee, isSubmitting, onBack, onNext, onSubmit, onJumpIncomplete }) {
   return (
     <div className="sticky bottom-3 z-20 rounded-2xl border border-[#D8DEEA] bg-white/95 p-3 shadow-lg backdrop-blur lg:static lg:shadow-sm">
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -634,10 +764,17 @@ function OrderStepActions({ activeStep, totalPieces, isSubmitting, onBack, onNex
           <span className="grid size-11 place-items-center rounded-xl bg-[#EEF4FF] text-xl font-black text-[#002B5B]">{totalPieces}</span>
           <div>
             <p className="font-black text-[#071638]">{activeStep === 3 ? "จำนวนรวมก่อนส่ง" : "จำนวนรวม"}</p>
-            <p className="text-sm font-semibold text-[#64748B]">Step {activeStep} จาก 3</p>
+            <p className="text-sm font-semibold text-[#64748B]">
+              {activeStep === 2 ? `กรอกครบ ${completedEmployees}/${totalEmployees} คน` : `Step ${activeStep} จาก 3`}
+            </p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:flex">
+          {activeStep === 2 && (
+            <button onClick={onJumpIncomplete} disabled={!hasIncompleteEmployee} className="col-span-2 min-h-11 rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-4 text-sm font-black text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:col-span-1">
+              ไปคนที่ยังไม่ครบ
+            </button>
+          )}
           <button onClick={onBack} disabled={activeStep === 1 || isSubmitting} className="min-h-12 rounded-xl border border-[#CBD5E1] bg-white px-5 font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-40">
             ย้อนกลับ
           </button>
@@ -670,7 +807,7 @@ function OrderReviewCard({ state, rows, totalPieces, onEditCompany, onEditEmploy
           <ReviewMetric label="บริษัท" value={state.companyName || "-"} />
           <ReviewMetric label="สาขา" value={state.branch || "-"} />
           <ReviewMetric label="ผู้ติดต่อ" value={state.supervisorName || "-"} />
-          <ReviewMetric label="เบอร์" value={state.supervisorPhone || "-"} />
+          <ReviewMetric label="เบอร์" value={formatPhone(state.supervisorPhone) || "-"} />
         </div>
         <button onClick={onEditCompany} className="mt-4 min-h-10 rounded-xl border border-[#CBD5E1] bg-white px-4 text-sm font-bold text-[#002B5B]">
           แก้ไขข้อมูลบริษัท/สาขา
@@ -866,9 +1003,10 @@ function Field({ label, children }) {
   );
 }
 
-function TextInput({ value, onChange, placeholder, inputMode, type = "text", pattern, autoCapitalize, disabled = false, maxLength }) {
+const TextInput = React.forwardRef(function TextInput({ value, onChange, placeholder, inputMode, type = "text", pattern, autoCapitalize, disabled = false, maxLength }, ref) {
   return (
     <input
+      ref={ref}
       type={type}
       value={value}
       inputMode={inputMode}
@@ -881,7 +1019,7 @@ function TextInput({ value, onChange, placeholder, inputMode, type = "text", pat
       className="min-h-10 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:min-h-12 sm:px-3.5 sm:text-[15px]"
     />
   );
-}
+});
 
 function Select({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false }) {
   return (
@@ -932,6 +1070,7 @@ function SetupWarning() {
 function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
   const canDelete = canDeleteEmployee(employees);
   const [editingEmployeeId, setEditingEmployeeId] = useState("");
+  const firstPopupInputRef = useRef(null);
   const selectedEmployee = employees.find((employee) => employee.id === editingEmployeeId) || null;
   const selectedIndex = selectedEmployee ? employees.findIndex((employee) => employee.id === selectedEmployee.id) : -1;
 
@@ -945,6 +1084,11 @@ function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
     }
   }, [editingEmployeeId, employees]);
 
+  useEffect(() => {
+    if (!selectedEmployee) return;
+    window.setTimeout(() => firstPopupInputRef.current?.focus(), 80);
+  }, [selectedEmployee?.id]);
+
   function saveAndOpenNext(index) {
     const nextIndex = index + 1 < employees.length ? index + 1 : -1;
     const nextEmployee = employees[nextIndex];
@@ -957,6 +1101,13 @@ function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
     } else {
       setEditingEmployeeId("");
     }
+  }
+
+  function copyPreviousEmployee() {
+    if (!selectedEmployee || selectedIndex <= 0) return;
+    const previousEmployee = employees[selectedIndex - 1];
+    dispatch({ type: "copyEmployeeSetup", id: selectedEmployee.id, sourceId: previousEmployee.id });
+    toast.success("คัดลอกจากคนก่อนหน้าแล้ว");
   }
 
   return (
@@ -1008,8 +1159,13 @@ function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
 
                 <div className="employee-scroll-region min-h-0 flex-1 overflow-y-auto bg-[#F5F7FB] p-3">
                   <div className="grid gap-3">
+                    {selectedIndex > 0 && (
+                      <button onClick={copyPreviousEmployee} className="min-h-10 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-black text-[#002B5B]">
+                        คัดลอกจากคนก่อนหน้า
+                      </button>
+                    )}
                     <Field label="ชื่อ-นามสกุล">
-                      <TextInput value={selectedEmployee.name} onChange={(value) => dispatch({ type: "patchEmployee", id: selectedEmployee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
+                      <TextInput ref={firstPopupInputRef} value={selectedEmployee.name} onChange={(value) => dispatch({ type: "patchEmployee", id: selectedEmployee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
                     </Field>
                     <div className="grid grid-cols-[.85fr_1.15fr] gap-2.5">
                       <GenderChoices employee={selectedEmployee} dispatch={dispatch} />
@@ -1694,7 +1850,7 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                 <div className="mb-4 grid gap-3 sm:grid-cols-5">
                   <MiniMetric label="บริษัท" value={batch.companyName || "-"} />
                   <MiniMetric label="ผู้ติดต่อ" value={batch.supervisorName || "-"} />
-                  <MiniMetric label="เบอร์ติดต่อ" value={batch.supervisorPhone || "-"} />
+                  <MiniMetric label="เบอร์ติดต่อ" value={formatPhone(batch.supervisorPhone) || "-"} />
                   <MiniMetric label="จำนวนรวม" value={`${getBatchPieces(batch)} ชิ้น`} />
                   <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3">
                     <p className="truncate text-xs font-bold text-[#64748B]">สถานะ</p>
