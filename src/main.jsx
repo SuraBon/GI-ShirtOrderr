@@ -541,7 +541,6 @@ function OrderApp({ gasConfigured }) {
       <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
       <main className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-col gap-3 px-4 pb-6 pt-3 sm:px-6 lg:gap-5 lg:pb-12 lg:pt-5">
         {!gasConfigured && <SetupWarning />}
-        <OrderStepNav activeStep={activeStep} onStepClick={goToStep} />
 
         {activeStep === 1 && <OrderSetupCard state={state} dispatch={dispatch} />}
 
