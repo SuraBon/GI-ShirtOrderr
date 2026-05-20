@@ -70,6 +70,13 @@ const SIZE_TABLES = {
   "กางเกงช็อป": [["28", '28"'], ["30", '30"'], ["32", '32"'], ["34", '34"'], ["36", '36"'], ["38", '38"'], ["40", '40"'], ["42", '42"'], ["44", '44"']]
 };
 
+const QUICK_ORDER_PRESETS = [
+  { id: "new", label: "พนักงานใหม่", items: [{ typeIndex: 0, qty: 2 }] },
+  { id: "tech", label: "ช่าง", items: [{ typeIndex: 1, qty: 2 }, { typeIndex: 2, qty: 2 }] },
+  { id: "full", label: "ครบชุด", items: [{ typeIndex: 0, qty: 2 }, { typeIndex: 1, qty: 2 }, { typeIndex: 2, qty: 2 }] },
+  { id: "custom", label: "กำหนดเอง", items: [] }
+];
+
 function getSizeRows(type, gender) {
   if (type === "เสื้อโปโล") return SIZE_TABLES[`เสื้อโปโล ${gender}`] || [];
   return SIZE_TABLES[type] || [];
@@ -118,6 +125,36 @@ function createEmployee(index = 0) {
     gender: "",
     expanded: index === 0,
     items: []
+  };
+}
+
+function createOrderItem(type, gender, size = "", qty = 2) {
+  const options = gender ? getSizeOptions(type, gender) : [];
+  const nextSize = size && options.includes(size) ? size : (gender ? defaultSize(type, gender) : "");
+  return {
+    type,
+    size: nextSize,
+    customSize: "",
+    qty: digitsOnly(qty || 2)
+  };
+}
+
+function createQuickOrderItems({ presetId, gender, defaultSizeValue, customItems }) {
+  const preset = QUICK_ORDER_PRESETS.find((item) => item.id === presetId) || QUICK_ORDER_PRESETS[0];
+  const sourceItems = preset.id === "custom"
+    ? CLOTHING_TYPES.map((type, index) => ({ type, qty: customItems?.[index]?.qty || 2, enabled: Boolean(customItems?.[index]?.enabled) })).filter((item) => item.enabled)
+    : preset.items.map((item) => ({ type: CLOTHING_TYPES[item.typeIndex], qty: item.qty }));
+
+  return sourceItems.map((item) => createOrderItem(item.type, gender, defaultSizeValue, item.qty));
+}
+
+function createEmployeeFromQuickOrder(name, index, quickOrder) {
+  return {
+    ...createEmployee(index),
+    name,
+    gender: quickOrder.gender,
+    expanded: index === 0,
+    items: createQuickOrderItems(quickOrder)
   };
 }
 
@@ -208,6 +245,41 @@ function orderReducer(state, action) {
       }));
       return { ...state, employees };
     }
+    case "applyQuickOrder": {
+      const names = action.names.filter(Boolean);
+      if (!names.length) return state;
+      return {
+        ...state,
+        employees: names.map((name, index) => createEmployeeFromQuickOrder(name, index, action.quickOrder))
+      };
+    }
+    case "applyPresetToAll": {
+      const items = createQuickOrderItems(action.quickOrder);
+      return {
+        ...state,
+        employees: state.employees.map((employee) => ({
+          ...employee,
+          gender: action.quickOrder.gender || employee.gender,
+          items: items.map((item) => ({ ...item }))
+        }))
+      };
+    }
+    case "copyFirstSetupToAll": {
+      const source = state.employees[0];
+      if (!source) return state;
+      return {
+        ...state,
+        employees: state.employees.map((employee, index) => index === 0 ? employee : ({
+          ...employee,
+          gender: source.gender,
+          items: source.items.map((item) => ({ ...item }))
+        }))
+      };
+    }
+    case "removeBlankEmployees": {
+      const employees = state.employees.filter(hasEmployeeData);
+      return { ...state, employees: employees.length ? employees : [createEmployee(0)] };
+    }
     case "add":
       return { ...state, employees: [...state.employees, createEmployee(state.employees.length)] };
     case "delete":
@@ -249,7 +321,7 @@ function orderReducer(state, action) {
           const exists = employee.items.some((item) => item.type === action.itemType);
           const items = exists
             ? employee.items.filter((item) => item.type !== action.itemType)
-            : [...employee.items, { type: action.itemType, size: "", customSize: "", qty: "" }];
+            : [...employee.items, createOrderItem(action.itemType, employee.gender)];
           return { ...employee, items };
         })
       };
@@ -436,10 +508,609 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#F5F7FB] text-[#071638]">
-      <ReactBitsAurora />
-      {isDashboard ? <DashboardApp demoMode={!gasConfigured} onOpenOrder={() => navigate(ORDER_PATH)} /> : <OrderApp gasConfigured={gasConfigured} />}
+      {isDashboard && <ReactBitsAurora />}
+      {isDashboard ? <DashboardApp demoMode={!gasConfigured} onOpenOrder={() => navigate(ORDER_PATH)} /> : <QuickOrderApp gasConfigured={gasConfigured} />}
       <Toaster richColors position="top-center" />
     </div>
+  );
+}
+
+function QuickOrderApp({ gasConfigured }) {
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [invalidEmployeeId, setInvalidEmployeeId] = useState("");
+  const [query, setQuery] = useState("");
+  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
+  const [mobileEmployeeId, setMobileEmployeeId] = useState("");
+  const skipDraftSaveRef = useRef(false);
+  const [state, dispatch] = useReducer(orderReducer, undefined, readOrderDraft);
+
+  const summaryRows = useMemo(() => buildOrderSummaryRows(state.employees), [state.employees]);
+  const totalPieces = summaryRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  const completedEmployees = useMemo(() => state.employees.filter(isEmployeeComplete).length, [state.employees]);
+  const firstIncompleteEmployee = useMemo(() => state.employees.find((employee) => !isEmployeeComplete(employee)) || null, [state.employees]);
+  const selectedMobileEmployee = state.employees.find((employee) => employee.id === mobileEmployeeId) || null;
+
+  useEffect(() => {
+    if (skipDraftSaveRef.current) {
+      skipDraftSaveRef.current = false;
+      return;
+    }
+    localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(state));
+  }, [state]);
+
+  useEffect(() => {
+    const invalidEmployee = state.employees.find((employee) => employee.id === invalidEmployeeId);
+    if (invalidEmployeeId && invalidEmployee && isEmployeeComplete(invalidEmployee)) setInvalidEmployeeId("");
+  }, [invalidEmployeeId, state.employees]);
+
+  function validateCompany() {
+    if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
+      toast.error("กรอกข้อมูลบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อให้ครบก่อน");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return false;
+    }
+    if (state.supervisorPhone.length !== PHONE_LENGTH) {
+      toast.error(`กรอกเบอร์ติดต่อเป็นตัวเลข ${PHONE_LENGTH} หลัก`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return false;
+    }
+    return true;
+  }
+
+  function jumpToEmployee(employeeId) {
+    setInvalidEmployeeId(employeeId);
+    setMobileEmployeeId(employeeId);
+    window.setTimeout(() => {
+      const target = document.querySelector(`[data-quick-employee-row="${employeeId}"], [data-quick-employee-card="${employeeId}"]`);
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.querySelector("input:not([type='checkbox']), select, button")?.focus({ preventScroll: true });
+    }, 100);
+  }
+
+  function validateEmployees() {
+    const invalidEmployee = state.employees.find((employee) => !isEmployeeComplete(employee));
+    if (invalidEmployee) {
+      const index = state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1;
+      const missing = getEmployeeMissingFields(invalidEmployee).join(", ");
+      toast.error(`พนักงานลำดับ ${index} ยังไม่ครบ${missing ? `: ${missing}` : ""}`);
+      jumpToEmployee(invalidEmployee.id);
+      return false;
+    }
+    setInvalidEmployeeId("");
+    return true;
+  }
+
+  function openSummary() {
+    if (!validateCompany() || !validateEmployees()) return;
+    if (!gasConfigured) {
+      toast.error("ยังไม่ได้ตั้งค่า Google Sheets URL กรุณาตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ");
+      return;
+    }
+    setSummaryOpen(true);
+  }
+
+  async function submitOrder() {
+    const payload = {
+      batchId: `ORD-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${Date.now().toString().slice(-5)}`,
+      companyName: state.companyName,
+      branch: state.branch,
+      supervisorName: state.supervisorName,
+      supervisorPhone: state.supervisorPhone,
+      submittedAt: new Date().toISOString(),
+      status: ORDER_STATUS_PENDING,
+      statusUpdatedAt: new Date().toISOString(),
+      orders: state.employees.map(({ name, gender, items }) => ({
+        name,
+        gender,
+        items: items.filter((item) => item.size).map((item) => ({
+          type: item.type,
+          size: item.size === OTHER_SIZE ? (item.customSize || "-") : item.size,
+          qty: Number(item.qty || 0)
+        }))
+      }))
+    };
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
+      saveStoredBatch(payload);
+      toast.success("บันทึกคำสั่งซื้อเรียบร้อยแล้ว");
+      localStorage.removeItem(ORDER_DRAFT_KEY);
+      skipDraftSaveRef.current = true;
+      setSummaryOpen(false);
+      setQuery("");
+      setShowIncompleteOnly(false);
+      setMobileEmployeeId("");
+      dispatch({ type: "reset" });
+    } catch {
+      toast.error("ส่งข้อมูลไม่สำเร็จ");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <>
+      <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
+      <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-3 px-3 pb-24 pt-3 sm:px-5 lg:gap-4 lg:pb-28">
+        {!gasConfigured && <SetupWarning />}
+        <QuickOrderSetupPanel state={state} dispatch={dispatch} />
+        <QuickOrderBuilder state={state} dispatch={dispatch} />
+        <QuickOrderToolbar
+          employees={state.employees}
+          dispatch={dispatch}
+          query={query}
+          setQuery={setQuery}
+          showIncompleteOnly={showIncompleteOnly}
+          setShowIncompleteOnly={setShowIncompleteOnly}
+        />
+        <QuickEmployeeTable
+          employees={state.employees}
+          dispatch={dispatch}
+          query={query}
+          showIncompleteOnly={showIncompleteOnly}
+          invalidEmployeeId={invalidEmployeeId}
+        />
+        <QuickMobileList
+          employees={state.employees}
+          query={query}
+          showIncompleteOnly={showIncompleteOnly}
+          invalidEmployeeId={invalidEmployeeId}
+          onEdit={setMobileEmployeeId}
+        />
+      </main>
+      <QuickSummaryBar
+        totalPieces={totalPieces}
+        completedEmployees={completedEmployees}
+        totalEmployees={state.employees.length}
+        hasIncompleteEmployee={Boolean(firstIncompleteEmployee)}
+        isSubmitting={isSubmitting}
+        onJumpIncomplete={() => firstIncompleteEmployee && jumpToEmployee(firstIncompleteEmployee.id)}
+        onSubmit={openSummary}
+      />
+      <QuickMobileEditor
+        employee={selectedMobileEmployee}
+        employees={state.employees}
+        dispatch={dispatch}
+        onClose={() => setMobileEmployeeId("")}
+        onNext={(employeeId) => setMobileEmployeeId(employeeId)}
+      />
+      <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
+      <QuickOrderSummaryDialog
+        open={summaryOpen}
+        setOpen={setSummaryOpen}
+        state={state}
+        rows={summaryRows}
+        totalPieces={totalPieces}
+        isSubmitting={isSubmitting}
+        onConfirm={submitOrder}
+      />
+    </>
+  );
+}
+
+function QuickOrderSetupPanel({ state, dispatch }) {
+  return (
+    <section className="rounded-lg border border-[#D8DEEA] bg-white p-3 sm:p-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_.9fr]">
+        <Field label="ชื่อบริษัท">
+          <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
+        </Field>
+        <Field label="สาขา">
+          <Select value={state.branch} onChange={(value) => dispatch({ type: "patchBatch", patch: { branch: value } })} values={BRANCHES} />
+        </Field>
+        <Field label="ผู้ติดต่อ">
+          <TextInput value={state.supervisorName} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorName: value } })} placeholder="ชื่อ-นามสกุล" />
+        </Field>
+        <Field label="เบอร์ติดต่อ">
+          <TextInput value={state.supervisorPhone} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorPhone: phoneDigitsOnly(value) } })} placeholder="08X-XXX-XXXX" inputMode="numeric" pattern="[0-9]*" />
+        </Field>
+      </div>
+    </section>
+  );
+}
+
+function QuickOrderBuilder({ state, dispatch }) {
+  const [namesText, setNamesText] = useState("");
+  const [gender, setGender] = useState(GENDERS[0]);
+  const [presetId, setPresetId] = useState(QUICK_ORDER_PRESETS[0].id);
+  const [defaultSizeValue, setDefaultSizeValue] = useState("M");
+  const [customItems, setCustomItems] = useState(() => CLOTHING_TYPES.map(() => ({ enabled: false, qty: "2" })));
+  const quickSizes = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "28", "30", "32", "34", "36", "38", "40", "42", "44"];
+  const names = namesText.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
+
+  function applyQuickOrder() {
+    if (!names.length) {
+      toast.error("วางรายชื่ออย่างน้อย 1 บรรทัด");
+      return;
+    }
+    const hasExistingData = state.employees.some(hasEmployeeData);
+    if (hasExistingData && !window.confirm("สร้างรายการใหม่จาก Quick Order และแทนที่รายการเดิม?")) return;
+    dispatch({ type: "applyQuickOrder", names, quickOrder: { presetId, gender, defaultSizeValue, customItems } });
+    setNamesText("");
+    toast.success(`สร้างรายการ ${names.length} คนแล้ว`);
+  }
+
+  return (
+    <section className="rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-extrabold text-[#071638] sm:text-xl">Quick Order</h1>
+          <p className="text-sm font-semibold text-[#64748B]">วางรายชื่อ เลือกชุดตั้งต้น แล้วค่อยแก้รายคนในตาราง</p>
+        </div>
+        <span className="hidden rounded-md bg-white px-3 py-2 text-sm font-bold text-[#002B5B] sm:block">{names.length} คน</span>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[1.25fr_.75fr]">
+        <Field label="รายชื่อพนักงาน">
+          <textarea
+            value={namesText}
+            onChange={(event) => setNamesText(event.target.value)}
+            placeholder={"สมชาย ใจดี\nสมหญิง ใจงาม\nสมศักดิ์ ตัวอย่าง"}
+            className="min-h-36 w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
+          />
+        </Field>
+
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="เพศตั้งต้น">
+              <Select value={gender} values={GENDERS} onChange={setGender} />
+            </Field>
+            <Field label="ไซส์ตั้งต้น">
+              <Select value={defaultSizeValue} values={quickSizes} onChange={setDefaultSizeValue} />
+            </Field>
+          </div>
+          <Field label="Preset">
+            <div className="grid grid-cols-2 gap-2">
+              {QUICK_ORDER_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => setPresetId(preset.id)}
+                  className={cn("min-h-10 rounded-lg border px-3 text-sm font-bold transition", presetId === preset.id ? "border-[#002B5B] bg-[#002B5B] text-white" : "border-[#CBD5E1] bg-white text-[#071638] hover:border-[#8FA4C7]")}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+          {presetId === "custom" && (
+            <div className="grid gap-2 rounded-lg border border-[#D8DEEA] bg-white p-2">
+              {CLOTHING_TYPES.map((type, index) => (
+                <label key={type} className="grid grid-cols-[1fr_5rem] items-center gap-2 text-sm font-bold text-[#071638]">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={customItems[index].enabled}
+                      onChange={(event) => setCustomItems((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item))}
+                      className="size-4 accent-[#002B5B]"
+                    />
+                    {type}
+                  </span>
+                  <input
+                    value={customItems[index].qty}
+                    onChange={(event) => setCustomItems((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, qty: digitsOnly(event.target.value) } : item))}
+                    inputMode="numeric"
+                    className="min-h-9 rounded-md border border-[#CBD5E1] px-2 text-center outline-none focus:border-[#002B5B]"
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+          <button onClick={applyQuickOrder} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-4 font-bold text-white transition hover:bg-[#013A78]">
+            <UserPlus /> สร้างรายการ
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function QuickOrderToolbar({ employees, dispatch, query, setQuery, showIncompleteOnly, setShowIncompleteOnly }) {
+  const canRemoveBlank = employees.length > 1 && employees.some((employee) => !hasEmployeeData(employee));
+  return (
+    <section className="rounded-lg border border-[#D8DEEA] bg-white p-3 sm:p-4">
+      <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#64748B]" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="ค้นหาชื่อ เพศ หรือไซส์"
+              className="min-h-10 w-full rounded-lg border border-[#CBD5E1] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
+            />
+          </div>
+          <label className="flex min-h-10 items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 text-sm font-bold text-[#44536A]">
+            <input type="checkbox" checked={showIncompleteOnly} onChange={(event) => setShowIncompleteOnly(event.target.checked)} className="size-4 accent-[#002B5B]" />
+            เฉพาะยังไม่ครบ
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <button onClick={() => dispatch({ type: "copyFirstSetupToAll" })} disabled={!employees[0]?.items.length} className="min-h-10 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45">
+            ใช้แบบแถวแรก
+          </button>
+          <button onClick={() => dispatch({ type: "add" })} className="min-h-10 rounded-lg border border-[#CBD5E1] bg-white px-3 text-sm font-bold text-[#002B5B]">
+            เพิ่มพนักงาน
+          </button>
+          <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="col-span-2 min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-3 text-sm font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:col-span-1">
+            ล้างรายชื่อว่าง
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function getFilteredEmployees(employees, query, showIncompleteOnly) {
+  const normalizedQuery = query.trim().toLowerCase();
+  return employees.filter((employee) => {
+    const matchesStatus = !showIncompleteOnly || !isEmployeeComplete(employee);
+    const matchesQuery = !normalizedQuery || [employee.name, employee.gender, ...employee.items.map((item) => `${item.type} ${item.size} ${item.customSize}`)]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedQuery);
+    return matchesStatus && matchesQuery;
+  });
+}
+
+function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, invalidEmployeeId }) {
+  const filteredEmployees = getFilteredEmployees(employees, query, showIncompleteOnly);
+  const canDelete = canDeleteEmployee(employees);
+
+  return (
+    <section className="hidden overflow-hidden rounded-lg border border-[#D8DEEA] bg-white lg:block">
+      <div className="employee-scroll-region max-h-[58vh] overflow-auto">
+        <table className="w-full min-w-[1180px] text-left text-sm">
+          <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
+            <tr>
+              {["#", "ชื่อพนักงาน", "เพศ", ...CLOTHING_TYPES, "สถานะ", ""].map((header) => (
+                <th key={header || "actions"} className="border-b border-[#D8DEEA] px-3 py-3">{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEmployees.map((employee) => {
+              const index = employees.findIndex((item) => item.id === employee.id);
+              const complete = isEmployeeComplete(employee);
+              const missingFields = getEmployeeMissingFields(employee);
+              return (
+                <tr key={employee.id} data-quick-employee-row={employee.id} className={cn("border-b border-[#E7EAF0] align-top transition hover:bg-[#F8FAFC]", invalidEmployeeId === employee.id && "employee-attention bg-[#FFF7F7] outline outline-2 outline-[#EF4444] outline-offset-[-2px]")}>
+                  <td className="w-14 px-3 py-3 text-center font-extrabold text-[#64748B]">{index + 1}</td>
+                  <td className="w-[17rem] px-3 py-3">
+                    <GridInput value={employee.name} placeholder="ชื่อ-นามสกุล" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
+                  </td>
+                  <td className="w-36 px-3 py-3">
+                    <GridSelect value={employee.gender} values={["", ...GENDERS]} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} />
+                  </td>
+                  {CLOTHING_TYPES.map((type) => (
+                    <td key={type} className="w-[13rem] px-3 py-3">
+                      <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} />
+                    </td>
+                  ))}
+                  <td className="w-44 px-3 py-3">
+                    <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "ยังไม่ครบ"}</span>
+                    {!complete && <p className="mt-2 text-xs font-bold leading-5 text-[#B91C1C]">ขาด: {missingFields.join(", ")}</p>}
+                  </td>
+                  <td className="w-16 px-3 py-3">
+                    <button
+                      onClick={() => dispatch({ type: "delete", id: employee.id })}
+                      disabled={!canDelete}
+                      aria-label={canDelete ? "Delete employee" : "At least one employee is required"}
+                      className="grid size-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:border-[#E2E8F0] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]"
+                    >
+                      <Trash2 />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {!filteredEmployees.length && (
+              <tr><td colSpan={8} className="px-4 py-10 text-center font-bold text-[#64748B]">ไม่พบพนักงานตามเงื่อนไข</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function QuickGarmentCell({ employee, type, dispatch }) {
+  const item = employee.items.find((entry) => entry.type === type);
+  if (!item) {
+    return (
+      <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="min-h-10 w-full rounded-lg border border-dashed border-[#A9B9D1] bg-white text-sm font-bold text-[#002B5B] hover:bg-[#F4F8FF]">
+        เพิ่ม
+      </button>
+    );
+  }
+
+  return (
+    <div className="grid gap-2">
+      <div className="grid grid-cols-[1fr_4.5rem_2.25rem] gap-2">
+        <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "ไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} />
+        <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
+        <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} aria-label="Remove garment" className="grid min-h-10 place-items-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]">
+          <X />
+        </button>
+      </div>
+      {item.size === OTHER_SIZE && (
+        <GridInput value={item.customSize} placeholder="ระบุไซส์เพิ่มเติม" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} />
+      )}
+    </div>
+  );
+}
+
+function QuickMobileList({ employees, query, showIncompleteOnly, invalidEmployeeId, onEdit }) {
+  const filteredEmployees = getFilteredEmployees(employees, query, showIncompleteOnly);
+  return (
+    <section className="grid gap-2 lg:hidden">
+      {filteredEmployees.map((employee) => {
+        const index = employees.findIndex((item) => item.id === employee.id);
+        const complete = isEmployeeComplete(employee);
+        const pieces = employee.items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+        return (
+          <button key={employee.id} data-quick-employee-card={employee.id} onClick={() => onEdit(employee.id)} className={cn("rounded-lg border border-[#D8DEEA] bg-white p-3 text-left", invalidEmployeeId === employee.id && "employee-attention border-[#EF4444] bg-[#FFF7F7]")}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-extrabold text-[#071638]">{index + 1}. {employee.name || "ยังไม่ระบุชื่อ"}</p>
+                <p className="mt-1 text-xs font-bold text-[#64748B]">{employee.gender || "ยังไม่เลือกเพศ"} · {pieces} ชิ้น</p>
+              </div>
+              <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "แก้"}</span>
+            </div>
+          </button>
+        );
+      })}
+      {!filteredEmployees.length && <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">ไม่พบพนักงานตามเงื่อนไข</div>}
+    </section>
+  );
+}
+
+function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
+  const canDelete = canDeleteEmployee(employees);
+  const index = employee ? employees.findIndex((item) => item.id === employee.id) : -1;
+  const nextEmployee = index >= 0 ? employees[index + 1] : null;
+
+  return (
+    <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 lg:hidden" />
+        <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-xl bg-white shadow-2xl lg:hidden">
+          {employee && (
+            <>
+              <div className="flex min-h-14 items-center justify-between border-b border-[#E7EAF0] px-4">
+                <Dialog.Title className="font-extrabold text-[#071638]">พนักงานลำดับ {index + 1}</Dialog.Title>
+                <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+              </div>
+              <div className="employee-scroll-region grid gap-3 overflow-y-auto bg-[#F5F7FB] p-3">
+                <Field label="ชื่อ-นามสกุล">
+                  <TextInput value={employee.name} onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
+                </Field>
+                <Field label="เพศ">
+                  <div className="grid grid-cols-2 gap-2">
+                    {GENDERS.map((gender) => (
+                      <button key={gender} onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })} className={cn("min-h-11 rounded-lg border text-sm font-bold", employee.gender === gender ? "border-[#002B5B] bg-[#002B5B] text-white" : "border-[#CBD5E1] bg-white text-[#071638]")}>
+                        {gender}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                <div className="grid gap-2">
+                  {CLOTHING_TYPES.map((type) => (
+                    <div key={type} className="rounded-lg border border-[#D8DEEA] bg-white p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="font-extrabold text-[#071638]">{type}</p>
+                        <label className="flex items-center gap-2 text-sm font-bold text-[#002B5B]">
+                          <input type="checkbox" checked={employee.items.some((item) => item.type === type)} onChange={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="size-4 accent-[#002B5B]" />
+                          สั่ง
+                        </label>
+                      </div>
+                      {employee.items.some((item) => item.type === type) && <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-[48px_1fr] gap-2 border-t border-[#E7EAF0] bg-white p-3">
+                <button
+                  onClick={() => {
+                    if (!canDelete) return;
+                    dispatch({ type: "delete", id: employee.id });
+                    onClose();
+                  }}
+                  disabled={!canDelete}
+                  className="grid min-h-11 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <Trash2 />
+                </button>
+                <button onClick={() => nextEmployee ? onNext(nextEmployee.id) : onClose()} className="min-h-11 rounded-lg bg-[#002B5B] font-bold text-white">
+                  {nextEmployee ? "บันทึกและถัดไป" : "เสร็จสิ้น"}
+                </button>
+              </div>
+            </>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function QuickSummaryBar({ totalPieces, completedEmployees, totalEmployees, hasIncompleteEmployee, isSubmitting, onJumpIncomplete, onSubmit }) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#D8DEEA] bg-white/96 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="mx-auto grid max-w-[1280px] gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 place-items-center rounded-lg bg-[#EEF4FF] text-xl font-extrabold text-[#002B5B]">{totalPieces}</span>
+          <div>
+            <p className="font-extrabold text-[#071638]">รวม {totalPieces} ชิ้น</p>
+            <p className="text-sm font-semibold text-[#64748B]">ข้อมูลครบ {completedEmployees}/{totalEmployees} คน</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <button onClick={onJumpIncomplete} disabled={!hasIncompleteEmployee} className="min-h-11 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-4 text-sm font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45">
+            ไปคนที่ยังไม่ครบ
+          </button>
+          <button onClick={onSubmit} disabled={isSubmitting} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-5 font-bold text-white disabled:opacity-60">
+            {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ตรวจสอบ/ส่ง
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSubmitting, onConfirm }) {
+  const totals = buildTotalSummary(rows);
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45" />
+        <Dialog.Content className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(44rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+          <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
+            <Dialog.Title className="text-xl font-extrabold text-[#071638]">สรุปก่อนส่ง</Dialog.Title>
+            <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+          </div>
+          <div className="employee-scroll-region max-h-[64vh] overflow-y-auto p-4">
+            <div className="grid gap-2 sm:grid-cols-4">
+              <ReviewMetric label="สาขา" value={state.branch || "-"} />
+              <ReviewMetric label="ผู้ติดต่อ" value={state.supervisorName || "-"} />
+              <ReviewMetric label="พนักงาน" value={`${state.employees.length} คน`} />
+              <ReviewMetric label="จำนวนรวม" value={`${totalPieces} ชิ้น`} />
+            </div>
+            <div className="mt-4 overflow-hidden rounded-lg border border-[#E2E8F0]">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
+                  <tr>
+                    <th className="px-4 py-3">ประเภท</th>
+                    <th className="px-4 py-3">ไซส์</th>
+                    <th className="px-4 py-3 text-right">จำนวน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {totals.length ? totals.map((row) => (
+                    <tr key={`${row.type}-${row.size}`} className="border-t border-[#E2E8F0]">
+                      <td className="px-4 py-3 font-bold">{row.type}</td>
+                      <td className="px-4 py-3">{row.size}</td>
+                      <td className="px-4 py-3 text-right font-extrabold">{row.qty}</td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={3} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีรายการ</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="grid grid-cols-[1fr_1.25fr] gap-3 border-t border-[#E7EAF0] p-4">
+            <Dialog.Close className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white font-bold text-[#071638]">กลับไปแก้</Dialog.Close>
+            <button onClick={onConfirm} disabled={isSubmitting || !rows.length} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] font-bold text-white disabled:opacity-60">
+              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งซื้อ
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
