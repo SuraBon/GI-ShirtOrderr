@@ -697,7 +697,7 @@ function QuickOrderApp({ gasConfigured }) {
       <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
       <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-3 px-3 pb-40 pt-3 sm:px-5 lg:gap-4 lg:pb-36">
         {!gasConfigured && <SetupWarning />}
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-stretch">
           <QuickOrderSetupPanel state={state} dispatch={dispatch} />
           <QuickOrderActionsPanel
             employees={state.employees}
@@ -763,7 +763,7 @@ function QuickOrderSetupPanel({ state, dispatch }) {
   }, [complete]);
 
   return (
-    <section className="rounded-lg border border-[#D8DEEA] bg-white p-3 sm:p-4">
+    <section className="flex h-full flex-col rounded-lg border border-[#D8DEEA] bg-white p-3 sm:p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-base font-extrabold text-[#071638]">ข้อมูลผู้ติดต่อ</h2>
@@ -901,7 +901,7 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
   const completedEmployees = employees.filter(isEmployeeComplete).length;
 
   return (
-    <section className="rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4">
+    <section className="flex h-full flex-col rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-base font-extrabold text-[#071638]">รายการพนักงาน</h1>
@@ -913,17 +913,17 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
         </label>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <button onClick={onQuickOrder} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-2.5 text-xs font-bold text-white sm:min-h-10 sm:text-sm">
+      <div className="mt-3 grid flex-1 grid-cols-2 gap-2">
+        <button onClick={onQuickOrder} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-2.5 text-xs font-bold text-white sm:min-h-11 sm:text-sm">
           <UserPlus /> เพิ่มหลายคน
         </button>
-        <button onClick={() => dispatch({ type: "add" })} className="min-h-9 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#002B5B] sm:min-h-10 sm:px-3 sm:text-sm">
+        <button onClick={() => dispatch({ type: "add" })} className="min-h-10 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#002B5B] sm:min-h-11 sm:px-3 sm:text-sm">
           <span className="inline-flex items-center justify-center gap-1.5"><Plus className="size-4" /> เพิ่ม 1 คน</span>
         </button>
-        <button onClick={() => dispatch({ type: "copyFirstSetupToAll" })} disabled={!employees[0]?.items.length} className="min-h-9 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-2.5 text-xs font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 sm:px-3 sm:text-sm">
+        <button onClick={() => dispatch({ type: "copyFirstSetupToAll" })} disabled={!employees[0]?.items.length} className="min-h-10 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-2.5 text-xs font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm">
           <span className="inline-flex items-center justify-center gap-1.5"><Copy className="size-4" /> คัดลอกแถวแรก</span>
         </button>
-        <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="min-h-9 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 sm:px-3 sm:text-sm">
+        <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm">
           <span className="inline-flex items-center justify-center gap-1.5"><Trash2 className="size-4" /> ลบแถวว่าง</span>
         </button>
       </div>
@@ -1828,15 +1828,50 @@ function readFileAsDataUrl(file) {
   });
 }
 
+async function readImageAsCompressedDataUrl(file) {
+  const source = await readFileAsDataUrl(file);
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const maxSide = 1200;
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(source);
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    image.onerror = () => resolve(source);
+    image.src = source;
+  });
+}
+
+function getSafeAssetName(fileName) {
+  const extension = fileName.split(".").pop()?.toLowerCase() || "jpg";
+  const safeExtension = ["jpg", "jpeg", "png", "webp"].includes(extension) ? extension : "jpg";
+  const baseName = fileName
+    .replace(/\.[^/.]+$/, "")
+    .normalize("NFKD")
+    .replace(/[^\w-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "shirt";
+  return `${baseName}.${safeExtension}`;
+}
+
 async function uploadImageToBlob(file) {
   try {
-    const blob = await upload(`shirt-assets/${Date.now()}-${file.name}`, file, {
+    const blob = await upload(`shirt-assets/${Date.now()}-${getSafeAssetName(file.name)}`, file, {
       access: "public",
       handleUploadUrl: "/api/blob/upload"
     });
     return blob.url;
   } catch {
-    return readFileAsDataUrl(file);
+    return readImageAsCompressedDataUrl(file);
   }
 }
 
@@ -2591,7 +2626,15 @@ function ClothingManager({ config, setConfig }) {
                 <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]">
                   {uploadingId === selectedItem.id ? <Loader2 className="animate-spin" /> : <Upload />}
                   แนบรูป
-                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadImage(selectedItem.id, event.target.files?.[0])} className="hidden" />
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => {
+                      uploadImage(selectedItem.id, event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                    className="hidden"
+                  />
                 </label>
                 <button onClick={() => deleteClothing(selectedItem.id)} className="min-h-10 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 text-sm font-bold text-[#B91C1C]">
                   <span className="inline-flex items-center justify-center gap-1.5"><Trash2 className="size-4" /> ลบแบบเสื้อ</span>
