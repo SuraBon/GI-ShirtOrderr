@@ -40,6 +40,8 @@ const DASHBOARD_PASSCODE = import.meta.env.VITE_DASHBOARD_PASSCODE || "";
 const ORDER_STORAGE_KEY = "gi-shirt-order-batches";
 const ORDER_DRAFT_KEY = "gi-shirt-order-draft";
 const CLOTHING_CONFIG_KEY = "gi-shirt-clothing-config";
+const IMAGE_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_COMPANY_NAME = "โกลด์ อินทิเกรท จำกัด";
 const ORDER_STATUS_PENDING = "รอจัดส่ง";
 const ORDER_STATUS_DELIVERED = "จัดส่งแล้ว";
@@ -136,6 +138,30 @@ function readClothingConfig() {
 
 function saveClothingConfig(config) {
   localStorage.setItem(CLOTHING_CONFIG_KEY, JSON.stringify(normalizeClothingConfig(config)));
+}
+
+async function loadSharedClothingConfig() {
+  const response = await fetch("/api/blob/config", { cache: "no-store" });
+  if (!response.ok) throw new Error("Shared clothing config is not available");
+  const data = await response.json();
+  if (!Array.isArray(data?.config) || !data.config.length) return null;
+  const normalized = normalizeClothingConfig(data.config);
+  saveClothingConfig(normalized);
+  return normalized;
+}
+
+async function publishSharedClothingConfig(config) {
+  const normalized = normalizeClothingConfig(config);
+  const response = await fetch("/api/blob/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config: normalized })
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.error || "Shared clothing config sync failed");
+  }
+  return normalized;
 }
 
 function getClothingTypes() {
@@ -540,6 +566,7 @@ function getRoute() {
 
 function App() {
   const [path, setPath] = useState(getRoute);
+  const [configVersion, setConfigVersion] = useState(0);
   const gasConfigured = isGasConfigured();
 
   function navigate(pathname) {
@@ -563,11 +590,21 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    loadSharedClothingConfig()
+      .then((config) => {
+        if (config) setConfigVersion((version) => version + 1);
+      })
+      .catch(() => {});
+  }, []);
+
   const isDashboard = path === DASHBOARD_PATH || path === "/dashboard";
 
   return (
     <div className="app-shadcn-theme min-h-screen bg-[#FAFAFA] text-[#09090B]">
-      {isDashboard ? <DashboardApp demoMode={!gasConfigured} onOpenOrder={() => navigate(ORDER_PATH)} /> : <QuickOrderApp gasConfigured={gasConfigured} />}
+      {isDashboard
+        ? <DashboardApp key={`dashboard-${configVersion}`} demoMode={!gasConfigured} onOpenOrder={() => navigate(ORDER_PATH)} />
+        : <QuickOrderApp key={`order-${configVersion}`} gasConfigured={gasConfigured} />}
       <Toaster richColors position="top-center" />
     </div>
   );
@@ -1819,39 +1856,14 @@ function SetupWarning() {
   );
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+function validateImageFile(file) {
+  if (!file) return "ไม่พบไฟล์รูปภาพ";
+  if (!IMAGE_UPLOAD_TYPES.includes(file.type)) return "รองรับเฉพาะไฟล์ JPG, PNG หรือ WEBP";
+  if (file.size > IMAGE_UPLOAD_MAX_BYTES) return "รูปภาพต้องมีขนาดไม่เกิน 10MB";
+  return "";
 }
 
-async function readImageAsCompressedDataUrl(file) {
-  const source = await readFileAsDataUrl(file);
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.onload = () => {
-      const maxSide = 1200;
-      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(image.width * scale));
-      canvas.height = Math.max(1, Math.round(image.height * scale));
-      const context = canvas.getContext("2d");
-      if (!context) {
-        resolve(source);
-        return;
-      }
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
-    };
-    image.onerror = () => resolve(source);
-    image.src = source;
-  });
-}
-
-function getSafeAssetName(fileName) {
+function sanitizeAssetFileName(fileName) {
   const extension = fileName.split(".").pop()?.toLowerCase() || "jpg";
   const safeExtension = ["jpg", "jpeg", "png", "webp"].includes(extension) ? extension : "jpg";
   const baseName = fileName
@@ -1863,15 +1875,22 @@ function getSafeAssetName(fileName) {
   return `${baseName}.${safeExtension}`;
 }
 
+function getBlobUploadErrorMessage(error) {
+  const message = String(error?.message || "");
+  if (message.includes("404")) return "ไม่พบ API อัปโหลด Blob ให้รันผ่าน Vercel หรือ deploy ก่อนใช้งาน";
+  if (message.toLowerCase().includes("token") || message.includes("BLOB_READ_WRITE_TOKEN")) return "ยังไม่ได้ตั้งค่า BLOB_READ_WRITE_TOKEN ใน Vercel";
+  return "อัปโหลดรูปไป Vercel Blob ไม่สำเร็จ";
+}
+
 async function uploadImageToBlob(file) {
   try {
-    const blob = await upload(`shirt-assets/${Date.now()}-${getSafeAssetName(file.name)}`, file, {
+    const blob = await upload(`shirt-assets/${Date.now()}-${sanitizeAssetFileName(file.name)}`, file, {
       access: "public",
       handleUploadUrl: "/api/blob/upload"
     });
-    return blob.url;
-  } catch {
-    return readImageAsCompressedDataUrl(file);
+    return { url: blob.url, storage: "blob" };
+  } catch (error) {
+    throw new Error(getBlobUploadErrorMessage(error));
   }
 }
 
@@ -2379,6 +2398,7 @@ function SizeReference({ open, setOpen }) {
 function ClothingManager({ config, setConfig }) {
   const [uploadingId, setUploadingId] = useState("");
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || "");
+  const syncTimerRef = useRef(null);
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
 
   useEffect(() => {
@@ -2387,10 +2407,22 @@ function ClothingManager({ config, setConfig }) {
     }
   }, [config, selectedId]);
 
+  useEffect(() => () => window.clearTimeout(syncTimerRef.current), []);
+
+  function scheduleSharedConfigSync(normalizedConfig) {
+    window.clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = window.setTimeout(() => {
+      publishSharedClothingConfig(normalizedConfig).catch((error) => {
+        toast.error(error?.message || "บันทึกการตั้งค่าเสื้อไป Blob ไม่สำเร็จ");
+      });
+    }, 700);
+  }
+
   function commit(nextConfig) {
     const normalized = normalizeClothingConfig(nextConfig);
     setConfig(normalized);
     saveClothingConfig(normalized);
+    scheduleSharedConfigSync(normalized);
   }
 
   function patchItem(id, patch) {
@@ -2507,13 +2539,18 @@ function ClothingManager({ config, setConfig }) {
 
   async function uploadImage(id, file) {
     if (!file) return;
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setUploadingId(id);
     try {
-      const imageUrl = await uploadImageToBlob(file);
-      patchItem(id, { imageUrl });
-      toast.success(imageUrl.startsWith("data:") ? "แนบรูปในเครื่องแล้ว" : "อัปโหลดรูปไป Vercel Blob แล้ว");
-    } catch {
-      toast.error("อัปโหลดรูปไม่สำเร็จ");
+      const result = await uploadImageToBlob(file);
+      patchItem(id, { imageUrl: result.url });
+      toast.success("อัปโหลดรูปไป Vercel Blob แล้ว");
+    } catch (error) {
+      toast.error(error?.message || "อัปโหลดรูปไป Vercel Blob ไม่สำเร็จ");
     } finally {
       setUploadingId("");
     }
