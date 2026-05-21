@@ -2343,6 +2343,14 @@ function SizeReference({ open, setOpen }) {
 
 function ClothingManager({ config, setConfig }) {
   const [uploadingId, setUploadingId] = useState("");
+  const [selectedId, setSelectedId] = useState(() => config[0]?.id || "");
+  const selectedItem = config.find((item) => item.id === selectedId) || config[0];
+
+  useEffect(() => {
+    if (!config.some((item) => item.id === selectedId)) {
+      setSelectedId(config[0]?.id || "");
+    }
+  }, [config, selectedId]);
 
   function commit(nextConfig) {
     const normalized = normalizeClothingConfig(nextConfig);
@@ -2423,7 +2431,9 @@ function ClothingManager({ config, setConfig }) {
   }
 
   function addClothing() {
-    commit([...config, { id: crypto.randomUUID(), type: "เสื้อใหม่", imageUrl: "", colors: [], detailFields: ["อก"], sizeRows: [{ size: "M", details: { อก: "" } }] }]);
+    const id = crypto.randomUUID();
+    commit([...config, { id, type: "เสื้อใหม่", imageUrl: "", colors: [], detailFields: ["อก"], sizeRows: [{ size: "M", details: { อก: "" } }] }]);
+    setSelectedId(id);
   }
 
   function deleteClothing(id) {
@@ -2479,50 +2489,60 @@ function ClothingManager({ config, setConfig }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-extrabold text-[#071638]">ตั้งค่าเสื้อและไซส์</h2>
-          <p className="mt-1 text-sm font-semibold text-[#64748B]">เพิ่ม/ลบประเภทเสื้อ กำหนดไซส์ และแนบรูปสินค้า</p>
+          <p className="mt-1 text-sm font-semibold text-[#64748B]">เลือกแบบเสื้อจากรายการ แล้วแก้รายละเอียดเฉพาะตัวที่ต้องการ</p>
         </div>
         <button onClick={addClothing} className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-4 text-sm font-bold text-white">
           <Plus /> เพิ่มแบบเสื้อ
         </button>
       </div>
-      <div className="mt-4 grid gap-4">
-        {config.map((item) => (
-          <div key={item.id} className="rounded-xl border border-[#D8DEEA] bg-[#F8FAFC] p-3">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[18rem_1fr] lg:items-start">
+        <div className="grid max-h-[70vh] gap-2 overflow-auto rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] p-2">
+          {config.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setSelectedId(item.id)}
+              className={cn(
+                "grid grid-cols-[3.25rem_1fr] gap-3 rounded-lg border p-2 text-left transition",
+                item.id === selectedItem?.id ? "border-[#18181B] bg-white shadow-sm" : "border-transparent bg-transparent hover:bg-white"
+              )}
+            >
+              <div className="overflow-hidden rounded-md border border-[#E4E4E7] bg-white">
+                {item.imageUrl ? <img src={item.imageUrl} alt={item.type} className="h-12 w-full object-cover" /> : <div className="grid h-12 place-items-center text-[#A1A1AA]"><Shirt className="size-4" /></div>}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-extrabold text-[#18181B]">{item.type || "ยังไม่ระบุชื่อ"}</p>
+                <p className="mt-1 text-xs font-semibold text-[#71717A]">{item.sizeRows.length} ไซส์ · {(item.colors || []).length} สี</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {selectedItem && (
+          <div className="rounded-xl border border-[#D8DEEA] bg-[#F8FAFC] p-3">
             <div className="grid gap-3 lg:grid-cols-[9rem_1fr_auto] lg:items-start">
               <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white">
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.type} className="h-32 w-full object-cover" />
+                {selectedItem.imageUrl ? (
+                  <img src={selectedItem.imageUrl} alt={selectedItem.type} className="h-32 w-full object-cover" />
                 ) : (
                   <div className="grid h-32 place-items-center text-sm font-bold text-[#94A3B8]">ไม่มีรูป</div>
                 )}
               </div>
               <div className="grid gap-3">
                 <Field label="ชื่อประเภทเสื้อ">
-                  <TextInput value={item.type} onChange={(value) => patchItem(item.id, { type: value })} placeholder="เช่น เสื้อโปโล" />
+                  <TextInput value={selectedItem.type} onChange={(value) => patchItem(selectedItem.id, { type: value })} placeholder="เช่น เสื้อโปโล" />
                 </Field>
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-bold text-[#64748B]">สีที่มี</p>
-                    <button onClick={() => addColor(item.id)} className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-xs font-bold text-[#002B5B]">
+                    <button onClick={() => addColor(selectedItem.id)} className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-xs font-bold text-[#002B5B]">
                       <Plus className="size-3.5" /> เพิ่มสี
                     </button>
                   </div>
-                  {(item.colors || []).length ? item.colors.map((color, index) => (
-                    <div key={`${item.id}-color-${index}`} className="grid grid-cols-[40px_1fr_40px] gap-2">
-                      <input
-                        type="color"
-                        value={color.value || "#0F172A"}
-                        onChange={(event) => patchColor(item.id, index, { value: event.target.value })}
-                        className="h-10 w-10 rounded-lg border border-[#CBD5E1] bg-white p-1"
-                        aria-label="เลือกสี"
-                      />
-                      <input
-                        value={color.name}
-                        onChange={(event) => patchColor(item.id, index, { name: event.target.value })}
-                        className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]"
-                        placeholder="เช่น กรมท่า"
-                      />
-                      <button onClick={() => deleteColor(item.id, index)} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" title="ลบสี">
+                  {(selectedItem.colors || []).length ? selectedItem.colors.map((color, index) => (
+                    <div key={`${selectedItem.id}-color-${index}`} className="grid grid-cols-[40px_1fr_40px] gap-2">
+                      <input type="color" value={color.value || "#0F172A"} onChange={(event) => patchColor(selectedItem.id, index, { value: event.target.value })} className="h-10 w-10 rounded-lg border border-[#CBD5E1] bg-white p-1" aria-label="เลือกสี" />
+                      <input value={color.name} onChange={(event) => patchColor(selectedItem.id, index, { name: event.target.value })} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder="เช่น กรมท่า" />
+                      <button onClick={() => deleteColor(selectedItem.id, index)} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" title="ลบสี">
                         <Trash2 />
                       </button>
                     </div>
@@ -2533,53 +2553,53 @@ function ClothingManager({ config, setConfig }) {
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-bold text-[#64748B]">รายละเอียดไซส์</p>
-                    <button onClick={() => addDetailField(item.id)} className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-xs font-bold text-[#002B5B]">
+                    <button onClick={() => addDetailField(selectedItem.id)} className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-xs font-bold text-[#002B5B]">
                       <Plus className="size-3.5" /> เพิ่มช่อง
                     </button>
                   </div>
-                  <div className="grid gap-2 rounded-lg border border-[#E4E4E7] bg-white p-2">
-                    <div className="grid gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${item.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
+                  <div className="grid gap-2 overflow-x-auto rounded-lg border border-[#E4E4E7] bg-white p-2">
+                    <div className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
                       <span className="text-xs font-bold text-[#64748B]">ไซส์</span>
-                      {item.detailFields.map((field, index) => (
-                        <div key={`${item.id}-field-${index}`} className="grid grid-cols-[1fr_32px] gap-1">
-                          <input value={field} onChange={(event) => patchDetailField(item.id, index, event.target.value)} className="min-h-8 rounded-md border border-[#CBD5E1] px-2 text-xs font-bold outline-none focus:border-[#002B5B]" placeholder="อก" />
-                          <button onClick={() => deleteDetailField(item.id, index)} disabled={item.detailFields.length <= 1} className="grid min-h-8 place-items-center rounded-md border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-40" title="ลบช่องรายละเอียด">
+                      {selectedItem.detailFields.map((field, index) => (
+                        <div key={`${selectedItem.id}-field-${index}`} className="grid grid-cols-[1fr_32px] gap-1">
+                          <input value={field} onChange={(event) => patchDetailField(selectedItem.id, index, event.target.value)} className="min-h-8 rounded-md border border-[#CBD5E1] px-2 text-xs font-bold outline-none focus:border-[#002B5B]" placeholder="อก" />
+                          <button onClick={() => deleteDetailField(selectedItem.id, index)} disabled={selectedItem.detailFields.length <= 1} className="grid min-h-8 place-items-center rounded-md border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-40" title="ลบช่องรายละเอียด">
                             <Trash2 className="size-3.5" />
                           </button>
                         </div>
                       ))}
                       <span />
                     </div>
-                    {item.sizeRows.map((row, index) => (
-                      <div key={`${item.id}-${index}`} className="grid gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${item.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
-                        <input value={row.size} onChange={(event) => patchSize(item.id, index, { size: event.target.value })} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder="M" />
-                        {item.detailFields.map((field) => (
-                          <input key={`${item.id}-${index}-${field}`} value={row.details?.[field] || ""} onChange={(event) => patchSizeDetail(item.id, index, field, event.target.value)} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder={field} />
+                    {selectedItem.sizeRows.map((row, index) => (
+                      <div key={`${selectedItem.id}-${index}`} className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
+                        <input value={row.size} onChange={(event) => patchSize(selectedItem.id, index, { size: event.target.value })} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder="M" />
+                        {selectedItem.detailFields.map((field) => (
+                          <input key={`${selectedItem.id}-${index}-${field}`} value={row.details?.[field] || ""} onChange={(event) => patchSizeDetail(selectedItem.id, index, field, event.target.value)} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder={field} />
                         ))}
-                        <button onClick={() => deleteSize(item.id, index)} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" title="ลบไซส์">
+                        <button onClick={() => deleteSize(selectedItem.id, index)} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" title="ลบไซส์">
                           <Trash2 />
                         </button>
                       </div>
                     ))}
                   </div>
                 </div>
-                <button onClick={() => addSize(item.id)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8FA4C7] bg-white px-3 text-sm font-bold text-[#002B5B]">
+                <button onClick={() => addSize(selectedItem.id)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8FA4C7] bg-white px-3 text-sm font-bold text-[#002B5B]">
                   <Plus className="size-4" /> เพิ่มไซส์
                 </button>
               </div>
               <div className="grid gap-2">
                 <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]">
-                  {uploadingId === item.id ? <Loader2 className="animate-spin" /> : <Upload />}
+                  {uploadingId === selectedItem.id ? <Loader2 className="animate-spin" /> : <Upload />}
                   แนบรูป
-                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadImage(item.id, event.target.files?.[0])} className="hidden" />
+                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadImage(selectedItem.id, event.target.files?.[0])} className="hidden" />
                 </label>
-                <button onClick={() => deleteClothing(item.id)} className="min-h-10 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 text-sm font-bold text-[#B91C1C]">
+                <button onClick={() => deleteClothing(selectedItem.id)} className="min-h-10 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 text-sm font-bold text-[#B91C1C]">
                   <span className="inline-flex items-center justify-center gap-1.5"><Trash2 className="size-4" /> ลบแบบเสื้อ</span>
                 </button>
               </div>
             </div>
           </div>
-        ))}
+        )}
       </div>
     </Card>
   );
@@ -2601,9 +2621,11 @@ function Dashboard({ demoMode }) {
       if (!demoMode) {
         const response = await fetch(APPS_SCRIPT_URL);
         const result = await response.json();
+        if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
         const data = Array.isArray(result) ? result : result?.data;
-        const remoteBatches = Array.isArray(data) && data[0]?.orders ? data.map(normalizeBatch) : [];
-        setBatches(remoteBatches.length ? remoteBatches : storedBatches);
+        const remoteBatches = Array.isArray(data) ? data.map(normalizeBatch).filter((batch) => batch.orders.length) : storedBatches;
+        setBatches(remoteBatches);
+        if (Array.isArray(data)) saveStoredBatches(remoteBatches);
       } else {
         await new Promise((resolve) => setTimeout(resolve, 400));
         setBatches(storedBatches);
@@ -2639,22 +2661,46 @@ function Dashboard({ demoMode }) {
   const summaryRows = useMemo(() => buildTotalSummary(rows), [rows]);
   const typeTotals = useMemo(() => buildTypeTotals(rows), [rows]);
 
-  function updateBatchStatus(batchId, status) {
+  async function syncDashboardAction(payload) {
+    if (demoMode || !isGasConfigured()) return;
+    const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
+  }
+
+  async function updateBatchStatus(batchId, status) {
+    const statusUpdatedAt = new Date().toISOString();
+    try {
+      await syncDashboardAction({ action: "updateStatus", batchId, status, statusUpdatedAt });
+    } catch {
+      toast.error("อัปเดตสถานะใน Google Sheets ไม่สำเร็จ");
+      return;
+    }
+
     setBatches((current) => {
-      const next = current.map((batch) => batch.batchId === batchId ? { ...batch, status, statusUpdatedAt: new Date().toISOString() } : batch);
+      const next = current.map((batch) => batch.batchId === batchId ? { ...batch, status, statusUpdatedAt } : batch);
       saveStoredBatches(next);
       return next;
     });
-    setSelectedBatch((current) => current?.batchId === batchId ? { ...current, status, statusUpdatedAt: new Date().toISOString() } : current);
+    setSelectedBatch((current) => current?.batchId === batchId ? { ...current, status, statusUpdatedAt } : current);
+    toast.success("อัปเดตสถานะแล้ว");
   }
 
-  function deleteBatch(batchId) {
+  async function deleteBatch(batchId) {
+    try {
+      await syncDashboardAction({ action: "deleteBatch", batchId });
+    } catch {
+      toast.error("ลบคำสั่งซื้อใน Google Sheets ไม่สำเร็จ");
+      return;
+    }
+
     setBatches((current) => {
       const next = current.filter((batch) => batch.batchId !== batchId);
       saveStoredBatches(next);
       return next;
     });
     setSelectedBatch(null);
+    toast.success("ลบคำสั่งซื้อแล้ว");
   }
 
   function clearFilters() {
@@ -2698,49 +2744,82 @@ function Dashboard({ demoMode }) {
         </div>
       </section>
 
-      <ClothingManager config={clothingConfig} setConfig={setClothingConfig} />
-
-      <Card>
-        <div className="grid gap-3 lg:grid-cols-[14rem_14rem_1fr_auto] lg:items-end">
-          <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={["ทุกสาขา", ...BRANCHES]} /></Field>
-          <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={["ทุกสถานะ", ...ORDER_STATUSES]} /></Field>
-          <Field label="ค้นหา"><TextInput value={query} onChange={setQuery} placeholder="ค้นหา BatchID บริษัท ผู้ติดต่อ เบอร์ หรือชื่อพนักงาน" /></Field>
-          <button onClick={clearFilters} className="min-h-12 rounded-xl border border-[#CBD5E1] bg-white px-5 font-bold text-[#002B5B] shadow-sm">
-            ล้างตัวกรอง
-          </button>
-        </div>
-      </Card>
-
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat icon={Users} value={metrics.totalEmployees} label="พนักงาน" />
         <Stat icon={ClipboardList} value={metrics.pendingBatches} label="รอจัดส่ง" />
         <Stat icon={PackageCheck} value={metrics.deliveredBatches} label="จัดส่งแล้ว" />
       </div>
 
-      <Tabs.Root defaultValue="orders" className="grid gap-4">
-        <Tabs.List className="grid grid-cols-2 rounded-2xl border border-[#D8DEEA] bg-white p-1 shadow-sm">
-          <Tabs.Trigger value="orders" className="min-h-11 rounded-xl text-sm font-bold text-[#64748B] data-[state=active]:bg-[#002B5B] data-[state=active]:text-white">
-            ชุดคำสั่งซื้อ ({filteredBatches.length})
+      <Tabs.Root defaultValue="overview" className="grid gap-4">
+        <Tabs.List className="grid grid-cols-3 rounded-2xl border border-[#D8DEEA] bg-white p-1 shadow-sm">
+          <Tabs.Trigger value="overview" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
+            <Gauge className="size-4" /> <span className="hidden sm:inline">ข้อมูลรวม</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="totals" className="min-h-11 rounded-xl text-sm font-bold text-[#64748B] data-[state=active]:bg-[#002B5B] data-[state=active]:text-white">
-            สรุปยอดรวม ({metrics.totalPieces} ชิ้น)
+          <Tabs.Trigger value="orders" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
+            <ClipboardList className="size-4" /> <span className="hidden sm:inline">คำสั่งเสื้อ</span>
+            <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{filteredBatches.length}</span>
+          </Tabs.Trigger>
+          <Tabs.Trigger value="settings" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
+            <Settings className="size-4" /> <span className="hidden sm:inline">ตั้งค่าเสื้อ</span>
           </Tabs.Trigger>
         </Tabs.List>
 
-        <Tabs.Content value="orders">
-          {filteredBatches.length ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {filteredBatches.map((batch) => (
-                <DashboardOrderCard key={batch.batchId} batch={batch} onOpen={() => setSelectedBatch(batch)} onStatusChange={updateBatchStatus} onDelete={deleteBatch} />
-              ))}
+        <Tabs.Content value="overview" className="grid gap-4">
+          <Card>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-[#071638]">ข้อมูลรวม</h2>
+                <p className="mt-1 text-sm font-semibold text-[#64748B]">สรุปยอดจากคำสั่งเสื้อทั้งหมดที่ผ่านตัวกรองปัจจุบัน</p>
+              </div>
+              <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-3 text-right">
+                <p className="text-xs font-bold text-[#71717A]">รวมทั้งหมด</p>
+                <p className="text-2xl font-black text-[#18181B]">{metrics.totalPieces} ชิ้น</p>
+              </div>
             </div>
-          ) : (
-            <EmptyDashboardState text="ยังไม่มีชุดคำสั่งซื้อตามเงื่อนไขที่เลือก" />
-          )}
+          </Card>
+          <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} />
         </Tabs.Content>
 
-        <Tabs.Content value="totals">
-          <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} />
+        <Tabs.Content value="orders">
+          <div className="grid gap-4">
+            <Card>
+              <div className="grid gap-3 lg:grid-cols-[14rem_14rem_1fr_auto] lg:items-end">
+                <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={["ทุกสาขา", ...BRANCHES]} /></Field>
+                <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={["ทุกสถานะ", ...ORDER_STATUSES]} /></Field>
+                <Field label="ค้นหา"><TextInput value={query} onChange={setQuery} placeholder="ค้นหา BatchID บริษัท ผู้ติดต่อ เบอร์ หรือชื่อพนักงาน" /></Field>
+                <button onClick={clearFilters} className="min-h-12 rounded-xl border border-[#CBD5E1] bg-white px-5 font-bold text-[#002B5B] shadow-sm">
+                  ล้างตัวกรอง
+                </button>
+              </div>
+            </Card>
+
+            {filteredBatches.length ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {filteredBatches.map((batch) => (
+                  <DashboardOrderCard key={batch.batchId} batch={batch} onOpen={() => setSelectedBatch(batch)} onStatusChange={updateBatchStatus} onDelete={deleteBatch} />
+                ))}
+              </div>
+            ) : (
+              <EmptyDashboardState text="ยังไม่มีชุดคำสั่งซื้อตามเงื่อนไขที่เลือก" />
+            )}
+          </div>
+        </Tabs.Content>
+
+        <Tabs.Content value="settings">
+          <div className="grid gap-4">
+            <Card>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-extrabold text-[#071638]">ตั้งค่าเสื้อและไซส์</h2>
+                  <p className="mt-1 text-sm font-semibold text-[#64748B]">แยกจากคำสั่งซื้อเพื่อให้แก้ง่าย แม้มีเสื้อหลายแบบ</p>
+                </div>
+                <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-3 text-sm font-bold text-[#52525B]">
+                  {clothingConfig.length} แบบเสื้อ
+                </div>
+              </div>
+            </Card>
+            <ClothingManager config={clothingConfig} setConfig={setClothingConfig} />
+          </div>
         </Tabs.Content>
       </Tabs.Root>
 

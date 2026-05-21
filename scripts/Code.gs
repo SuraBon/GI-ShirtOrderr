@@ -30,9 +30,20 @@ function doPost(e) {
 
   try {
     const payload = parsePayload_(e);
+    const sheet = getOrdersSheet_();
+
+    if (payload.action === "updateStatus") {
+      const updatedRows = updateBatchStatus_(sheet, payload);
+      return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: updatedRows });
+    }
+
+    if (payload.action === "deleteBatch") {
+      const deletedRows = deleteBatch_(sheet, payload.batchId);
+      return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: deletedRows });
+    }
+
     validateBatch_(payload);
 
-    const sheet = getOrdersSheet_();
     const rows = buildRows_(payload);
     if (rows.length) {
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADERS.length).setValues(rows);
@@ -56,6 +67,48 @@ function validateBatch_(batch) {
   if (!batch || typeof batch !== "object") throw new Error("Invalid batch payload");
   if (!batch.batchId) throw new Error("Missing batchId");
   if (!Array.isArray(batch.orders) || !batch.orders.length) throw new Error("Missing orders");
+}
+
+function updateBatchStatus_(sheet, payload) {
+  if (!payload.batchId) throw new Error("Missing batchId");
+  if (!payload.status) throw new Error("Missing status");
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const statusUpdatedAt = payload.statusUpdatedAt || new Date().toISOString();
+  let updatedRows = 0;
+
+  values.forEach((row, index) => {
+    if (String(row[0]) !== String(payload.batchId)) return;
+    const rowNumber = index + 2;
+    sheet.getRange(rowNumber, 2).setValue(payload.status);
+    sheet.getRange(rowNumber, 3).setValue(statusUpdatedAt);
+    updatedRows += 1;
+  });
+
+  if (!updatedRows) throw new Error("Batch not found");
+  return updatedRows;
+}
+
+function deleteBatch_(sheet, batchId) {
+  if (!batchId) throw new Error("Missing batchId");
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  let deletedRows = 0;
+
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    if (String(values[index][0]) !== String(batchId)) continue;
+    sheet.deleteRow(index + 2);
+    deletedRows += 1;
+  }
+
+  if (!deletedRows) throw new Error("Batch not found");
+  return deletedRows;
 }
 
 function getOrdersSheet_() {
