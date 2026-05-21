@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -16,8 +18,10 @@ body {
   min-height: 100vh;
   color: #071638;
   background: #f5f7fb;
-  font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
+  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
   font-size: 15px;
+  line-height: 1.55;
+  text-rendering: geometricPrecision;
 }
 
 button,
@@ -195,7 +199,9 @@ select option {
 .app-shadcn-theme {
   background: #fafafa !important;
   color: #09090b !important;
-  font-size: 14px;
+  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .app-shadcn-theme header {
@@ -237,7 +243,14 @@ select option {
   border-radius: 8px !important;
   background: #ffffff !important;
   color: #09090b !important;
+  font-weight: 600;
   box-shadow: none !important;
+}
+
+.app-shadcn-theme input::placeholder,
+.app-shadcn-theme textarea::placeholder {
+  color: #a1a1aa !important;
+  font-weight: 500;
 }
 
 .app-shadcn-theme textarea {
@@ -258,6 +271,7 @@ select option {
 }
 
 .app-shadcn-theme button {
+  font-weight: 700;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 

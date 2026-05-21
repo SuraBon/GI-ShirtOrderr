@@ -7,9 +7,11 @@ import { Toaster, toast } from "sonner";
 import {
   Check,
   ChevronDown,
+  ChevronUp,
   ClipboardList,
   Copy,
   Download,
+  Eraser,
   FileText,
   Gauge,
   LayoutDashboard,
@@ -605,7 +607,19 @@ function App() {
       {isDashboard
         ? <DashboardApp key={`dashboard-${configVersion}`} demoMode={!gasConfigured} onOpenOrder={() => navigate(ORDER_PATH)} />
         : <QuickOrderApp key={`order-${configVersion}`} gasConfigured={gasConfigured} />}
-      <Toaster richColors position="top-center" />
+      <Toaster
+        richColors
+        closeButton
+        position="top-center"
+        toastOptions={{
+          duration: 4200,
+          classNames: {
+            toast: "rounded-lg border text-[14px] font-semibold",
+            title: "font-extrabold",
+            description: "font-semibold"
+          }
+        }}
+      />
     </div>
   );
 }
@@ -643,12 +657,12 @@ function QuickOrderApp({ gasConfigured }) {
 
   function validateCompany() {
     if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
-      toast.error("กรอกข้อมูลบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อให้ครบก่อน");
+      toast.error("ข้อมูลผู้ติดต่อยังไม่ครบ", { description: "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อก่อนส่งคำสั่งซื้อ" });
       window.scrollTo({ top: 0, behavior: "smooth" });
       return false;
     }
     if (state.supervisorPhone.length !== PHONE_LENGTH) {
-      toast.error(`กรอกเบอร์ติดต่อเป็นตัวเลข ${PHONE_LENGTH} หลัก`);
+      toast.error("เบอร์ติดต่อไม่ถูกต้อง", { description: `กรอกตัวเลข ${PHONE_LENGTH} หลัก` });
       window.scrollTo({ top: 0, behavior: "smooth" });
       return false;
     }
@@ -670,7 +684,7 @@ function QuickOrderApp({ gasConfigured }) {
     if (invalidEmployee) {
       const index = state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1;
       const missing = getEmployeeMissingFields(invalidEmployee).join(", ");
-      toast.error(`พนักงานลำดับ ${index} ยังไม่ครบ${missing ? `: ${missing}` : ""}`);
+      toast.error(`ข้อมูลพนักงานลำดับ ${index} ยังไม่ครบ`, { description: missing || "ตรวจชื่อ เพศ ประเภทชุด ไซส์ และจำนวน" });
       jumpToEmployee(invalidEmployee.id);
       return false;
     }
@@ -681,7 +695,7 @@ function QuickOrderApp({ gasConfigured }) {
   function openSummary() {
     if (!validateCompany() || !validateEmployees()) return;
     if (!gasConfigured) {
-      toast.error("ยังไม่ได้ตั้งค่า Google Sheets URL กรุณาตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ");
+      toast.error("ระบบบันทึกคำสั่งซื้อยังไม่พร้อม", { description: "ตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ" });
       return;
     }
     setSummaryOpen(true);
@@ -714,7 +728,7 @@ function QuickOrderApp({ gasConfigured }) {
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
       saveStoredBatch(payload);
-      toast.success("บันทึกคำสั่งซื้อเรียบร้อยแล้ว");
+      toast.success("บันทึกคำสั่งซื้อเข้าระบบแล้ว");
       localStorage.removeItem(ORDER_DRAFT_KEY);
       skipDraftSaveRef.current = true;
       setSummaryOpen(false);
@@ -723,7 +737,7 @@ function QuickOrderApp({ gasConfigured }) {
       setMobileEmployeeId("");
       dispatch({ type: "reset" });
     } catch {
-      toast.error("ส่งข้อมูลไม่สำเร็จ");
+      toast.error("บันทึกคำสั่งซื้อไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
     } finally {
       setIsSubmitting(false);
     }
@@ -803,17 +817,16 @@ function QuickOrderSetupPanel({ state, dispatch }) {
     <section className="flex h-full flex-col rounded-lg border border-[#D8DEEA] bg-white p-3 sm:p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-extrabold text-[#071638]">ข้อมูลผู้ติดต่อ</h2>
-          <p className="mt-1 truncate text-sm font-semibold text-[#64748B]">
+          <h2 className="text-base font-black text-[#071638]">ข้อมูลผู้ติดต่อ</h2>
+          <p className="mt-1 truncate text-[15px] font-bold leading-6 text-[#52525B]">
             {complete ? `${state.companyName} · ${state.branch} · ${state.supervisorName} · ${formatPhone(state.supervisorPhone)}` : "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อ"}
           </p>
         </div>
-        <button onClick={() => setExpanded((value) => !value)} className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#002B5B] sm:text-sm">
-          {expanded ? "ย่อ" : <><Pencil className="size-3.5" /> แก้ไข</>}
+        <button onClick={() => setExpanded((value) => !value)} className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#002B5B] sm:text-sm lg:hidden">
+          {expanded ? <><ChevronUp className="size-3.5" /> ย่อ</> : <><Pencil className="size-3.5" /> แก้ไข</>}
         </button>
       </div>
-      {expanded && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_.9fr]">
+      <div className={cn("mt-3 grid gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-[1.25fr_1fr_1fr_.9fr]", !expanded && "hidden lg:grid")}>
           <Field label="บริษัท">
             <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
           </Field>
@@ -826,8 +839,7 @@ function QuickOrderSetupPanel({ state, dispatch }) {
           <Field label="เบอร์ติดต่อ">
             <TextInput value={state.supervisorPhone} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorPhone: phoneDigitsOnly(value) } })} placeholder="08X-XXX-XXXX" inputMode="numeric" pattern="[0-9]*" />
           </Field>
-        </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -847,7 +859,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
 
   function applyQuickOrder() {
     if (!names.length) {
-      toast.error("วางรายชื่ออย่างน้อย 1 บรรทัด");
+      toast.error("ยังไม่มีรายชื่อพนักงาน", { description: "วางรายชื่ออย่างน้อย 1 บรรทัด" });
       return;
     }
     const hasExistingData = state.employees.some(hasEmployeeData);
@@ -855,7 +867,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
     dispatch({ type: "applyQuickOrder", names, quickOrder: { gender, defaultSizeValue, customItems } });
     setNamesText("");
     setOpen(false);
-    toast.success(`เพิ่มพนักงาน ${names.length} คนแล้ว`);
+    toast.success(`เพิ่มรายชื่อพนักงาน ${names.length} คนแล้ว`);
   }
 
   return (
@@ -961,7 +973,7 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
           <span className="inline-flex items-center justify-center gap-1.5"><Copy className="size-4" /> คัดลอกแถวแรก</span>
         </button>
         <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm">
-          <span className="inline-flex items-center justify-center gap-1.5"><Trash2 className="size-4" /> ลบแถวว่าง</span>
+          <span className="inline-flex items-center justify-center gap-1.5"><Eraser className="size-4" /> ลบแถวว่าง</span>
         </button>
       </div>
     </section>
@@ -1291,22 +1303,22 @@ function OrderApp({ gasConfigured }) {
   function applyPastedNames() {
     const names = pastedNames.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
     if (!names.length) {
-      toast.error("วางรายชื่ออย่างน้อย 1 บรรทัด");
+      toast.error("ยังไม่มีรายชื่อพนักงาน", { description: "วางรายชื่ออย่างน้อย 1 บรรทัด" });
       return;
     }
     dispatch({ type: "setNamesFromPaste", names });
     setPastedNames("");
-    toast.success(`สร้างรายชื่อ ${names.length} คนแล้ว`);
+    toast.success(`สร้างรายชื่อพนักงาน ${names.length} คนแล้ว`);
   }
 
   function jumpToFirstIncompleteEmployee() {
     const invalidEmployee = state.employees.find((employee) => !isEmployeeComplete(employee));
     if (!invalidEmployee) {
-      toast.success("กรอกครบทุกคนแล้ว");
+      toast.success("ข้อมูลพนักงานครบทุกคนแล้ว");
       return;
     }
     const index = state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1;
-    toast.info(`ไปที่พนักงานลำดับ ${index}`);
+    toast.info(`เปิดพนักงานลำดับ ${index}`);
     jumpToEmployee(invalidEmployee.id);
   }
 
@@ -1314,7 +1326,7 @@ function OrderApp({ gasConfigured }) {
     const targetCount = Math.max(1, Number(employeeCount || 1));
     const currentCount = state.employees.length;
     if (targetCount === currentCount) {
-      toast.info("จำนวนรายการตรงกับที่สร้างไว้แล้ว");
+      toast.info("จำนวนรายการตรงกับที่มีอยู่แล้ว");
       return;
     }
 
@@ -1333,13 +1345,13 @@ function OrderApp({ gasConfigured }) {
 
   function validateCompanyStep() {
     if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
-      toast.error("กรอกชื่อบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อให้ครบก่อน");
+      toast.error("ข้อมูลผู้ติดต่อยังไม่ครบ", { description: "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อก่อนส่งคำสั่งซื้อ" });
       setActiveStep(1);
       return false;
     }
 
     if (state.supervisorPhone.length !== PHONE_LENGTH) {
-      toast.error(`กรอกเบอร์ติดต่อเป็นตัวเลข ${PHONE_LENGTH} หลัก`);
+      toast.error("เบอร์ติดต่อไม่ถูกต้อง", { description: `กรอกตัวเลข ${PHONE_LENGTH} หลัก` });
       setActiveStep(1);
       return false;
     }
@@ -1352,7 +1364,7 @@ function OrderApp({ gasConfigured }) {
     if (!state.employees.length || invalidEmployee) {
       const index = invalidEmployee ? state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1 : 1;
       const missing = invalidEmployee ? getEmployeeMissingFields(invalidEmployee).join(", ") : "";
-      toast.error(`พนักงานลำดับ ${index} ยังไม่ครบ${missing ? `: ${missing}` : ""}`);
+      toast.error(`ข้อมูลพนักงานลำดับ ${index} ยังไม่ครบ`, { description: missing || "ตรวจชื่อ เพศ ประเภทชุด ไซส์ และจำนวน" });
       setActiveStep(2);
       if (invalidEmployee) jumpToEmployee(invalidEmployee.id);
       return false;
@@ -1380,7 +1392,7 @@ function OrderApp({ gasConfigured }) {
   function openSummary() {
     if (!validateCompanyStep() || !validateEmployeeStep()) return;
     if (!gasConfigured) {
-      toast.error("ยังไม่ได้ตั้งค่า Google Sheets URL กรุณาตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ");
+      toast.error("ระบบบันทึกคำสั่งซื้อยังไม่พร้อม", { description: "ตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ" });
       return;
     }
     setActiveStep(3);
@@ -1415,7 +1427,7 @@ function OrderApp({ gasConfigured }) {
       if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
       saveStoredBatch(payload);
       await new Promise((resolve) => setTimeout(resolve, 650));
-      toast.success("บันทึกคำสั่งซื้อเรียบร้อยแล้ว");
+      toast.success("บันทึกคำสั่งซื้อเข้าระบบแล้ว");
       localStorage.removeItem(ORDER_DRAFT_KEY);
       skipDraftSaveRef.current = true;
       setSummaryOpen(false);
@@ -1423,7 +1435,7 @@ function OrderApp({ gasConfigured }) {
       setEmployeeCount("1");
       dispatch({ type: "reset", count: 1 });
     } catch {
-      toast.error("ส่งข้อมูลไม่สำเร็จ");
+      toast.error("บันทึกคำสั่งซื้อไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
     } finally {
       setIsSubmitting(false);
     }
@@ -1680,7 +1692,7 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
     if (passcode === DASHBOARD_PASSCODE) {
       setError("");
       onUnlock();
-      toast.success("เข้าสู่ Dashboard สำเร็จ");
+      toast.success("เข้าสู่ Dashboard แล้ว");
       return;
     }
     setError("รหัสไม่ถูกต้อง");
@@ -1934,7 +1946,7 @@ function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
     if (!selectedEmployee || selectedIndex <= 0) return;
     const previousEmployee = employees[selectedIndex - 1];
     dispatch({ type: "copyEmployeeSetup", id: selectedEmployee.id, sourceId: previousEmployee.id });
-    toast.success("คัดลอกจากคนก่อนหน้าแล้ว");
+    toast.success("คัดลอกข้อมูลจากคนก่อนหน้าแล้ว");
   }
 
   return (
@@ -2413,7 +2425,7 @@ function ClothingManager({ config, setConfig }) {
     window.clearTimeout(syncTimerRef.current);
     syncTimerRef.current = window.setTimeout(() => {
       publishSharedClothingConfig(normalizedConfig).catch((error) => {
-        toast.error(error?.message || "บันทึกการตั้งค่าเสื้อไป Blob ไม่สำเร็จ");
+        toast.error("บันทึกการตั้งค่าเสื้อไม่สำเร็จ", { description: error?.message || "ตรวจการเชื่อมต่อ Vercel Blob แล้วลองใหม่" });
       });
     }, 700);
   }
@@ -2505,7 +2517,7 @@ function ClothingManager({ config, setConfig }) {
 
   function deleteClothing(id) {
     if (config.length <= 1) {
-      toast.error("ต้องมีประเภทเสื้ออย่างน้อย 1 รายการ");
+      toast.error("ลบแบบเสื้อไม่ได้", { description: "ต้องมีประเภทเสื้ออย่างน้อย 1 รายการ" });
       return;
     }
     if (!window.confirm("ลบประเภทเสื้อนี้? รายการเก่าที่เคยสั่งจะยังอยู่ในประวัติ")) return;
@@ -2541,7 +2553,7 @@ function ClothingManager({ config, setConfig }) {
     if (!file) return;
     const validationError = validateImageFile(file);
     if (validationError) {
-      toast.error(validationError);
+      toast.error("ไฟล์รูปไม่ถูกต้อง", { description: validationError });
       return;
     }
     setUploadingId(id);
@@ -2550,7 +2562,7 @@ function ClothingManager({ config, setConfig }) {
       patchItem(id, { imageUrl: result.url });
       toast.success("อัปโหลดรูปไป Vercel Blob แล้ว");
     } catch (error) {
-      toast.error(error?.message || "อัปโหลดรูปไป Vercel Blob ไม่สำเร็จ");
+      toast.error("อัปโหลดรูปไม่สำเร็จ", { description: error?.message || "ตรวจการตั้งค่า Vercel Blob แล้วลองใหม่" });
     } finally {
       setUploadingId("");
     }
@@ -2713,7 +2725,7 @@ function Dashboard({ demoMode }) {
     } catch {
       const storedBatches = readStoredBatches();
       setBatches(storedBatches);
-      toast.error("โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ");
+      toast.error("โหลดข้อมูล Dashboard ไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
     } finally {
       setLoading(false);
     }
@@ -2753,7 +2765,7 @@ function Dashboard({ demoMode }) {
     try {
       await syncDashboardAction({ action: "updateStatus", batchId, status, statusUpdatedAt });
     } catch {
-      toast.error("อัปเดตสถานะใน Google Sheets ไม่สำเร็จ");
+      toast.error("อัปเดตสถานะไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
       return;
     }
 
@@ -2763,14 +2775,14 @@ function Dashboard({ demoMode }) {
       return next;
     });
     setSelectedBatch((current) => current?.batchId === batchId ? { ...current, status, statusUpdatedAt } : current);
-    toast.success("อัปเดตสถานะแล้ว");
+    toast.success("อัปเดตสถานะคำสั่งซื้อแล้ว");
   }
 
   async function deleteBatch(batchId) {
     try {
       await syncDashboardAction({ action: "deleteBatch", batchId });
     } catch {
-      toast.error("ลบคำสั่งซื้อใน Google Sheets ไม่สำเร็จ");
+      toast.error("ลบคำสั่งซื้อไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
       return;
     }
 
