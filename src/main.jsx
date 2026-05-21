@@ -1822,20 +1822,75 @@ const TextInput = React.forwardRef(function TextInput({ value, onChange, placeho
   );
 });
 
-function Select({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false }) {
+function CustomSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const selectedLabel = value || placeholder;
+
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event) {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  function selectValue(nextValue) {
+    onChange(nextValue);
+    setOpen(false);
+  }
+
   return (
-    <div className="relative">
-      <select
-        value={value}
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-h-10 w-full appearance-none rounded-xl border border-[#CBD5E1] bg-white px-3 pr-9 text-sm text-[#071638] shadow-sm outline-none transition focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:min-h-12 sm:px-3.5 sm:pr-10 sm:text-[15px]"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className={cn(
+          "flex w-full items-center justify-between gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 text-left text-sm font-bold text-[#09090B] outline-none transition focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA]",
+          compact ? "min-h-9" : "min-h-10 sm:min-h-12 sm:px-3.5 sm:text-[15px]"
+        )}
       >
-        {values.map((item, index) => <option key={`${item}-${index}`} value={item}>{item || placeholder}</option>)}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#64748B] sm:right-4 sm:size-5" />
+        <span className={cn("min-w-0 truncate", !value && "text-[#A1A1AA]")}>{selectedLabel}</span>
+        <ChevronDown className={cn("size-4 shrink-0 text-[#71717A] transition", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-[#D4D4D8] bg-white p-1 shadow-lg">
+          <div className="employee-scroll-region max-h-64 overflow-y-auto">
+            <div role="listbox" className="grid gap-0.5">
+              {values.map((item, index) => {
+                const selected = item === value;
+                return (
+                  <button
+                    key={`${item}-${index}`}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onClick={() => selectValue(item)}
+                    className={cn(
+                      "flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-3 text-left text-sm font-semibold text-[#18181B] transition hover:bg-[#F4F4F5]",
+                      selected && "bg-[#18181B] text-white hover:bg-[#18181B]"
+                    )}
+                  >
+                    <span className="min-w-0 truncate">{item || placeholder}</span>
+                    {selected && <Check className="size-4 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function Select(props) {
+  return <CustomSelect {...props} />;
 }
 
 function OrderSetupCard({ state, dispatch }) {
@@ -2251,7 +2306,7 @@ function GridInput({ value, onChange, placeholder, type = "text", inputMode, pat
 }
 
 function GridSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false }) {
-  return <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#D8DEEA] bg-white px-3 text-[#071638] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]">{values.map((item, index) => <option key={`${item}-${index}`} value={item}>{item || placeholder}</option>)}</select>;
+  return <CustomSelect value={value} values={values} onChange={onChange} placeholder={placeholder} disabled={disabled} />;
 }
 
 function MobileSubmit({ totalPieces, isSubmitting, onSubmit }) {
@@ -3067,9 +3122,9 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                   <MiniMetric label="จำนวนรวม" value={`${getBatchPieces(batch)} ชิ้น`} />
                   <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3">
                     <p className="truncate text-xs font-bold text-[#64748B]">สถานะ</p>
-                    <select value={batch.status} onChange={(event) => onStatusChange(batch.batchId, event.target.value)} className="mt-1 min-h-9 w-full rounded-xl border border-[#D8DEEA] bg-white px-2 text-sm font-bold text-[#071638] outline-none focus:border-[#002B5B]">
-                      {ORDER_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
+                    <div className="mt-1">
+                      <CustomSelect value={batch.status} values={ORDER_STATUSES} onChange={(status) => onStatusChange(batch.batchId, status)} compact />
+                    </div>
                   </div>
                 </div>
                 <p className="mb-4 rounded-xl bg-[#EEF4FF] px-4 py-3 text-sm font-bold text-[#002B5B]">
