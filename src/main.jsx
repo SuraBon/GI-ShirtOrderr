@@ -2,22 +2,28 @@ import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
+import { upload } from "@vercel/blob/client";
 import { Toaster, toast } from "sonner";
 import {
   Check,
   ChevronDown,
   ClipboardList,
+  Copy,
   Download,
   FileText,
   Gauge,
   LayoutDashboard,
   Loader2,
   PackageCheck,
+  Pencil,
   Phone,
   Plus,
   Search,
+  Send,
+  Settings,
   Shirt,
   Trash2,
+  Upload,
   User,
   UserCheck,
   UserPlus,
@@ -33,6 +39,7 @@ const ORDER_PATH = "#/order";
 const DASHBOARD_PASSCODE = import.meta.env.VITE_DASHBOARD_PASSCODE || "";
 const ORDER_STORAGE_KEY = "gi-shirt-order-batches";
 const ORDER_DRAFT_KEY = "gi-shirt-order-draft";
+const CLOTHING_CONFIG_KEY = "gi-shirt-clothing-config";
 const DEFAULT_COMPANY_NAME = "โกลด์ อินทิเกรท จำกัด";
 const ORDER_STATUS_PENDING = "รอจัดส่ง";
 const ORDER_STATUS_DELIVERED = "จัดส่งแล้ว";
@@ -70,14 +77,78 @@ const SIZE_TABLES = {
   "กางเกงช็อป": [["28", '28"'], ["30", '30"'], ["32", '32"'], ["34", '34"'], ["36", '36"'], ["38", '38"'], ["40", '40"'], ["42", '42"'], ["44", '44"']]
 };
 
-const QUICK_ORDER_PRESETS = [
-  { id: "new", label: "พนักงานใหม่", items: [{ typeIndex: 0, qty: 2 }] },
-  { id: "tech", label: "ช่าง", items: [{ typeIndex: 1, qty: 2 }, { typeIndex: 2, qty: 2 }] },
-  { id: "full", label: "ครบชุด", items: [{ typeIndex: 0, qty: 2 }, { typeIndex: 1, qty: 2 }, { typeIndex: 2, qty: 2 }] },
-  { id: "custom", label: "กำหนดเอง", items: [] }
-];
+const DEFAULT_CLOTHING_CONFIG = CLOTHING_TYPES.map((type) => ({
+  id: crypto.randomUUID(),
+  type,
+  imageUrl: "",
+  colors: [],
+  detailFields: type === "กางเกงช็อป" ? ["เอว"] : ["อก"],
+  sizeRows: (type === "เสื้อโปโล" ? SIZE_TABLES["เสื้อโปโล ชาย"] : SIZE_TABLES[type]).map(([size, measure]) => ({
+    size,
+    details: { [type === "กางเกงช็อป" ? "เอว" : "อก"]: measure }
+  }))
+}));
+
+function normalizeSizeDetails(row, detailFields) {
+  if (row?.details && typeof row.details === "object") {
+    return detailFields.reduce((details, field) => ({ ...details, [field]: String(row.details[field] || "") }), {});
+  }
+  const fallback = String(row?.measure || "").trim();
+  return detailFields.reduce((details, field, index) => ({ ...details, [field]: index === 0 ? fallback : "" }), {});
+}
+
+function normalizeClothingConfig(config) {
+  const source = Array.isArray(config) && config.length ? config : DEFAULT_CLOTHING_CONFIG;
+  return source.map((item, index) => ({
+    id: item?.id || crypto.randomUUID(),
+    type: String(item?.type || CLOTHING_TYPES[index] || "เสื้อ").trim(),
+    imageUrl: item?.imageUrl || "",
+    colors: Array.isArray(item?.colors)
+      ? item.colors.map((color) => ({
+        name: String(color?.name || "").trim(),
+        value: String(color?.value || "#0F172A").trim() || "#0F172A"
+      })).filter((color) => color.name)
+      : [],
+    detailFields: Array.isArray(item?.detailFields) && item.detailFields.length
+      ? item.detailFields.map((field) => String(field || "").trim()).filter(Boolean)
+      : [String(item?.detailLabel || (String(item?.type || "").includes("กางเกง") ? "เอว" : "อก")).trim()],
+    sizeRows: Array.isArray(item?.sizeRows) && item.sizeRows.length
+      ? item.sizeRows.map((row) => {
+        const detailFields = Array.isArray(item?.detailFields) && item.detailFields.length
+          ? item.detailFields.map((field) => String(field || "").trim()).filter(Boolean)
+          : [String(item?.detailLabel || (String(item?.type || "").includes("กางเกง") ? "เอว" : "อก")).trim()];
+        return {
+          size: String(row?.size || "").trim(),
+          details: normalizeSizeDetails(row, detailFields)
+        };
+      }).filter((row) => row.size)
+      : [{ size: "M", details: normalizeSizeDetails({}, Array.isArray(item?.detailFields) ? item.detailFields : ["อก"]) }]
+  })).filter((item) => item.type);
+}
+
+function readClothingConfig() {
+  try {
+    return normalizeClothingConfig(JSON.parse(localStorage.getItem(CLOTHING_CONFIG_KEY) || "null"));
+  } catch {
+    return normalizeClothingConfig();
+  }
+}
+
+function saveClothingConfig(config) {
+  localStorage.setItem(CLOTHING_CONFIG_KEY, JSON.stringify(normalizeClothingConfig(config)));
+}
+
+function getClothingTypes() {
+  return readClothingConfig().map((item) => item.type);
+}
+
+function findClothingConfig(type) {
+  return readClothingConfig().find((item) => item.type === type);
+}
 
 function getSizeRows(type, gender) {
+  const clothing = findClothingConfig(type);
+  if (clothing?.sizeRows?.length) return clothing.sizeRows.map((row) => [row.size, Object.values(row.details || {}).filter(Boolean).join(" / ") || row.size]);
   if (type === "เสื้อโปโล") return SIZE_TABLES[`เสื้อโปโล ${gender}`] || [];
   return SIZE_TABLES[type] || [];
 }
@@ -140,10 +211,9 @@ function createOrderItem(type, gender, size = "", qty = 2) {
 }
 
 function createQuickOrderItems({ presetId, gender, defaultSizeValue, customItems }) {
-  const preset = QUICK_ORDER_PRESETS.find((item) => item.id === presetId) || QUICK_ORDER_PRESETS[0];
-  const sourceItems = preset.id === "custom"
-    ? CLOTHING_TYPES.map((type, index) => ({ type, qty: customItems?.[index]?.qty || 2, enabled: Boolean(customItems?.[index]?.enabled) })).filter((item) => item.enabled)
-    : preset.items.map((item) => ({ type: CLOTHING_TYPES[item.typeIndex], qty: item.qty }));
+  const sourceItems = getClothingTypes()
+    .map((type, index) => ({ type, qty: customItems?.[index]?.qty || 2, enabled: Boolean(customItems?.[index]?.enabled) }))
+    .filter((item) => item.enabled);
 
   return sourceItems.map((item) => createOrderItem(item.type, gender, defaultSizeValue, item.qty));
 }
@@ -182,7 +252,7 @@ function normalizeDraftEmployee(employee, index) {
         size: item.size || "",
         customSize: item.customSize || "",
         qty: digitsOnly(item.qty || "")
-      })).filter((item) => CLOTHING_TYPES.includes(item.type))
+      })).filter((item) => getClothingTypes().includes(item.type))
       : []
   };
 }
@@ -251,17 +321,6 @@ function orderReducer(state, action) {
       return {
         ...state,
         employees: names.map((name, index) => createEmployeeFromQuickOrder(name, index, action.quickOrder))
-      };
-    }
-    case "applyPresetToAll": {
-      const items = createQuickOrderItems(action.quickOrder);
-      return {
-        ...state,
-        employees: state.employees.map((employee) => ({
-          ...employee,
-          gender: action.quickOrder.gender || employee.gender,
-          items: items.map((item) => ({ ...item }))
-        }))
       };
     }
     case "copyFirstSetupToAll": {
@@ -507,8 +566,7 @@ function App() {
   const isDashboard = path === DASHBOARD_PATH || path === "/dashboard";
 
   return (
-    <div className="min-h-screen bg-[#F5F7FB] text-[#071638]">
-      {isDashboard && <ReactBitsAurora />}
+    <div className="app-shadcn-theme min-h-screen bg-[#FAFAFA] text-[#09090B]">
       {isDashboard ? <DashboardApp demoMode={!gasConfigured} onOpenOrder={() => navigate(ORDER_PATH)} /> : <QuickOrderApp gasConfigured={gasConfigured} />}
       <Toaster richColors position="top-center" />
     </div>
@@ -518,6 +576,7 @@ function App() {
 function QuickOrderApp({ gasConfigured }) {
   const [sizeOpen, setSizeOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalidEmployeeId, setInvalidEmployeeId] = useState("");
   const [query, setQuery] = useState("");
@@ -636,18 +695,18 @@ function QuickOrderApp({ gasConfigured }) {
   return (
     <>
       <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
-      <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-3 px-3 pb-24 pt-3 sm:px-5 lg:gap-4 lg:pb-28">
+      <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-3 px-3 pb-40 pt-3 sm:px-5 lg:gap-4 lg:pb-36">
         {!gasConfigured && <SetupWarning />}
-        <QuickOrderSetupPanel state={state} dispatch={dispatch} />
-        <QuickOrderBuilder state={state} dispatch={dispatch} />
-        <QuickOrderToolbar
-          employees={state.employees}
-          dispatch={dispatch}
-          query={query}
-          setQuery={setQuery}
-          showIncompleteOnly={showIncompleteOnly}
-          setShowIncompleteOnly={setShowIncompleteOnly}
-        />
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+          <QuickOrderSetupPanel state={state} dispatch={dispatch} />
+          <QuickOrderActionsPanel
+            employees={state.employees}
+            dispatch={dispatch}
+            showIncompleteOnly={showIncompleteOnly}
+            setShowIncompleteOnly={setShowIncompleteOnly}
+            onQuickOrder={() => setQuickOpen(true)}
+          />
+        </div>
         <QuickEmployeeTable
           employees={state.employees}
           dispatch={dispatch}
@@ -679,6 +738,7 @@ function QuickOrderApp({ gasConfigured }) {
         onClose={() => setMobileEmployeeId("")}
         onNext={(employeeId) => setMobileEmployeeId(employeeId)}
       />
+      <QuickOrderDialog open={quickOpen} setOpen={setQuickOpen} state={state} dispatch={dispatch} />
       <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
       <QuickOrderSummaryDialog
         open={summaryOpen}
@@ -694,34 +754,59 @@ function QuickOrderApp({ gasConfigured }) {
 }
 
 function QuickOrderSetupPanel({ state, dispatch }) {
+  const complete = Boolean(state.companyName.trim() && state.branch && state.supervisorName.trim() && state.supervisorPhone.length === PHONE_LENGTH);
+  const [expanded, setExpanded] = useState(!complete);
+
+  useEffect(() => {
+    if (complete) setExpanded(false);
+    if (!complete) setExpanded(true);
+  }, [complete]);
+
   return (
     <section className="rounded-lg border border-[#D8DEEA] bg-white p-3 sm:p-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_.9fr]">
-        <Field label="ชื่อบริษัท">
-          <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
-        </Field>
-        <Field label="สาขา">
-          <Select value={state.branch} onChange={(value) => dispatch({ type: "patchBatch", patch: { branch: value } })} values={BRANCHES} />
-        </Field>
-        <Field label="ผู้ติดต่อ">
-          <TextInput value={state.supervisorName} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorName: value } })} placeholder="ชื่อ-นามสกุล" />
-        </Field>
-        <Field label="เบอร์ติดต่อ">
-          <TextInput value={state.supervisorPhone} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorPhone: phoneDigitsOnly(value) } })} placeholder="08X-XXX-XXXX" inputMode="numeric" pattern="[0-9]*" />
-        </Field>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-base font-extrabold text-[#071638]">ข้อมูลผู้ติดต่อ</h2>
+          <p className="mt-1 truncate text-sm font-semibold text-[#64748B]">
+            {complete ? `${state.companyName} · ${state.branch} · ${state.supervisorName} · ${formatPhone(state.supervisorPhone)}` : "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อ"}
+          </p>
+        </div>
+        <button onClick={() => setExpanded((value) => !value)} className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#002B5B] sm:text-sm">
+          {expanded ? "ย่อ" : <><Pencil className="size-3.5" /> แก้ไข</>}
+        </button>
       </div>
+      {expanded && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_.9fr]">
+          <Field label="บริษัท">
+            <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
+          </Field>
+          <Field label="สาขา">
+            <Select value={state.branch} onChange={(value) => dispatch({ type: "patchBatch", patch: { branch: value } })} values={BRANCHES} />
+          </Field>
+          <Field label="ผู้ติดต่อ">
+            <TextInput value={state.supervisorName} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorName: value } })} placeholder="ชื่อ-นามสกุล" />
+          </Field>
+          <Field label="เบอร์ติดต่อ">
+            <TextInput value={state.supervisorPhone} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorPhone: phoneDigitsOnly(value) } })} placeholder="08X-XXX-XXXX" inputMode="numeric" pattern="[0-9]*" />
+          </Field>
+        </div>
+      )}
     </section>
   );
 }
 
-function QuickOrderBuilder({ state, dispatch }) {
+function QuickOrderDialog({ open, setOpen, state, dispatch }) {
   const [namesText, setNamesText] = useState("");
   const [gender, setGender] = useState(GENDERS[0]);
-  const [presetId, setPresetId] = useState(QUICK_ORDER_PRESETS[0].id);
   const [defaultSizeValue, setDefaultSizeValue] = useState("M");
-  const [customItems, setCustomItems] = useState(() => CLOTHING_TYPES.map(() => ({ enabled: false, qty: "2" })));
+  const clothingTypes = getClothingTypes();
+  const [customItems, setCustomItems] = useState(() => clothingTypes.map(() => ({ enabled: false, qty: "2" })));
   const quickSizes = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "28", "30", "32", "34", "36", "38", "40", "42", "44"];
   const names = namesText.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
+
+  useEffect(() => {
+    setCustomItems((items) => clothingTypes.map((_, index) => items[index] || { enabled: false, qty: "2" }));
+  }, [clothingTypes.join("|")]);
 
   function applyQuickOrder() {
     if (!names.length) {
@@ -729,18 +814,30 @@ function QuickOrderBuilder({ state, dispatch }) {
       return;
     }
     const hasExistingData = state.employees.some(hasEmployeeData);
-    if (hasExistingData && !window.confirm("สร้างรายการใหม่จาก Quick Order และแทนที่รายการเดิม?")) return;
-    dispatch({ type: "applyQuickOrder", names, quickOrder: { presetId, gender, defaultSizeValue, customItems } });
+    if (hasExistingData && !window.confirm("แทนที่รายการพนักงานเดิมด้วยรายชื่อชุดใหม่?")) return;
+    dispatch({ type: "applyQuickOrder", names, quickOrder: { gender, defaultSizeValue, customItems } });
     setNamesText("");
-    toast.success(`สร้างรายการ ${names.length} คนแล้ว`);
+    setOpen(false);
+    toast.success(`เพิ่มพนักงาน ${names.length} คนแล้ว`);
   }
 
   return (
-    <section className="rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4">
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45" />
+        <Dialog.Content className="fixed inset-x-3 bottom-3 z-50 max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+          <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
+            <div>
+              <Dialog.Title className="text-xl font-extrabold text-[#071638]">เพิ่มหลายคน</Dialog.Title>
+              <p className="text-sm font-semibold text-[#64748B]">วางรายชื่อและกำหนดชุดเริ่มต้น</p>
+            </div>
+            <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+          </div>
+          <div className="employee-scroll-region max-h-[calc(90vh-5rem)] overflow-y-auto p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-extrabold text-[#071638] sm:text-xl">Quick Order</h1>
-          <p className="text-sm font-semibold text-[#64748B]">วางรายชื่อ เลือกชุดตั้งต้น แล้วค่อยแก้รายคนในตาราง</p>
+          <h2 className="text-lg font-extrabold text-[#071638] sm:text-xl">ข้อมูลเริ่มต้น</h2>
+          <p className="text-sm font-semibold text-[#64748B]">ใช้กับรายชื่อที่วางไว้ แล้วค่อยแก้รายคนในตาราง</p>
         </div>
         <span className="hidden rounded-md bg-white px-3 py-2 text-sm font-bold text-[#002B5B] sm:block">{names.length} คน</span>
       </div>
@@ -764,34 +861,21 @@ function QuickOrderBuilder({ state, dispatch }) {
               <Select value={defaultSizeValue} values={quickSizes} onChange={setDefaultSizeValue} />
             </Field>
           </div>
-          <Field label="Preset">
-            <div className="grid grid-cols-2 gap-2">
-              {QUICK_ORDER_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => setPresetId(preset.id)}
-                  className={cn("min-h-10 rounded-lg border px-3 text-sm font-bold transition", presetId === preset.id ? "border-[#002B5B] bg-[#002B5B] text-white" : "border-[#CBD5E1] bg-white text-[#071638] hover:border-[#8FA4C7]")}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </Field>
-          {presetId === "custom" && (
+          <Field label="กำหนดประเภทชุดและจำนวน">
             <div className="grid gap-2 rounded-lg border border-[#D8DEEA] bg-white p-2">
-              {CLOTHING_TYPES.map((type, index) => (
+              {clothingTypes.map((type, index) => (
                 <label key={type} className="grid grid-cols-[1fr_5rem] items-center gap-2 text-sm font-bold text-[#071638]">
                   <span className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={customItems[index].enabled}
+                      checked={Boolean(customItems[index]?.enabled)}
                       onChange={(event) => setCustomItems((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item))}
                       className="size-4 accent-[#002B5B]"
                     />
                     {type}
                   </span>
                   <input
-                    value={customItems[index].qty}
+                    value={customItems[index]?.qty || "2"}
                     onChange={(event) => setCustomItems((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, qty: digitsOnly(event.target.value) } : item))}
                     inputMode="numeric"
                     className="min-h-9 rounded-md border border-[#CBD5E1] px-2 text-center outline-none focus:border-[#002B5B]"
@@ -799,47 +883,49 @@ function QuickOrderBuilder({ state, dispatch }) {
                 </label>
               ))}
             </div>
-          )}
+          </Field>
           <button onClick={applyQuickOrder} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-4 font-bold text-white transition hover:bg-[#013A78]">
-            <UserPlus /> สร้างรายการ
+            <UserPlus /> เพิ่มเข้ารายการ
           </button>
         </div>
       </div>
-    </section>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
-function QuickOrderToolbar({ employees, dispatch, query, setQuery, showIncompleteOnly, setShowIncompleteOnly }) {
+function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setShowIncompleteOnly, onQuickOrder }) {
   const canRemoveBlank = employees.length > 1 && employees.some((employee) => !hasEmployeeData(employee));
+  const completedEmployees = employees.filter(isEmployeeComplete).length;
+
   return (
-    <section className="rounded-lg border border-[#D8DEEA] bg-white p-3 sm:p-4">
-      <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#64748B]" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="ค้นหาชื่อ เพศ หรือไซส์"
-              className="min-h-10 w-full rounded-lg border border-[#CBD5E1] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
-            />
-          </div>
-          <label className="flex min-h-10 items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 text-sm font-bold text-[#44536A]">
-            <input type="checkbox" checked={showIncompleteOnly} onChange={(event) => setShowIncompleteOnly(event.target.checked)} className="size-4 accent-[#002B5B]" />
-            เฉพาะยังไม่ครบ
-          </label>
+    <section className="rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-base font-extrabold text-[#071638]">รายการพนักงาน</h1>
+          <p className="mt-1 text-sm font-semibold text-[#64748B]">ครบ {completedEmployees}/{employees.length} คน</p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <button onClick={() => dispatch({ type: "copyFirstSetupToAll" })} disabled={!employees[0]?.items.length} className="min-h-10 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45">
-            ใช้แบบแถวแรก
-          </button>
-          <button onClick={() => dispatch({ type: "add" })} className="min-h-10 rounded-lg border border-[#CBD5E1] bg-white px-3 text-sm font-bold text-[#002B5B]">
-            เพิ่มพนักงาน
-          </button>
-          <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="col-span-2 min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-3 text-sm font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:col-span-1">
-            ล้างรายชื่อว่าง
-          </button>
-        </div>
+        <label className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#44536A]">
+          <input type="checkbox" checked={showIncompleteOnly} onChange={(event) => setShowIncompleteOnly(event.target.checked)} className="size-4 accent-[#002B5B]" />
+          ยังไม่ครบ
+        </label>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button onClick={onQuickOrder} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-2.5 text-xs font-bold text-white sm:min-h-10 sm:text-sm">
+          <UserPlus /> เพิ่มหลายคน
+        </button>
+        <button onClick={() => dispatch({ type: "add" })} className="min-h-9 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#002B5B] sm:min-h-10 sm:px-3 sm:text-sm">
+          <span className="inline-flex items-center justify-center gap-1.5"><Plus className="size-4" /> เพิ่ม 1 คน</span>
+        </button>
+        <button onClick={() => dispatch({ type: "copyFirstSetupToAll" })} disabled={!employees[0]?.items.length} className="min-h-9 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-2.5 text-xs font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 sm:px-3 sm:text-sm">
+          <span className="inline-flex items-center justify-center gap-1.5"><Copy className="size-4" /> คัดลอกแถวแรก</span>
+        </button>
+        <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="min-h-9 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 sm:px-3 sm:text-sm">
+          <span className="inline-flex items-center justify-center gap-1.5"><Trash2 className="size-4" /> ลบแถวว่าง</span>
+        </button>
       </div>
     </section>
   );
@@ -860,6 +946,7 @@ function getFilteredEmployees(employees, query, showIncompleteOnly) {
 function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, invalidEmployeeId }) {
   const filteredEmployees = getFilteredEmployees(employees, query, showIncompleteOnly);
   const canDelete = canDeleteEmployee(employees);
+  const clothingTypes = getClothingTypes();
 
   return (
     <section className="hidden overflow-hidden rounded-lg border border-[#D8DEEA] bg-white lg:block">
@@ -867,7 +954,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
         <table className="w-full min-w-[1180px] text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
-              {["#", "ชื่อพนักงาน", "เพศ", ...CLOTHING_TYPES, "สถานะ", ""].map((header) => (
+              {["#", "ชื่อพนักงาน", "เพศ", ...clothingTypes, "สถานะ", ""].map((header) => (
                 <th key={header || "actions"} className="border-b border-[#D8DEEA] px-3 py-3">{header}</th>
               ))}
             </tr>
@@ -886,7 +973,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                   <td className="w-36 px-3 py-3">
                     <GridSelect value={employee.gender} values={["", ...GENDERS]} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} />
                   </td>
-                  {CLOTHING_TYPES.map((type) => (
+                  {clothingTypes.map((type) => (
                     <td key={type} className="w-[13rem] px-3 py-3">
                       <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} />
                     </td>
@@ -921,9 +1008,9 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
 function QuickGarmentCell({ employee, type, dispatch }) {
   const item = employee.items.find((entry) => entry.type === type);
   if (!item) {
-    return (
-      <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="min-h-10 w-full rounded-lg border border-dashed border-[#A9B9D1] bg-white text-sm font-bold text-[#002B5B] hover:bg-[#F4F8FF]">
-        เพิ่ม
+  return (
+    <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="min-h-10 w-full rounded-lg border border-dashed border-[#A9B9D1] bg-white text-sm font-bold text-[#002B5B] hover:bg-[#F4F8FF]">
+        <span className="inline-flex items-center justify-center gap-1.5"><Plus className="size-4" /> เพิ่ม</span>
       </button>
     );
   }
@@ -933,7 +1020,7 @@ function QuickGarmentCell({ employee, type, dispatch }) {
       <div className="grid grid-cols-[1fr_4.5rem_2.25rem] gap-2">
         <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "ไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} />
         <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
-        <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} aria-label="Remove garment" className="grid min-h-10 place-items-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]">
+        <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} aria-label="ลบรายการชุด" title="ลบรายการชุด" className="grid min-h-10 place-items-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]">
           <X />
         </button>
       </div>
@@ -973,6 +1060,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
   const canDelete = canDeleteEmployee(employees);
   const index = employee ? employees.findIndex((item) => item.id === employee.id) : -1;
   const nextEmployee = index >= 0 ? employees[index + 1] : null;
+  const clothingTypes = getClothingTypes();
 
   return (
     <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
@@ -999,7 +1087,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
                   </div>
                 </Field>
                 <div className="grid gap-2">
-                  {CLOTHING_TYPES.map((type) => (
+                  {clothingTypes.map((type) => (
                     <div key={type} className="rounded-lg border border-[#D8DEEA] bg-white p-3">
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <p className="font-extrabold text-[#071638]">{type}</p>
@@ -1040,20 +1128,13 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
 function QuickSummaryBar({ totalPieces, completedEmployees, totalEmployees, hasIncompleteEmployee, isSubmitting, onJumpIncomplete, onSubmit }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#D8DEEA] bg-white/96 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
-      <div className="mx-auto grid max-w-[1280px] gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div className="flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-lg bg-[#EEF4FF] text-xl font-extrabold text-[#002B5B]">{totalPieces}</span>
-          <div>
-            <p className="font-extrabold text-[#071638]">รวม {totalPieces} ชิ้น</p>
-            <p className="text-sm font-semibold text-[#64748B]">ข้อมูลครบ {completedEmployees}/{totalEmployees} คน</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <button onClick={onJumpIncomplete} disabled={!hasIncompleteEmployee} className="min-h-11 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-4 text-sm font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45">
-            ไปคนที่ยังไม่ครบ
+      <div className="mx-auto grid max-w-[1280px] gap-2 sm:max-w-[32rem] sm:gap-3">
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={onJumpIncomplete} disabled={!hasIncompleteEmployee} className="min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-4 sm:text-sm">
+            ไปแถวที่ยังไม่ครบ
           </button>
-          <button onClick={onSubmit} disabled={isSubmitting} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-5 font-bold text-white disabled:opacity-60">
-            {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ตรวจสอบ/ส่ง
+          <button onClick={onSubmit} disabled={isSubmitting} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-3 text-sm font-bold text-white disabled:opacity-60 sm:min-h-11 sm:gap-2 sm:px-5 sm:text-base">
+            {isSubmitting ? <Loader2 className="animate-spin" /> : <Send />} สั่ง
           </button>
         </div>
       </div>
@@ -1620,7 +1701,7 @@ function OrderHeader({ branch, onSizeOpen }) {
         <Logo />
         <div className="flex items-center gap-2">
           <button onClick={onSizeOpen} className="flex min-h-9 items-center gap-1 rounded-xl bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]">
-            <Gauge /> ตารางไซส์
+            <Gauge /> ข้อมูลเสื้อ
           </button>
         </div>
       </div>
@@ -1736,6 +1817,27 @@ function SetupWarning() {
       ยังไม่ได้ตั้งค่า Google Sheets URL ระบบจะไม่อนุญาตให้ส่งคำสั่งซื้อจนกว่าจะตั้งค่า VITE_GAS_URL
     </div>
   );
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImageToBlob(file) {
+  try {
+    const blob = await upload(`shirt-assets/${Date.now()}-${file.name}`, file, {
+      access: "public",
+      handleUploadUrl: "/api/blob/upload"
+    });
+    return blob.url;
+  } catch {
+    return readFileAsDataUrl(file);
+  }
 }
 
 function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
@@ -2172,36 +2274,58 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
 }
 
 function SizeReference({ open, setOpen }) {
-  const tabs = ["เสื้อโปโล ชาย", "เสื้อโปโล หญิง", "เสื้อช็อป", "กางเกงช็อป"];
+  const tabs = readClothingConfig();
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-4 bottom-4 top-4 z-50 flex flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(44rem,88vh)] sm:w-[min(34rem,82vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content className="fixed inset-x-4 bottom-4 top-4 z-50 flex flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(46rem,88vh)] sm:w-[min(42rem,88vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-4 py-3">
-            <Dialog.Title className="text-xl font-black text-[#071638]">ตารางไซส์</Dialog.Title>
+            <Dialog.Title className="text-xl font-black text-[#071638]">ข้อมูลเสื้อ</Dialog.Title>
             <Dialog.Close className="grid size-9 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
           </div>
-          <Tabs.Root defaultValue={tabs[0]} className="flex min-h-0 flex-1 flex-col">
+          <Tabs.Root defaultValue={tabs[0]?.id} className="flex min-h-0 flex-1 flex-col">
             <Tabs.List className="flex shrink-0 overflow-x-auto border-b border-[#E7EAF0] bg-[#F8FAFD]">
-              {tabs.map((tab) => <Tabs.Trigger key={tab} value={tab} className="min-h-10 shrink-0 border-b-2 border-transparent px-3 text-xs font-black text-[#4B5565] data-[state=active]:border-[#002B5B] data-[state=active]:text-[#002B5B]">{tab}</Tabs.Trigger>)}
+              {tabs.map((tab) => <Tabs.Trigger key={tab.id} value={tab.id} className="min-h-10 shrink-0 border-b-2 border-transparent px-3 text-xs font-black text-[#4B5565] data-[state=active]:border-[#002B5B] data-[state=active]:text-[#002B5B]">{tab.type}</Tabs.Trigger>)}
             </Tabs.List>
             <div className="min-h-0 flex-1 overflow-auto bg-[#FBFCFF] p-3">
               {tabs.map((tab) => (
-                <Tabs.Content key={tab} value={tab}>
+                <Tabs.Content key={tab.id} value={tab.id}>
                   <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white shadow-sm">
+                    {tab.imageUrl ? (
+                      <img src={tab.imageUrl} alt={tab.type} className="h-56 w-full object-cover" />
+                    ) : (
+                      <div className="grid h-40 place-items-center bg-[#F1F5F9] text-sm font-bold text-[#94A3B8]">ยังไม่มีรูปเสื้อ</div>
+                    )}
+                    <div className="border-b border-[#E7EAF0] px-4 py-3">
+                      <h3 className="text-lg font-black text-[#071638]">{tab.type}</h3>
+                      {tab.colors?.length ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {tab.colors.map((color) => (
+                            <span key={`${tab.id}-${color.name}`} className="inline-flex items-center gap-2 rounded-full border border-[#D8DEEA] bg-white px-3 py-1 text-xs font-bold text-[#44536A]">
+                              <span className="size-4 rounded-full border border-[#CBD5E1]" style={{ backgroundColor: color.value }} />
+                              {color.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm font-semibold text-[#64748B]">ยังไม่ได้กำหนดสีสำหรับเสื้อนี้</p>
+                      )}
+                    </div>
                     <table className="w-full text-left text-xs">
                       <thead className="bg-[#F4F7FC] text-[#3A4250]">
                         <tr>
-                          <th className="px-3 py-2">{tab === "กางเกงช็อป" ? "เอว" : "ไซส์ (Size)"}</th>
-                          {tab !== "กางเกงช็อป" && <th className="px-3 py-2 text-right">รอบอก (นิ้ว)</th>}
+                          <th className="px-3 py-2">ไซส์</th>
+                          <th className="px-3 py-2 text-right">รายละเอียด</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {SIZE_TABLES[tab].map(([size, measure]) => (
+                        {tab.sizeRows.map(({ size, details }) => (
                           <tr key={size} className="border-t border-[#E7EAF0]">
-                            <td className="px-3 py-2 text-base font-black text-[#071638]">{tab === "กางเกงช็อป" ? measure : size}</td>
-                            {tab !== "กางเกงช็อป" && <td className="px-3 py-2 text-right text-base text-[#071638]">{measure}</td>}
+                            <td className="px-3 py-2 text-base font-black text-[#071638]">{size}</td>
+                            <td className="px-3 py-2 text-right text-base text-[#071638]">
+                              {tab.detailFields.map((field) => `${field}: ${details?.[field] || "-"}`).join(" · ")}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2217,9 +2341,254 @@ function SizeReference({ open, setOpen }) {
   );
 }
 
+function ClothingManager({ config, setConfig }) {
+  const [uploadingId, setUploadingId] = useState("");
+
+  function commit(nextConfig) {
+    const normalized = normalizeClothingConfig(nextConfig);
+    setConfig(normalized);
+    saveClothingConfig(normalized);
+  }
+
+  function patchItem(id, patch) {
+    commit(config.map((item) => item.id === id ? { ...item, ...patch } : item));
+  }
+
+  function patchSize(id, sizeIndex, patch) {
+    commit(config.map((item) => item.id === id ? {
+      ...item,
+      sizeRows: item.sizeRows.map((row, index) => index === sizeIndex ? { ...row, ...patch } : row)
+    } : item));
+  }
+
+  function patchSizeDetail(id, sizeIndex, field, value) {
+    commit(config.map((item) => item.id === id ? {
+      ...item,
+      sizeRows: item.sizeRows.map((row, index) => index === sizeIndex ? {
+        ...row,
+        details: { ...(row.details || {}), [field]: value }
+      } : row)
+    } : item));
+  }
+
+  function patchDetailField(id, fieldIndex, value) {
+    commit(config.map((item) => {
+      if (item.id !== id) return item;
+      const oldField = item.detailFields[fieldIndex];
+      const detailFields = item.detailFields.map((field, index) => index === fieldIndex ? value : field).filter(Boolean);
+      return {
+        ...item,
+        detailFields,
+        sizeRows: item.sizeRows.map((row) => {
+          const details = { ...(row.details || {}) };
+          if (oldField && value && oldField !== value) {
+            details[value] = details[oldField] || "";
+            delete details[oldField];
+          }
+          return { ...row, details };
+        })
+      };
+    }));
+  }
+
+  function addDetailField(id) {
+    commit(config.map((item) => item.id === id ? {
+      ...item,
+      detailFields: [...item.detailFields, "รายละเอียด"],
+      sizeRows: item.sizeRows.map((row) => ({ ...row, details: { ...(row.details || {}), รายละเอียด: "" } }))
+    } : item));
+  }
+
+  function deleteDetailField(id, fieldIndex) {
+    commit(config.map((item) => {
+      if (item.id !== id || item.detailFields.length <= 1) return item;
+      const field = item.detailFields[fieldIndex];
+      return {
+        ...item,
+        detailFields: item.detailFields.filter((_, index) => index !== fieldIndex),
+        sizeRows: item.sizeRows.map((row) => {
+          const details = { ...(row.details || {}) };
+          delete details[field];
+          return { ...row, details };
+        })
+      };
+    }));
+  }
+
+  function patchColor(id, colorIndex, patch) {
+    commit(config.map((item) => item.id === id ? {
+      ...item,
+      colors: (item.colors || []).map((color, index) => index === colorIndex ? { ...color, ...patch } : color)
+    } : item));
+  }
+
+  function addClothing() {
+    commit([...config, { id: crypto.randomUUID(), type: "เสื้อใหม่", imageUrl: "", colors: [], detailFields: ["อก"], sizeRows: [{ size: "M", details: { อก: "" } }] }]);
+  }
+
+  function deleteClothing(id) {
+    if (config.length <= 1) {
+      toast.error("ต้องมีประเภทเสื้ออย่างน้อย 1 รายการ");
+      return;
+    }
+    if (!window.confirm("ลบประเภทเสื้อนี้? รายการเก่าที่เคยสั่งจะยังอยู่ในประวัติ")) return;
+    commit(config.filter((item) => item.id !== id));
+  }
+
+  function addSize(id) {
+    commit(config.map((item) => item.id === id ? {
+      ...item,
+      sizeRows: [...item.sizeRows, { size: "", details: item.detailFields.reduce((details, field) => ({ ...details, [field]: "" }), {}) }]
+    } : item));
+  }
+
+  function deleteSize(id, sizeIndex) {
+    commit(config.map((item) => item.id === id ? {
+      ...item,
+      sizeRows: item.sizeRows.length > 1 ? item.sizeRows.filter((_, index) => index !== sizeIndex) : item.sizeRows
+    } : item));
+  }
+
+  function addColor(id) {
+    commit(config.map((item) => item.id === id ? { ...item, colors: [...(item.colors || []), { name: "", value: "#0F172A" }] } : item));
+  }
+
+  function deleteColor(id, colorIndex) {
+    commit(config.map((item) => item.id === id ? {
+      ...item,
+      colors: (item.colors || []).filter((_, index) => index !== colorIndex)
+    } : item));
+  }
+
+  async function uploadImage(id, file) {
+    if (!file) return;
+    setUploadingId(id);
+    try {
+      const imageUrl = await uploadImageToBlob(file);
+      patchItem(id, { imageUrl });
+      toast.success(imageUrl.startsWith("data:") ? "แนบรูปในเครื่องแล้ว" : "อัปโหลดรูปไป Vercel Blob แล้ว");
+    } catch {
+      toast.error("อัปโหลดรูปไม่สำเร็จ");
+    } finally {
+      setUploadingId("");
+    }
+  }
+
+  return (
+    <Card>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-extrabold text-[#071638]">ตั้งค่าเสื้อและไซส์</h2>
+          <p className="mt-1 text-sm font-semibold text-[#64748B]">เพิ่ม/ลบประเภทเสื้อ กำหนดไซส์ และแนบรูปสินค้า</p>
+        </div>
+        <button onClick={addClothing} className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-4 text-sm font-bold text-white">
+          <Plus /> เพิ่มแบบเสื้อ
+        </button>
+      </div>
+      <div className="mt-4 grid gap-4">
+        {config.map((item) => (
+          <div key={item.id} className="rounded-xl border border-[#D8DEEA] bg-[#F8FAFC] p-3">
+            <div className="grid gap-3 lg:grid-cols-[9rem_1fr_auto] lg:items-start">
+              <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white">
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt={item.type} className="h-32 w-full object-cover" />
+                ) : (
+                  <div className="grid h-32 place-items-center text-sm font-bold text-[#94A3B8]">ไม่มีรูป</div>
+                )}
+              </div>
+              <div className="grid gap-3">
+                <Field label="ชื่อประเภทเสื้อ">
+                  <TextInput value={item.type} onChange={(value) => patchItem(item.id, { type: value })} placeholder="เช่น เสื้อโปโล" />
+                </Field>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-[#64748B]">สีที่มี</p>
+                    <button onClick={() => addColor(item.id)} className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-xs font-bold text-[#002B5B]">
+                      <Plus className="size-3.5" /> เพิ่มสี
+                    </button>
+                  </div>
+                  {(item.colors || []).length ? item.colors.map((color, index) => (
+                    <div key={`${item.id}-color-${index}`} className="grid grid-cols-[40px_1fr_40px] gap-2">
+                      <input
+                        type="color"
+                        value={color.value || "#0F172A"}
+                        onChange={(event) => patchColor(item.id, index, { value: event.target.value })}
+                        className="h-10 w-10 rounded-lg border border-[#CBD5E1] bg-white p-1"
+                        aria-label="เลือกสี"
+                      />
+                      <input
+                        value={color.name}
+                        onChange={(event) => patchColor(item.id, index, { name: event.target.value })}
+                        className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]"
+                        placeholder="เช่น กรมท่า"
+                      />
+                      <button onClick={() => deleteColor(item.id, index)} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" title="ลบสี">
+                        <Trash2 />
+                      </button>
+                    </div>
+                  )) : (
+                    <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white px-3 py-2 text-sm font-semibold text-[#64748B]">ยังไม่มีสี ถ้าเสื้อตัวนี้มีหลายสีให้กดเพิ่มสี</div>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-[#64748B]">รายละเอียดไซส์</p>
+                    <button onClick={() => addDetailField(item.id)} className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-xs font-bold text-[#002B5B]">
+                      <Plus className="size-3.5" /> เพิ่มช่อง
+                    </button>
+                  </div>
+                  <div className="grid gap-2 rounded-lg border border-[#E4E4E7] bg-white p-2">
+                    <div className="grid gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${item.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
+                      <span className="text-xs font-bold text-[#64748B]">ไซส์</span>
+                      {item.detailFields.map((field, index) => (
+                        <div key={`${item.id}-field-${index}`} className="grid grid-cols-[1fr_32px] gap-1">
+                          <input value={field} onChange={(event) => patchDetailField(item.id, index, event.target.value)} className="min-h-8 rounded-md border border-[#CBD5E1] px-2 text-xs font-bold outline-none focus:border-[#002B5B]" placeholder="อก" />
+                          <button onClick={() => deleteDetailField(item.id, index)} disabled={item.detailFields.length <= 1} className="grid min-h-8 place-items-center rounded-md border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-40" title="ลบช่องรายละเอียด">
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <span />
+                    </div>
+                    {item.sizeRows.map((row, index) => (
+                      <div key={`${item.id}-${index}`} className="grid gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${item.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
+                        <input value={row.size} onChange={(event) => patchSize(item.id, index, { size: event.target.value })} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder="M" />
+                        {item.detailFields.map((field) => (
+                          <input key={`${item.id}-${index}-${field}`} value={row.details?.[field] || ""} onChange={(event) => patchSizeDetail(item.id, index, field, event.target.value)} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder={field} />
+                        ))}
+                        <button onClick={() => deleteSize(item.id, index)} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" title="ลบไซส์">
+                          <Trash2 />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={() => addSize(item.id)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8FA4C7] bg-white px-3 text-sm font-bold text-[#002B5B]">
+                  <Plus className="size-4" /> เพิ่มไซส์
+                </button>
+              </div>
+              <div className="grid gap-2">
+                <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]">
+                  {uploadingId === item.id ? <Loader2 className="animate-spin" /> : <Upload />}
+                  แนบรูป
+                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadImage(item.id, event.target.files?.[0])} className="hidden" />
+                </label>
+                <button onClick={() => deleteClothing(item.id)} className="min-h-10 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 text-sm font-bold text-[#B91C1C]">
+                  <span className="inline-flex items-center justify-center gap-1.5"><Trash2 className="size-4" /> ลบแบบเสื้อ</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function Dashboard({ demoMode }) {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [clothingConfig, setClothingConfig] = useState(readClothingConfig);
   const [branchFilter, setBranchFilter] = useState("ทุกสาขา");
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const [query, setQuery] = useState("");
@@ -2328,6 +2697,8 @@ function Dashboard({ demoMode }) {
           </div>
         </div>
       </section>
+
+      <ClothingManager config={clothingConfig} setConfig={setClothingConfig} />
 
       <Card>
         <div className="grid gap-3 lg:grid-cols-[14rem_14rem_1fr_auto] lg:items-end">
@@ -2589,7 +2960,7 @@ function getBatchPieces(batch) {
 }
 
 function buildTypeTotals(rows) {
-  return CLOTHING_TYPES.map((type) => ({
+  return getClothingTypes().map((type) => ({
     type,
     qty: rows.filter((row) => row.type === type).reduce((sum, row) => sum + Number(row.qty || 0), 0)
   })).filter((row) => row.qty > 0);

@@ -9,6 +9,7 @@
     "@radix-ui/react-dialog": "latest",
     "@radix-ui/react-tabs": "latest",
     "@radix-ui/react-tooltip": "latest",
+    "@vercel/blob": "^2.4.0",
     "@vitejs/plugin-react": "latest",
     "autoprefixer": "latest",
     "clsx": "latest",
