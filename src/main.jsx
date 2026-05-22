@@ -43,6 +43,8 @@ const DASHBOARD_PASSCODE = import.meta.env.VITE_DASHBOARD_PASSCODE || "";
 const ORDER_STORAGE_KEY = "gi-shirt-order-batches";
 const ORDER_DRAFT_KEY = "gi-shirt-order-draft";
 const CLOTHING_CONFIG_KEY = "gi-shirt-clothing-config";
+const CLOTHING_SIZE_TABLE_VERSION_KEY = "gi-shirt-clothing-size-table-version";
+const CLOTHING_SIZE_TABLE_VERSION = "2026-05-standard-shirt-table-v2";
 const IMAGE_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_COMPANY_NAME = "โกลด์ อินทิเกรท จำกัด";
@@ -77,29 +79,46 @@ const PHONE_LENGTH = 10;
 
 const SIZE_TABLES = {
   "เสื้อโปโล ชาย": [["S", '38"'], ["M", '40"'], ["L", '42"'], ["XL", '44"'], ["2XL", '46"'], ["3XL", '48"'], ["4XL", '50"'], ["5XL", '52"']],
-  "เสื้อโปโล หญิง": [["S", '34"'], ["M", '36"'], ["L", '38"'], ["XL", '40"'], ["2XL", '42"'], ["3XL", '44"'], ["4XL", '46"'], ["5XL", '48"']],
+  "เสื้อโปโล หญิง": [["S", '34"'], ["M", '36"'], ["L", '38"'], ["XL", '40"'], ["2XL", '42"'], ["3XL", '44"']],
   "เสื้อช็อป": [["S", '38"'], ["M", '40"'], ["L", '42"'], ["XL", '44"'], ["2XL", '46"'], ["3XL", '48"'], ["4XL", '50"'], ["5XL", '52"']],
-  "กางเกงช็อป": [["28", '28"'], ["30", '30"'], ["32", '32"'], ["34", '34"'], ["36", '36"'], ["38", '38"'], ["40", '40"'], ["42", '42"'], ["44", '44"']]
+  "กางเกงช็อป": [["28”", ""], ["30”", ""], ["32”", "3"], ["34”", "3"], ["36”", ""], ["38”", "3"], ["40”", ""], ["42”", "3"], ["44”", ""]]
 };
 
-const DEFAULT_CLOTHING_CONFIG = CLOTHING_TYPES.map((type) => ({
-  id: crypto.randomUUID(),
-  type,
-  imageUrl: "",
-  colors: [],
-  detailFields: type === "กางเกงช็อป" ? ["เอว"] : ["อก"],
-  sizeRows: (type === "เสื้อโปโล" ? SIZE_TABLES["เสื้อโปโล ชาย"] : SIZE_TABLES[type]).map(([size, measure]) => ({
+function getStandardSizeSource(type, gender) {
+  if (type === "เสื้อโปโล") return SIZE_TABLES[`เสื้อโปโล ${gender}`] || SIZE_TABLES["เสื้อโปโล ชาย"];
+  return SIZE_TABLES[type] || [];
+}
+
+function getStandardDetailFields(type) {
+  return type === "กางเกงช็อป" ? ["จำนวน"] : ["อก"];
+}
+
+function buildStandardSizeRows(type, gender) {
+  const detailField = getStandardDetailFields(type)[0];
+  return getStandardSizeSource(type, gender).map(([size, measure]) => ({
     size,
-    details: { [type === "กางเกงช็อป" ? "เอว" : "อก"]: measure }
-  })),
-  genderSizeRows: GENDERS.reduce((genderRows, gender) => ({
-    ...genderRows,
-    [gender]: (type === "เสื้อโปโล" ? SIZE_TABLES[`เสื้อโปโล ${gender}`] : SIZE_TABLES[type]).map(([size, measure]) => ({
-      size,
-      details: { [type === "กางเกงช็อป" ? "เอว" : "อก"]: measure }
-    }))
-  }), {})
-}));
+    details: { [detailField]: measure }
+  }));
+}
+
+function buildDefaultClothingItem(type, item = {}) {
+  const detailFields = getStandardDetailFields(type);
+  const genderSizeRows = GENDERS.reduce((rows, gender) => ({
+    ...rows,
+    [gender]: buildStandardSizeRows(type, gender)
+  }), {});
+  return {
+    id: item.id || crypto.randomUUID(),
+    type,
+    imageUrl: item.imageUrl || "",
+    colors: Array.isArray(item.colors) ? item.colors : [],
+    detailFields,
+    sizeRows: genderSizeRows[GENDERS[0]],
+    genderSizeRows
+  };
+}
+
+const DEFAULT_CLOTHING_CONFIG = CLOTHING_TYPES.map((type) => buildDefaultClothingItem(type));
 
 function normalizeSizeDetails(row, detailFields) {
   if (row?.details && typeof row.details === "object") {
@@ -149,11 +168,29 @@ function normalizeClothingConfig(config) {
   }).filter((item) => item.type);
 }
 
+function migrateStandardSizeTables(config) {
+  const normalized = normalizeClothingConfig(config);
+  const standardTypes = new Set(CLOTHING_TYPES);
+  const byType = new Map(normalized.map((item) => [item.type, item]));
+  const migratedStandardItems = CLOTHING_TYPES.map((type) => buildDefaultClothingItem(type, byType.get(type)));
+  const customItems = normalized.filter((item) => !standardTypes.has(item.type));
+  return [...migratedStandardItems, ...customItems];
+}
+
 function readClothingConfig() {
   try {
-    return normalizeClothingConfig(JSON.parse(localStorage.getItem(CLOTHING_CONFIG_KEY) || "null"));
+    const normalized = normalizeClothingConfig(JSON.parse(localStorage.getItem(CLOTHING_CONFIG_KEY) || "null"));
+    if (localStorage.getItem(CLOTHING_SIZE_TABLE_VERSION_KEY) !== CLOTHING_SIZE_TABLE_VERSION) {
+      const migrated = migrateStandardSizeTables(normalized);
+      localStorage.setItem(CLOTHING_CONFIG_KEY, JSON.stringify(migrated));
+      localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
+      return migrated;
+    }
+    return normalized;
   } catch {
-    return normalizeClothingConfig();
+    const normalized = migrateStandardSizeTables();
+    localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
+    return normalized;
   }
 }
 
@@ -166,8 +203,9 @@ async function loadSharedClothingConfig() {
   if (!response.ok) throw new Error("Shared clothing config is not available");
   const data = await response.json();
   if (!Array.isArray(data?.config) || !data.config.length) return null;
-  const normalized = normalizeClothingConfig(data.config);
+  const normalized = migrateStandardSizeTables(data.config);
   saveClothingConfig(normalized);
+  localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
   return normalized;
 }
 
@@ -2704,7 +2742,7 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
 
 function SizeReference({ open, setOpen }) {
   const tabs = readClothingConfig();
-  const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
+  const [selectedGender, setSelectedGender] = useState(GENDERS[1] || GENDERS[0]);
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
@@ -2755,20 +2793,29 @@ function SizeReference({ open, setOpen }) {
                         <p className="mt-2 text-sm font-semibold text-[#64748B]">ยังไม่ได้กำหนดสีสำหรับเสื้อนี้</p>
                       )}
                     </div>
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#F4F7FC] text-[#3A4250]">
+                    <table className="size-reference-table w-full text-center text-sm">
+                      <thead>
                         <tr>
-                          <th className="px-3 py-2">ไซส์</th>
-                          <th className="px-3 py-2 text-right">รายละเอียด</th>
+                          <th colSpan={Math.max(2, tab.detailFields.length + 1)} className="border px-3 py-2.5 text-lg font-black">
+                            {tab.type === "เสื้อโปโล" ? `${tab.type} ${selectedGender}` : tab.type}
+                          </th>
+                        </tr>
+                        <tr>
+                          <th className="border px-3 py-2 text-base font-black">{tab.type.includes("กางเกง") ? "เอว" : "ไซส์"}</th>
+                          {tab.detailFields.map((field) => (
+                            <th key={`${tab.id}-${field}`} className="border px-3 py-2 text-base font-black">{field}</th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
                         {sizeRows.map(({ size, details }, index) => (
-                          <tr key={`${selectedGender}-${size}-${index}`} className="border-t border-[#E7EAF0]">
-                            <td className="px-3 py-2 text-base font-black text-[#071638]">{size}</td>
-                            <td className="px-3 py-2 text-right text-base text-[#071638]">
-                              {tab.detailFields.map((field) => `${field}: ${details?.[field] || "-"}`).join(" · ")}
-                            </td>
+                          <tr key={`${selectedGender}-${size}-${index}`}>
+                            <td className="border bg-white px-3 py-2 text-base font-semibold">{size}</td>
+                            {tab.detailFields.map((field) => (
+                              <td key={`${selectedGender}-${size}-${field}`} className="border bg-white px-3 py-2 text-base font-semibold">
+                                {details?.[field] || ""}
+                              </td>
+                            ))}
                           </tr>
                         ))}
                       </tbody>
