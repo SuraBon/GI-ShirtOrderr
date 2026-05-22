@@ -208,14 +208,14 @@ select option {
   --sc-bg: #f6f8fb;
   --sc-surface: #ffffff;
   --sc-surface-muted: #f1f5f9;
-  --sc-surface-soft: #eaf2ff;
-  --sc-border: #d8e2ef;
-  --sc-border-strong: #b8c7dc;
-  --sc-text: #102033;
-  --sc-muted: #64748b;
-  --sc-primary: #18181b;
-  --sc-primary-strong: #09090b;
-  --sc-primary-soft: #f4f4f5;
+  --sc-surface-soft: #f4f1ed;
+  --sc-border: #ded8d0;
+  --sc-border-strong: #b8aa9b;
+  --sc-text: #1f1a17;
+  --sc-muted: #6f665d;
+  --sc-primary: #2b211b;
+  --sc-primary-strong: #18120f;
+  --sc-primary-soft: #f1eee9;
   --sc-danger: #b91c1c;
   --sc-danger-soft: #fef2f2;
   --sc-warning: #a16207;
@@ -316,30 +316,25 @@ select option {
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
-.app-shadcn-theme button[class*="bg-[#002B5B]"] {
+.app-shadcn-theme .bg-\[\#002B5B\] {
   background: var(--sc-primary) !important;
   color: #ffffff !important;
 }
 
-.app-shadcn-theme button[class*="bg-[#002B5B]"]:hover {
+.app-shadcn-theme .bg-\[\#002B5B\]:hover {
   background: var(--sc-primary-strong) !important;
 }
 
-.app-shadcn-theme button[class*="bg-[#18181B]"],
-.app-shadcn-theme button[class*="bg-[#18181b]"],
 .app-shadcn-theme .bg-\[\#18181B\],
 .app-shadcn-theme .bg-\[\#18181b\] {
   background: var(--sc-primary) !important;
   color: #ffffff !important;
 }
 
-.app-shadcn-theme button[class*="bg-[#EAF2FF]"],
-.app-shadcn-theme button[class*="bg-[#E5EFFD]"],
-.app-shadcn-theme label[class*="bg-[#E5EFFD]"],
-.app-shadcn-theme span[class*="bg-[#E8F0FF]"],
-.app-shadcn-theme span[class*="bg-[#EEF4FF]"],
-.app-shadcn-theme div[class*="bg-[#E8F0FF]"],
-.app-shadcn-theme div[class*="bg-[#EEF4FF]"] {
+.app-shadcn-theme .bg-\[\#EAF2FF\],
+.app-shadcn-theme .bg-\[\#E5EFFD\],
+.app-shadcn-theme .bg-\[\#E8F0FF\],
+.app-shadcn-theme .bg-\[\#EEF4FF\] {
   background: var(--sc-primary-soft) !important;
   border-color: #d4d4d8 !important;
   color: var(--sc-primary-strong) !important;
