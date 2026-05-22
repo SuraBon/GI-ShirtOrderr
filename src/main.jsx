@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -90,7 +91,14 @@ const DEFAULT_CLOTHING_CONFIG = CLOTHING_TYPES.map((type) => ({
   sizeRows: (type === "เสื้อโปโล" ? SIZE_TABLES["เสื้อโปโล ชาย"] : SIZE_TABLES[type]).map(([size, measure]) => ({
     size,
     details: { [type === "กางเกงช็อป" ? "เอว" : "อก"]: measure }
-  }))
+  })),
+  genderSizeRows: GENDERS.reduce((genderRows, gender) => ({
+    ...genderRows,
+    [gender]: (type === "เสื้อโปโล" ? SIZE_TABLES[`เสื้อโปโล ${gender}`] : SIZE_TABLES[type]).map(([size, measure]) => ({
+      size,
+      details: { [type === "กางเกงช็อป" ? "เอว" : "อก"]: measure }
+    }))
+  }), {})
 }));
 
 function normalizeSizeDetails(row, detailFields) {
@@ -101,33 +109,44 @@ function normalizeSizeDetails(row, detailFields) {
   return detailFields.reduce((details, field, index) => ({ ...details, [field]: index === 0 ? fallback : "" }), {});
 }
 
+function normalizeSizeRows(rows, detailFields) {
+  const normalizedRows = Array.isArray(rows) && rows.length
+    ? rows.map((row) => ({
+      size: String(row?.size || "").trim(),
+      details: normalizeSizeDetails(row, detailFields)
+    }))
+    : [];
+  return normalizedRows.length ? normalizedRows : [{ size: "M", details: normalizeSizeDetails({}, detailFields) }];
+}
+
 function normalizeClothingConfig(config) {
   const source = Array.isArray(config) && config.length ? config : DEFAULT_CLOTHING_CONFIG;
-  return source.map((item, index) => ({
-    id: item?.id || crypto.randomUUID(),
-    type: String(item?.type || CLOTHING_TYPES[index] || "เสื้อ").trim(),
-    imageUrl: item?.imageUrl || "",
-    colors: Array.isArray(item?.colors)
-      ? item.colors.map((color) => ({
-        name: String(color?.name || "").trim(),
-        value: String(color?.value || "#0F172A").trim() || "#0F172A"
-      })).filter((color) => color.name)
-      : [],
-    detailFields: Array.isArray(item?.detailFields) && item.detailFields.length
+  return source.map((item, index) => {
+    const type = String(item?.type || CLOTHING_TYPES[index] || "เสื้อ").trim();
+    const detailFields = Array.isArray(item?.detailFields) && item.detailFields.length
       ? item.detailFields.map((field) => String(field || "").trim()).filter(Boolean)
-      : [String(item?.detailLabel || (String(item?.type || "").includes("กางเกง") ? "เอว" : "อก")).trim()],
-    sizeRows: Array.isArray(item?.sizeRows) && item.sizeRows.length
-      ? item.sizeRows.map((row) => {
-        const detailFields = Array.isArray(item?.detailFields) && item.detailFields.length
-          ? item.detailFields.map((field) => String(field || "").trim()).filter(Boolean)
-          : [String(item?.detailLabel || (String(item?.type || "").includes("กางเกง") ? "เอว" : "อก")).trim()];
-        return {
-          size: String(row?.size || "").trim(),
-          details: normalizeSizeDetails(row, detailFields)
-        };
-      }).filter((row) => row.size)
-      : [{ size: "M", details: normalizeSizeDetails({}, Array.isArray(item?.detailFields) ? item.detailFields : ["อก"]) }]
-  })).filter((item) => item.type);
+      : [String(item?.detailLabel || (type.includes("กางเกง") ? "เอว" : "อก")).trim()];
+    const fallbackRows = normalizeSizeRows(item?.sizeRows, detailFields);
+    const genderSizeRows = GENDERS.reduce((genderRows, gender) => ({
+      ...genderRows,
+      [gender]: normalizeSizeRows(item?.genderSizeRows?.[gender] || fallbackRows, detailFields)
+    }), {});
+
+    return {
+      id: item?.id || crypto.randomUUID(),
+      type,
+      imageUrl: item?.imageUrl || "",
+      colors: Array.isArray(item?.colors)
+        ? item.colors.map((color) => ({
+          name: String(color?.name || "").trim(),
+          value: String(color?.value || "#0F172A").trim() || "#0F172A"
+        }))
+        : [],
+      detailFields,
+      sizeRows: genderSizeRows[GENDERS[0]] || fallbackRows,
+      genderSizeRows
+    };
+  }).filter((item) => item.type);
 }
 
 function readClothingConfig() {
@@ -176,6 +195,8 @@ function findClothingConfig(type) {
 
 function getSizeRows(type, gender) {
   const clothing = findClothingConfig(type);
+  const genderRows = clothing?.genderSizeRows?.[gender];
+  if (genderRows?.length) return genderRows.map((row) => [row.size, Object.values(row.details || {}).filter(Boolean).join(" / ") || row.size]);
   if (clothing?.sizeRows?.length) return clothing.sizeRows.map((row) => [row.size, Object.values(row.details || {}).filter(Boolean).join(" / ") || row.size]);
   if (type === "เสื้อโปโล") return SIZE_TABLES[`เสื้อโปโล ${gender}`] || [];
   return SIZE_TABLES[type] || [];
@@ -451,6 +472,8 @@ function flattenBatches(batches) {
         branch: batch.branch,
         supervisorName: batch.supervisorName,
         supervisorPhone: batch.supervisorPhone,
+        status: batch.status,
+        statusUpdatedAt: batch.statusUpdatedAt,
         name: order.name,
         gender: order.gender,
         type: item.type,
@@ -1020,7 +1043,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                     <GridInput value={employee.name} placeholder="ชื่อ-นามสกุล" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
                   </td>
                   <td className="w-36 px-3 py-3">
-                    <GridSelect value={employee.gender} values={["", ...GENDERS]} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} />
+                    <GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} />
                   </td>
                   {clothingTypes.map((type) => (
                     <td key={type} className="w-[13rem] px-3 py-3">
@@ -1824,16 +1847,45 @@ const TextInput = React.forwardRef(function TextInput({ value, onChange, placeho
 
 function CustomSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false }) {
   const [open, setOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState(null);
   const rootRef = useRef(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
   const selectedLabel = value || placeholder;
+
+  function updateMenuPosition() {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const gap = 6;
+    const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
+    const spaceAbove = rect.top - gap - 8;
+    const openAbove = spaceBelow < 160 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(120, Math.min(256, openAbove ? spaceAbove : spaceBelow));
+    setMenuStyle({
+      left: rect.left,
+      top: openAbove ? Math.max(8, rect.top - gap - maxHeight) : rect.bottom + gap,
+      width: rect.width,
+      maxHeight
+    });
+  }
 
   useEffect(() => {
     if (!open) return;
+    updateMenuPosition();
     function handlePointerDown(event) {
-      if (!rootRef.current?.contains(event.target)) setOpen(false);
+      if (!rootRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) setOpen(false);
+    }
+    function handleViewportChange() {
+      updateMenuPosition();
     }
     document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
   }, [open]);
 
   function selectValue(nextValue) {
@@ -1844,6 +1896,7 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
   return (
     <div ref={rootRef} className="grid gap-1.5">
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
         aria-haspopup="listbox"
@@ -1858,9 +1911,13 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
         <ChevronDown className={cn("size-4 shrink-0 text-[#71717A] transition", open && "rotate-180")} />
       </button>
 
-      {open && (
-        <div className="relative z-20 max-w-full overflow-hidden rounded-lg border border-[#D4D4D8] bg-white p-1 shadow-lg">
-          <div className="employee-scroll-region max-h-64 overflow-y-auto">
+      {open && menuStyle && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] overflow-hidden rounded-lg border border-[#D4D4D8] bg-white p-1 shadow-2xl"
+          style={{ left: menuStyle.left, top: menuStyle.top, width: menuStyle.width }}
+        >
+          <div className="employee-scroll-region overflow-y-auto" style={{ maxHeight: menuStyle.maxHeight }}>
             <div role="listbox" className="grid gap-0.5">
               {values.map((item, index) => {
                 const selected = item === value;
@@ -1883,7 +1940,8 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
               })}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -2221,7 +2279,7 @@ function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }
                   <GridInput value={employee.name} placeholder="ระบุชื่อพนักงาน" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
                   {!complete && <p className="mt-2 text-left text-xs font-black text-[#B91C1C]">ยังขาด: {missingFields.join(", ")}</p>}
                 </td>
-                <td className="px-5 py-6"><GridSelect value={employee.gender} values={["", ...GENDERS]} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} /></td>
+                <td className="px-5 py-6"><GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} /></td>
                 <td className="px-5 py-6">
                   <DesktopGarmentChoices employee={employee} dispatch={dispatch} />
                 </td>
@@ -2396,6 +2454,7 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
 
 function SizeReference({ open, setOpen }) {
   const tabs = readClothingConfig();
+  const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
@@ -2409,8 +2468,21 @@ function SizeReference({ open, setOpen }) {
             <Tabs.List className="flex shrink-0 overflow-x-auto border-b border-[#E7EAF0] bg-[#F8FAFD]">
               {tabs.map((tab) => <Tabs.Trigger key={tab.id} value={tab.id} className="min-h-10 shrink-0 border-b-2 border-transparent px-3 text-xs font-black text-[#4B5565] data-[state=active]:border-[#002B5B] data-[state=active]:text-[#002B5B]">{tab.type}</Tabs.Trigger>)}
             </Tabs.List>
+            <div className="grid grid-cols-2 gap-2 border-b border-[#E7EAF0] bg-white p-3">
+              {GENDERS.map((gender) => (
+                <button
+                  key={gender}
+                  onClick={() => setSelectedGender(gender)}
+                  className={cn("min-h-10 rounded-xl border text-sm font-black transition", selectedGender === gender ? "border-[#002B5B] bg-[#002B5B] text-white" : "border-[#CBD5E1] bg-white text-[#071638]")}
+                >
+                  {gender}
+                </button>
+              ))}
+            </div>
             <div className="min-h-0 flex-1 overflow-auto bg-[#FBFCFF] p-3">
-              {tabs.map((tab) => (
+              {tabs.map((tab) => {
+                const sizeRows = tab.genderSizeRows?.[selectedGender] || tab.sizeRows || [];
+                return (
                 <Tabs.Content key={tab.id} value={tab.id}>
                   <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white shadow-sm">
                     {tab.imageUrl ? (
@@ -2441,8 +2513,8 @@ function SizeReference({ open, setOpen }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {tab.sizeRows.map(({ size, details }) => (
-                          <tr key={size} className="border-t border-[#E7EAF0]">
+                        {sizeRows.map(({ size, details }, index) => (
+                          <tr key={`${selectedGender}-${size}-${index}`} className="border-t border-[#E7EAF0]">
                             <td className="px-3 py-2 text-base font-black text-[#071638]">{size}</td>
                             <td className="px-3 py-2 text-right text-base text-[#071638]">
                               {tab.detailFields.map((field) => `${field}: ${details?.[field] || "-"}`).join(" · ")}
@@ -2453,7 +2525,8 @@ function SizeReference({ open, setOpen }) {
                     </table>
                   </div>
                 </Tabs.Content>
-              ))}
+                );
+              })}
             </div>
           </Tabs.Root>
         </Dialog.Content>
@@ -2465,8 +2538,10 @@ function SizeReference({ open, setOpen }) {
 function ClothingManager({ config, setConfig }) {
   const [uploadingId, setUploadingId] = useState("");
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || "");
+  const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
   const syncTimerRef = useRef(null);
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
+  const selectedSizeRows = selectedItem?.genderSizeRows?.[selectedGender] || selectedItem?.sizeRows || [];
 
   useEffect(() => {
     if (!config.some((item) => item.id === selectedId)) {
@@ -2499,17 +2574,23 @@ function ClothingManager({ config, setConfig }) {
   function patchSize(id, sizeIndex, patch) {
     commit(config.map((item) => item.id === id ? {
       ...item,
-      sizeRows: item.sizeRows.map((row, index) => index === sizeIndex ? { ...row, ...patch } : row)
+      genderSizeRows: {
+        ...(item.genderSizeRows || {}),
+        [selectedGender]: (item.genderSizeRows?.[selectedGender] || item.sizeRows || []).map((row, index) => index === sizeIndex ? { ...row, ...patch } : row)
+      }
     } : item));
   }
 
   function patchSizeDetail(id, sizeIndex, field, value) {
     commit(config.map((item) => item.id === id ? {
       ...item,
-      sizeRows: item.sizeRows.map((row, index) => index === sizeIndex ? {
-        ...row,
-        details: { ...(row.details || {}), [field]: value }
-      } : row)
+      genderSizeRows: {
+        ...(item.genderSizeRows || {}),
+        [selectedGender]: (item.genderSizeRows?.[selectedGender] || item.sizeRows || []).map((row, index) => index === sizeIndex ? {
+          ...row,
+          details: { ...(row.details || {}), [field]: value }
+        } : row)
+      }
     } : item));
   }
 
@@ -2521,14 +2602,17 @@ function ClothingManager({ config, setConfig }) {
       return {
         ...item,
         detailFields,
-        sizeRows: item.sizeRows.map((row) => {
-          const details = { ...(row.details || {}) };
-          if (oldField && value && oldField !== value) {
-            details[value] = details[oldField] || "";
-            delete details[oldField];
-          }
-          return { ...row, details };
-        })
+        genderSizeRows: GENDERS.reduce((genderRows, gender) => ({
+          ...genderRows,
+          [gender]: (item.genderSizeRows?.[gender] || item.sizeRows || []).map((row) => {
+            const details = { ...(row.details || {}) };
+            if (oldField && value && oldField !== value) {
+              details[value] = details[oldField] || "";
+              delete details[oldField];
+            }
+            return { ...row, details };
+          })
+        }), {})
       };
     }));
   }
@@ -2537,7 +2621,10 @@ function ClothingManager({ config, setConfig }) {
     commit(config.map((item) => item.id === id ? {
       ...item,
       detailFields: [...item.detailFields, "รายละเอียด"],
-      sizeRows: item.sizeRows.map((row) => ({ ...row, details: { ...(row.details || {}), รายละเอียด: "" } }))
+      genderSizeRows: GENDERS.reduce((genderRows, gender) => ({
+        ...genderRows,
+        [gender]: (item.genderSizeRows?.[gender] || item.sizeRows || []).map((row) => ({ ...row, details: { ...(row.details || {}), รายละเอียด: "" } }))
+      }), {})
     } : item));
   }
 
@@ -2548,11 +2635,14 @@ function ClothingManager({ config, setConfig }) {
       return {
         ...item,
         detailFields: item.detailFields.filter((_, index) => index !== fieldIndex),
-        sizeRows: item.sizeRows.map((row) => {
-          const details = { ...(row.details || {}) };
-          delete details[field];
-          return { ...row, details };
-        })
+        genderSizeRows: GENDERS.reduce((genderRows, gender) => ({
+          ...genderRows,
+          [gender]: (item.genderSizeRows?.[gender] || item.sizeRows || []).map((row) => {
+            const details = { ...(row.details || {}) };
+            delete details[field];
+            return { ...row, details };
+          })
+        }), {})
       };
     }));
   }
@@ -2566,7 +2656,15 @@ function ClothingManager({ config, setConfig }) {
 
   function addClothing() {
     const id = crypto.randomUUID();
-    commit([...config, { id, type: "เสื้อใหม่", imageUrl: "", colors: [], detailFields: ["อก"], sizeRows: [{ size: "M", details: { อก: "" } }] }]);
+    commit([...config, {
+      id,
+      type: "เสื้อใหม่",
+      imageUrl: "",
+      colors: [],
+      detailFields: ["อก"],
+      sizeRows: [{ size: "M", details: { อก: "" } }],
+      genderSizeRows: GENDERS.reduce((rows, gender) => ({ ...rows, [gender]: [{ size: "M", details: { อก: "" } }] }), {})
+    }]);
     setSelectedId(id);
   }
 
@@ -2582,14 +2680,25 @@ function ClothingManager({ config, setConfig }) {
   function addSize(id) {
     commit(config.map((item) => item.id === id ? {
       ...item,
-      sizeRows: [...item.sizeRows, { size: "", details: item.detailFields.reduce((details, field) => ({ ...details, [field]: "" }), {}) }]
+      genderSizeRows: {
+        ...(item.genderSizeRows || {}),
+        [selectedGender]: [
+          ...(item.genderSizeRows?.[selectedGender] || item.sizeRows || []),
+          { size: "", details: item.detailFields.reduce((details, field) => ({ ...details, [field]: "" }), {}) }
+        ]
+      }
     } : item));
   }
 
   function deleteSize(id, sizeIndex) {
     commit(config.map((item) => item.id === id ? {
       ...item,
-      sizeRows: item.sizeRows.length > 1 ? item.sizeRows.filter((_, index) => index !== sizeIndex) : item.sizeRows
+      genderSizeRows: {
+        ...(item.genderSizeRows || {}),
+        [selectedGender]: (item.genderSizeRows?.[selectedGender] || item.sizeRows || []).length > 1
+          ? (item.genderSizeRows?.[selectedGender] || item.sizeRows || []).filter((_, index) => index !== sizeIndex)
+          : (item.genderSizeRows?.[selectedGender] || item.sizeRows || [])
+      }
     } : item));
   }
 
@@ -2650,7 +2759,7 @@ function ClothingManager({ config, setConfig }) {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-extrabold text-[#18181B]">{item.type || "ยังไม่ระบุชื่อ"}</p>
-                <p className="mt-1 text-xs font-semibold text-[#71717A]">{item.sizeRows.length} ไซส์ · {(item.colors || []).length} สี</p>
+                <p className="mt-1 text-xs font-semibold text-[#71717A]">{GENDERS.map((gender) => `${gender} ${item.genderSizeRows?.[gender]?.length || item.sizeRows.length}`).join(" · ")} ไซส์</p>
               </div>
             </button>
           ))}
@@ -2696,6 +2805,17 @@ function ClothingManager({ config, setConfig }) {
                       <Plus className="size-3.5" /> เพิ่มช่อง
                     </button>
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {GENDERS.map((gender) => (
+                      <button
+                        key={gender}
+                        onClick={() => setSelectedGender(gender)}
+                        className={cn("min-h-9 rounded-lg border text-sm font-black transition", selectedGender === gender ? "border-[#002B5B] bg-[#002B5B] text-white" : "border-[#CBD5E1] bg-white text-[#071638]")}
+                      >
+                        {gender}
+                      </button>
+                    ))}
+                  </div>
                   <div className="grid gap-2 overflow-x-auto rounded-lg border border-[#E4E4E7] bg-white p-2">
                     <div className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
                       <span className="text-xs font-bold text-[#64748B]">ไซส์</span>
@@ -2709,7 +2829,7 @@ function ClothingManager({ config, setConfig }) {
                       ))}
                       <span />
                     </div>
-                    {selectedItem.sizeRows.map((row, index) => (
+                    {selectedSizeRows.map((row, index) => (
                       <div key={`${selectedItem.id}-${index}`} className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
                         <input value={row.size} onChange={(event) => patchSize(selectedItem.id, index, { size: event.target.value })} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder="M" />
                         {selectedItem.detailFields.map((field) => (
@@ -2797,7 +2917,12 @@ function Dashboard({ demoMode }) {
         batch.branch,
       batch.supervisorName,
       batch.supervisorPhone,
-      ...batch.orders.map((order) => order.name)
+      batch.status,
+      ...batch.orders.map((order) => [
+        order.name,
+        order.gender,
+        ...order.items.map((item) => `${item.type} ${item.size} ${item.qty}`)
+      ].join(" "))
     ].join(" ").toLowerCase();
     const inQuery = !query || searchText.includes(query.toLowerCase());
     return inBranch && inStatus && inQuery;
@@ -2857,7 +2982,7 @@ function Dashboard({ demoMode }) {
   }
 
   function exportCsv() {
-    const header = ["BatchID", "สถานะ", "อัปเดตสถานะ", "วันที่", "ชื่อบริษัท", "สาขา", "ผู้ติดต่อ", "เบอร์ติดต่อ", "ชื่อพนักงาน", "เพศ", "ประเภท", "ไซส์", "จำนวน"];
+    const header = ["BatchID", "สถานะ", "อัปเดตสถานะ", "วันที่", "ชื่อบริษัท", "สาขา", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์ติดต่อ", "ชื่อพนักงาน", "เพศ", "ประเภท", "ไซส์", "จำนวน"];
     const batchById = new Map(filteredBatches.map((batch) => [batch.batchId, batch]));
     const csv = [header, ...rows.map((row) => {
       const batch = batchById.get(row.batchId);
@@ -2898,9 +3023,13 @@ function Dashboard({ demoMode }) {
       </div>
 
       <Tabs.Root defaultValue="overview" className="grid gap-4">
-        <Tabs.List className="grid grid-cols-3 rounded-2xl border border-[#D8DEEA] bg-white p-1 shadow-sm">
+        <Tabs.List className="grid grid-cols-4 rounded-2xl border border-[#D8DEEA] bg-white p-1 shadow-sm">
           <Tabs.Trigger value="overview" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
             <Gauge className="size-4" /> <span className="hidden sm:inline">ข้อมูลรวม</span>
+          </Tabs.Trigger>
+          <Tabs.Trigger value="list" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
+            <Users className="size-4" /> <span className="hidden sm:inline">รายการเบิก</span>
+            <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{rows.length}</span>
           </Tabs.Trigger>
           <Tabs.Trigger value="orders" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
             <ClipboardList className="size-4" /> <span className="hidden sm:inline">คำสั่งเสื้อ</span>
@@ -2925,6 +3054,10 @@ function Dashboard({ demoMode }) {
             </div>
           </Card>
           <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} />
+        </Tabs.Content>
+
+        <Tabs.Content value="list">
+          <EmployeeWithdrawalList rows={rows} />
         </Tabs.Content>
 
         <Tabs.Content value="orders">
@@ -2972,6 +3105,55 @@ function Dashboard({ demoMode }) {
 
       <BatchDetailDialog batch={selectedBatch} onClose={() => setSelectedBatch(null)} onStatusChange={updateBatchStatus} onDelete={deleteBatch} />
     </>
+  );
+}
+
+function EmployeeWithdrawalList({ rows }) {
+  if (!rows.length) return <EmptyDashboardState text="ยังไม่มีรายการเบิกตามเงื่อนไขที่เลือก" />;
+
+  return (
+    <Card className="p-0">
+      <div className="flex flex-col gap-2 border-b border-[#E7EAF0] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-extrabold text-[#071638]">รายการเบิกทั้งหมด</h2>
+          <p className="mt-1 text-sm font-semibold text-[#64748B]">แสดงข้อมูลระดับพนักงานและรายการเสื้อจากคำสั่งที่ผ่านตัวกรอง</p>
+        </div>
+        <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-2 text-sm font-black text-[#18181B]">
+          {rows.length} รายการ
+        </div>
+      </div>
+      <div className="employee-scroll-region overflow-auto">
+        <table className="w-full min-w-[1180px] text-left text-sm">
+          <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
+            <tr>
+              {["วันที่", "BatchID", "ชื่อพนักงาน", "เพศ", "สาขา", "บริษัท", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์", "ประเภท", "ไซส์", "จำนวน", "สถานะ"].map((header) => (
+                <th key={header} className="border-b border-[#D8DEEA] px-3 py-3">{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-[#E7EAF0] align-top hover:bg-[#F8FAFC]">
+                <td className="whitespace-nowrap px-3 py-3 font-semibold text-[#44536A]">
+                  {new Date(row.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
+                </td>
+                <td className="px-3 py-3 font-bold text-[#64748B]">{row.batchId}</td>
+                <td className="px-3 py-3 font-extrabold text-[#071638]">{row.name || "-"}</td>
+                <td className="px-3 py-3">{row.gender || "-"}</td>
+                <td className="px-3 py-3 font-bold text-[#002B5B]">{row.branch || "-"}</td>
+                <td className="px-3 py-3">{row.companyName || "-"}</td>
+                <td className="px-3 py-3 font-bold">{row.supervisorName || "-"}</td>
+                <td className="whitespace-nowrap px-3 py-3">{formatPhone(row.supervisorPhone) || "-"}</td>
+                <td className="px-3 py-3 font-bold">{row.type || "-"}</td>
+                <td className="px-3 py-3">{row.size || "-"}</td>
+                <td className="px-3 py-3 text-right font-extrabold">{row.qty}</td>
+                <td className="px-3 py-3"><StatusBadge status={row.status || ORDER_STATUS_PENDING} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 
@@ -3092,6 +3274,10 @@ function TotalSummaryView({ summaryRows, typeTotals }) {
 
 function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
   const rows = batch ? flattenBatches([batch]) : [];
+  const [showEmployeeList, setShowEmployeeList] = useState(false);
+  useEffect(() => {
+    if (!batch) setShowEmployeeList(false);
+  }, [batch]);
   function confirmDelete() {
     if (batch && window.confirm(`ลบชุดคำสั่งซื้อ ${batch.batchId}?`)) onDelete(batch.batchId);
   }
@@ -3130,6 +3316,9 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                 <p className="mb-4 rounded-xl bg-[#EEF4FF] px-4 py-3 text-sm font-bold text-[#002B5B]">
                   อัปเดตสถานะล่าสุด: {new Date(batch.statusUpdatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
                 </p>
+                <button onClick={() => setShowEmployeeList(true)} className="mb-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-black text-[#002B5B]">
+                  <Users className="size-4" /> ดูรายชื่อพนักงานทั้งหมด ({batch.orders.length} คน)
+                </button>
                 <div className="grid gap-3">
                   {batch.orders.map((order) => (
                     <div key={`${batch.batchId}-${order.name}`} className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
@@ -3167,6 +3356,46 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
               </div>
             </>
           )}
+        </Dialog.Content>
+        <BatchEmployeeListDialog batch={batch} open={showEmployeeList} setOpen={setShowEmployeeList} />
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function BatchEmployeeListDialog({ batch, open, setOpen }) {
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[60] bg-[#0F172A]/35 backdrop-blur-sm" />
+        <Dialog.Content className="fixed inset-x-4 bottom-4 top-4 z-[61] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[82vh] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+          <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
+            <div>
+              <Dialog.Title className="text-lg font-extrabold text-[#071638]">รายชื่อพนักงานทั้งหมด</Dialog.Title>
+              <p className="mt-1 text-sm font-bold text-[#64748B]">{batch?.supervisorName || "-"} เป็นผู้ขอเบิก · {batch?.branch || "-"}</p>
+            </div>
+            <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+          </div>
+          <div className="employee-scroll-region min-h-0 flex-1 overflow-auto p-4">
+            <div className="grid gap-3">
+              {batch?.orders.map((order, index) => {
+                const pieces = order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+                const details = order.items.map((item) => `${item.type} ${item.size} x${item.qty}`).join(" · ");
+                return (
+                  <div key={`${batch.batchId}-${order.name}-${index}`} className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-[#071638]">{index + 1}. {order.name || "-"}</p>
+                        <p className="mt-1 text-xs font-bold text-[#64748B]">{order.gender || "-"}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-[#EEF4FF] px-3 py-1 text-sm font-black text-[#002B5B]">{pieces} ชิ้น</span>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold leading-6 text-[#44536A]">{details || "-"}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
