@@ -193,6 +193,15 @@ function findClothingConfig(type) {
   return readClothingConfig().find((item) => item.type === type);
 }
 
+function getColorOptions(type) {
+  const clothing = findClothingConfig(type);
+  return (clothing?.colors || []).map((color) => color.name).filter(Boolean);
+}
+
+function needsColorSelection(type) {
+  return getColorOptions(type).length > 1;
+}
+
 function getSizeRows(type, gender) {
   const clothing = findClothingConfig(type);
   const genderRows = clothing?.genderSizeRows?.[gender];
@@ -216,6 +225,54 @@ function patchSizeWithDefaultQty(item, size) {
     customSize: size === OTHER_SIZE ? item.customSize : "",
     qty: item.qty || 2
   };
+}
+
+function ItemColorSelect({ employee, item, dispatch, compact = false }) {
+  const colors = getColorOptions(item.type);
+  if (colors.length <= 1) return null;
+  return (
+    <GridSelect
+      value={item.color || ""}
+      disabled={!employee.gender}
+      placeholder={employee.gender ? "เลือกสี" : "เลือกเพศก่อน"}
+      values={colors}
+      onChange={(color) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { color } })}
+      compact={compact}
+    />
+  );
+}
+
+function formatOrderItemLabel(item) {
+  return [item.type, item.color ? `สี${item.color}` : "", item.size, `x${item.qty || 0}`].filter(Boolean).join(" ");
+}
+
+function EmployeeItemSummary({ employee, onEdit }) {
+  const visibleItems = employee.items.slice(0, 3);
+  if (!employee.items.length) {
+    return (
+      <button onClick={onEdit} className="min-h-10 w-full rounded-lg border border-dashed border-[#A9B9D1] bg-white px-3 text-sm font-bold text-[#002B5B] hover:bg-[#F4F8FF]">
+        <span className="inline-flex items-center justify-center gap-1.5"><Plus className="size-4" /> เพิ่มรายการเสื้อ</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap gap-1.5">
+        {visibleItems.map((item) => (
+          <span key={`${item.type}-${item.color}-${item.size}`} className="max-w-full truncate rounded-full border border-[#D8DEEA] bg-[#F8FAFC] px-2.5 py-1 text-xs font-bold text-[#44536A]">
+            {formatOrderItemLabel(item)}
+          </span>
+        ))}
+        {employee.items.length > visibleItems.length && (
+          <span className="rounded-full bg-[#EEF4FF] px-2.5 py-1 text-xs font-black text-[#002B5B]">+{employee.items.length - visibleItems.length}</span>
+        )}
+      </div>
+      <button onClick={onEdit} className="min-h-9 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-black text-[#002B5B]">
+        แก้รายการ
+      </button>
+    </div>
+  );
 }
 
 function digitsOnly(value) {
@@ -250,11 +307,13 @@ function createEmployee(index = 0) {
 
 function createOrderItem(type, gender, size = "", qty = 2) {
   const options = gender ? getSizeOptions(type, gender) : [];
+  const colors = getColorOptions(type);
   const nextSize = size && options.includes(size) ? size : (gender ? defaultSize(type, gender) : "");
   return {
     type,
     size: nextSize,
     customSize: "",
+    color: colors.length === 1 ? colors[0] : "",
     qty: digitsOnly(qty || 2)
   };
 }
@@ -300,6 +359,7 @@ function normalizeDraftEmployee(employee, index) {
         type: item.type || "",
         size: item.size || "",
         customSize: item.customSize || "",
+        color: item.color || "",
         qty: digitsOnly(item.qty || "")
       })).filter((item) => getClothingTypes().includes(item.type))
       : []
@@ -478,6 +538,7 @@ function flattenBatches(batches) {
         gender: order.gender,
         type: item.type,
         size: item.size,
+        color: item.color || "",
         qty: Number(item.qty || 0)
       }))
     )
@@ -502,6 +563,7 @@ function normalizeBatch(batch) {
           ? order.items.map((item) => ({
             type: item.type || "-",
             size: item.size || "-",
+            color: item.color || "",
             qty: Number(item.qty || 0)
           })).filter((item) => item.qty > 0)
           : []
@@ -532,10 +594,11 @@ function saveStoredBatches(batches) {
 function buildOrderSummaryRows(employees) {
   return employees.flatMap((employee) =>
     employee.items.filter((item) => item.size).map((item) => ({
-      id: `${employee.id}-${item.type}`,
+      id: `${employee.id}-${item.type}-${item.color || ""}`,
       name: employee.name || "-",
       type: item.type,
       size: item.size === OTHER_SIZE ? (item.customSize || "-") : item.size,
+      color: item.color || "",
       qty: Number(item.qty || 0)
     }))
   );
@@ -549,6 +612,7 @@ function isEmployeeComplete(employee) {
     employee.items.every((item) =>
       item.size &&
       Number(item.qty || 0) > 0 &&
+      (!needsColorSelection(item.type) || item.color) &&
       (item.size !== OTHER_SIZE || item.customSize.trim())
     )
   );
@@ -564,6 +628,7 @@ function getEmployeeMissingFields(employee) {
   }
 
   if (employee.items.some((item) => !item.size)) missing.push("ไซส์");
+  if (employee.items.some((item) => needsColorSelection(item.type) && !item.color)) missing.push("สี");
   if (employee.items.some((item) => Number(item.qty || 0) <= 0)) missing.push("จำนวน");
   if (employee.items.some((item) => item.size === OTHER_SIZE && !item.customSize.trim())) missing.push("ระบุไซส์เพิ่มเติม");
   return missing;
@@ -573,7 +638,7 @@ function hasEmployeeData(employee) {
   return Boolean(
     employee.name.trim() ||
     employee.gender ||
-    employee.items.some((item) => item.size || item.customSize.trim() || Number(item.qty || 0) > 0)
+    employee.items.some((item) => item.size || item.customSize.trim() || item.color || Number(item.qty || 0) > 0)
   );
 }
 
@@ -740,6 +805,7 @@ function QuickOrderApp({ gasConfigured }) {
         items: items.filter((item) => item.size).map((item) => ({
           type: item.type,
           size: item.size === OTHER_SIZE ? (item.customSize || "-") : item.size,
+          color: item.color || "",
           qty: Number(item.qty || 0)
         }))
       }))
@@ -1007,7 +1073,7 @@ function getFilteredEmployees(employees, query, showIncompleteOnly) {
   const normalizedQuery = query.trim().toLowerCase();
   return employees.filter((employee) => {
     const matchesStatus = !showIncompleteOnly || !isEmployeeComplete(employee);
-    const matchesQuery = !normalizedQuery || [employee.name, employee.gender, ...employee.items.map((item) => `${item.type} ${item.size} ${item.customSize}`)]
+    const matchesQuery = !normalizedQuery || [employee.name, employee.gender, ...employee.items.map((item) => `${item.type} ${item.color} ${item.size} ${item.customSize}`)]
       .join(" ")
       .toLowerCase()
       .includes(normalizedQuery);
@@ -1016,17 +1082,19 @@ function getFilteredEmployees(employees, query, showIncompleteOnly) {
 }
 
 function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, invalidEmployeeId }) {
+  const [editingEmployeeId, setEditingEmployeeId] = useState("");
   const filteredEmployees = getFilteredEmployees(employees, query, showIncompleteOnly);
   const canDelete = canDeleteEmployee(employees);
-  const clothingTypes = getClothingTypes();
+  const editingEmployee = employees.find((employee) => employee.id === editingEmployeeId) || null;
 
   return (
+    <>
     <section className="hidden overflow-hidden rounded-lg border border-[#D8DEEA] bg-white lg:block">
       <div className="employee-scroll-region max-h-[58vh] overflow-auto">
-        <table className="w-full min-w-[1180px] text-left text-sm">
+        <table className="w-full min-w-[980px] table-fixed text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
-              {["#", "ชื่อพนักงาน", "เพศ", ...clothingTypes, "สถานะ", ""].map((header) => (
+              {["#", "ชื่อพนักงาน", "เพศ", "รายการที่เลือก", "สถานะ", ""].map((header) => (
                 <th key={header || "actions"} className="border-b border-[#D8DEEA] px-3 py-3">{header}</th>
               ))}
             </tr>
@@ -1045,11 +1113,9 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                   <td className="w-36 px-3 py-3">
                     <GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} />
                   </td>
-                  {clothingTypes.map((type) => (
-                    <td key={type} className="w-[13rem] px-3 py-3">
-                      <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} />
-                    </td>
-                  ))}
+                  <td className="px-3 py-3">
+                    <EmployeeItemSummary employee={employee} onEdit={() => setEditingEmployeeId(employee.id)} />
+                  </td>
                   <td className="w-44 px-3 py-3">
                     <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "ยังไม่ครบ"}</span>
                     {!complete && <p className="mt-2 text-xs font-bold leading-5 text-[#B91C1C]">ขาด: {missingFields.join(", ")}</p>}
@@ -1068,12 +1134,14 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
               );
             })}
             {!filteredEmployees.length && (
-              <tr><td colSpan={8} className="px-4 py-10 text-center font-bold text-[#64748B]">ไม่พบพนักงานตามเงื่อนไข</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center font-bold text-[#64748B]">ไม่พบพนักงานตามเงื่อนไข</td></tr>
             )}
           </tbody>
         </table>
       </div>
     </section>
+    <GarmentEditorDialog employee={editingEmployee} dispatch={dispatch} onClose={() => setEditingEmployeeId("")} />
+    </>
   );
 }
 
@@ -1096,10 +1164,93 @@ function QuickGarmentCell({ employee, type, dispatch }) {
           <X />
         </button>
       </div>
+      <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
       {item.size === OTHER_SIZE && (
         <GridInput value={item.customSize} placeholder="ระบุไซส์เพิ่มเติม" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} />
       )}
     </div>
+  );
+}
+
+function GarmentEditorDialog({ employee, dispatch, onClose }) {
+  const [query, setQuery] = useState("");
+  const clothingTypes = getClothingTypes();
+  const filteredTypes = clothingTypes.filter((type) => type.toLowerCase().includes(query.trim().toLowerCase()));
+
+  useEffect(() => {
+    if (employee) setQuery("");
+  }, [employee?.id]);
+
+  return (
+    <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Content className="fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(42rem,88vh)] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+          {employee && (
+            <>
+              <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
+                <div className="min-w-0">
+                  <Dialog.Title className="truncate text-xl font-extrabold text-[#071638]">แก้รายการเสื้อ</Dialog.Title>
+                  <p className="mt-1 truncate text-sm font-bold text-[#64748B]">{employee.name || "ยังไม่ระบุชื่อ"} · {employee.gender || "ยังไม่เลือกเพศ"}</p>
+                </div>
+                <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+              </div>
+
+              <div className="border-b border-[#E7EAF0] p-4">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]" />
+                  <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#CBD5E1] bg-white pl-11 pr-4 text-[15px] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" placeholder="ค้นหาแบบเสื้อ" />
+                </div>
+              </div>
+
+              <div className="employee-scroll-region min-h-0 flex-1 overflow-y-auto bg-[#F8FAFC] p-4">
+                <div className="grid gap-3">
+                  {filteredTypes.map((type) => {
+                    const item = employee.items.find((entry) => entry.type === type);
+                    return (
+                      <div key={type} className={cn("rounded-xl border bg-white p-3 shadow-sm", item ? "border-[#BFD0EA]" : "border-[#E2E8F0]")}>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="break-words text-base font-extrabold text-[#071638]">{type}</p>
+                            {item && <p className="mt-1 text-xs font-bold text-[#64748B]">{formatOrderItemLabel(item)}</p>}
+                          </div>
+                          <button
+                            onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })}
+                            className={cn("min-h-10 shrink-0 rounded-lg px-4 text-sm font-black", item ? "border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" : "border border-[#BFD0EA] bg-[#E5EFFD] text-[#002B5B]")}
+                          >
+                            {item ? "ลบรายการ" : "เพิ่มรายการ"}
+                          </button>
+                        </div>
+
+                        {item && (
+                          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_6rem]">
+                            <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} compact />
+                            {needsColorSelection(item.type) ? (
+                              <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
+                            ) : (
+                              <div className="hidden sm:block" />
+                            )}
+                            <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
+                            {item.size === OTHER_SIZE && (
+                              <div className="sm:col-span-3">
+                                <GridInput value={item.customSize} placeholder="ระบุไซส์เพิ่มเติม" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {!filteredTypes.length && (
+                    <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">ไม่พบแบบเสื้อ</div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -1237,6 +1388,7 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
                 <thead className="bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
                   <tr>
                     <th className="px-4 py-3">ประเภท</th>
+                    <th className="px-4 py-3">สี</th>
                     <th className="px-4 py-3">ไซส์</th>
                     <th className="px-4 py-3 text-right">จำนวน</th>
                   </tr>
@@ -1245,11 +1397,12 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
                   {totals.length ? totals.map((row) => (
                     <tr key={`${row.type}-${row.size}`} className="border-t border-[#E2E8F0]">
                       <td className="px-4 py-3 font-bold">{row.type}</td>
+                      <td className="px-4 py-3">{row.color || "-"}</td>
                       <td className="px-4 py-3">{row.size}</td>
                       <td className="px-4 py-3 text-right font-extrabold">{row.qty}</td>
                     </tr>
                   )) : (
-                    <tr><td colSpan={3} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีรายการ</td></tr>
+                    <tr><td colSpan={4} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีรายการ</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1438,6 +1591,7 @@ function OrderApp({ gasConfigured }) {
         items: items.filter((item) => item.size).map((item) => ({
           type: item.type,
           size: item.size === OTHER_SIZE ? (item.customSize || "-") : item.size,
+          color: item.color || "",
           qty: Number(item.qty || 0)
         }))
       }))
@@ -1649,6 +1803,7 @@ function OrderReviewCard({ state, rows, totalPieces, onEditCompany, onEditEmploy
               <tr>
                 <th className="px-4 py-3">ชื่อพนักงาน</th>
                 <th className="px-4 py-3">ประเภท</th>
+                <th className="px-4 py-3">สี</th>
                 <th className="px-4 py-3">ไซส์</th>
                 <th className="px-4 py-3 text-right">จำนวน</th>
               </tr>
@@ -1857,14 +2012,16 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     const gap = 6;
+    const menuWidth = Math.max(rect.width, compact ? 192 : 224);
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - menuWidth - 8);
     const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
     const spaceAbove = rect.top - gap - 8;
     const openAbove = spaceBelow < 160 && spaceAbove > spaceBelow;
     const maxHeight = Math.max(120, Math.min(256, openAbove ? spaceAbove : spaceBelow));
     setMenuStyle({
-      left: rect.left,
+      left,
       top: openAbove ? Math.max(8, rect.top - gap - maxHeight) : rect.bottom + gap,
-      width: rect.width,
+      width: menuWidth,
       maxHeight
     });
   }
@@ -2162,10 +2319,11 @@ function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
 }
 
 function GarmentChoices({ employee, dispatch }) {
+  const clothingTypes = getClothingTypes();
   return (
     <Field label="เลือกประเภทชุด">
       <div className="grid gap-2.5 sm:gap-3">
-        {CLOTHING_TYPES.map((type) => {
+        {clothingTypes.map((type) => {
           const checked = employee.items.some((item) => item.type === type);
           return (
             <label key={type} className={cn("flex min-h-10 items-center gap-2 rounded-xl border px-2.5 text-sm font-bold transition sm:min-h-12 sm:px-3 sm:text-[15px]", checked ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B]" : "border-[#CBD5E1] bg-white text-[#071638]")}>
@@ -2194,6 +2352,7 @@ function GenderChoices({ employee, dispatch }) {
 }
 
 function ItemEditors({ employee, dispatch }) {
+  const clothingTypes = getClothingTypes();
   if (!employee.items.length) {
     return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#64748B] sm:p-4">เลือกประเภทชุดอย่างน้อย 1 รายการ</div>;
   }
@@ -2202,7 +2361,7 @@ function ItemEditors({ employee, dispatch }) {
     <div className="rounded-2xl bg-[#EDF4FF] p-2.5 sm:p-3">
       <div className="mb-2 flex items-center gap-2 text-sm font-extrabold text-[#002B5B] sm:mb-3"><Shirt /> รายละเอียดชุด</div>
       <div className="grid gap-2.5 sm:gap-3">
-        {CLOTHING_TYPES.map((type) => {
+        {clothingTypes.map((type) => {
           const item = employee.items.find((item) => item.type === type);
           return (
             <div key={type} className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
@@ -2212,6 +2371,11 @@ function ItemEditors({ employee, dispatch }) {
                     <Select value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} />
                     <TextInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
                   </div>
+                  {needsColorSelection(item.type) && (
+                    <div className="mt-2.5 sm:mt-3">
+                      <ItemColorSelect employee={employee} item={item} dispatch={dispatch} />
+                    </div>
+                  )}
                   {item.size === OTHER_SIZE && (
                     <div className="mt-2.5 sm:mt-3">
                       <TextInput value={item.customSize} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} placeholder="ระบุไซส์เพิ่มเติม" />
@@ -2231,20 +2395,23 @@ function ItemEditors({ employee, dispatch }) {
 
 function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }) {
   const [query, setQuery] = useState("");
+  const [editingEmployeeId, setEditingEmployeeId] = useState("");
   const canDelete = canDeleteEmployee(employees);
+  const editingEmployee = employees.find((employee) => employee.id === editingEmployeeId) || null;
 
   useEffect(() => {
     if (invalidEmployeeId) setQuery("");
   }, [invalidEmployeeId]);
 
   const filteredEmployees = employees.filter((employee) =>
-    [employee.name, employee.gender, ...employee.items.map((item) => `${item.type} ${item.size} ${item.customSize}`)]
+    [employee.name, employee.gender, ...employee.items.map((item) => `${item.type} ${item.color} ${item.size} ${item.customSize}`)]
       .join(" ")
       .toLowerCase()
       .includes(query.trim().toLowerCase())
   );
 
   return (
+    <>
     <Card className="hidden overflow-hidden p-0 lg:block">
       <div className="flex items-center justify-between gap-4 border-b border-[#E7EAF0] p-5">
         <h2 className="text-xl font-extrabold text-[#071638]">รายการสั่งซื้อพนักงาน</h2>
@@ -2261,7 +2428,7 @@ function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }
       <div className="employee-scroll-region max-h-[34rem] overflow-auto scroll-smooth">
         <table className="w-full min-w-[980px] text-center text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs uppercase tracking-[.16em] text-[#1F2937]">
-            <tr>{["#", "ชื่อ", "เพศ", "ประเภทชุด", "ไซส์/จำนวน", "จัดการ"].map((header) => <th key={header} className="px-5 py-4 text-center">{header}</th>)}</tr>
+            <tr>{["#", "ชื่อ", "เพศ", "รายการที่เลือก", "จัดการ"].map((header) => <th key={header} className="px-5 py-4 text-center">{header}</th>)}</tr>
           </thead>
           <tbody>
             {filteredEmployees.map((employee) => {
@@ -2280,11 +2447,8 @@ function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }
                   {!complete && <p className="mt-2 text-left text-xs font-black text-[#B91C1C]">ยังขาด: {missingFields.join(", ")}</p>}
                 </td>
                 <td className="px-5 py-6"><GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} /></td>
-                <td className="px-5 py-6">
-                  <DesktopGarmentChoices employee={employee} dispatch={dispatch} />
-                </td>
-                <td className="px-5 py-6">
-                  <DesktopItemEditors employee={employee} dispatch={dispatch} />
+                <td className="px-5 py-6 text-left">
+                  <EmployeeItemSummary employee={employee} onEdit={() => setEditingEmployeeId(employee.id)} />
                 </td>
                 <td className="px-5 py-6 text-center">
                   <button
@@ -2306,13 +2470,15 @@ function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }
             );})}
             {!filteredEmployees.length && (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center font-bold text-[#64748B]">ไม่พบพนักงานตามคำค้นหา</td>
+                <td colSpan={5} className="px-5 py-10 text-center font-bold text-[#64748B]">ไม่พบพนักงานตามคำค้นหา</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
     </Card>
+    <GarmentEditorDialog employee={editingEmployee} dispatch={dispatch} onClose={() => setEditingEmployeeId("")} />
+    </>
   );
 }
 
@@ -2347,6 +2513,11 @@ function DesktopItemEditors({ employee, dispatch }) {
               <>
                 <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} />
                 <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
+                {needsColorSelection(item.type) && (
+                  <div className="col-span-2">
+                    <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
+                  </div>
+                )}
                 {item.size === OTHER_SIZE && <div className="col-span-2"><GridInput value={item.customSize} placeholder="ระบุไซส์เพิ่มเติม" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} /></div>}
               </>
             ) : (
@@ -2363,8 +2534,8 @@ function GridInput({ value, onChange, placeholder, type = "text", inputMode, pat
   return <input type={type} value={value} placeholder={placeholder} inputMode={inputMode} pattern={pattern} autoCapitalize={autoCapitalize} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#D8DEEA] bg-white px-3 text-[#071638] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" />;
 }
 
-function GridSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false }) {
-  return <CustomSelect value={value} values={values} onChange={onChange} placeholder={placeholder} disabled={disabled} />;
+function GridSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false }) {
+  return <CustomSelect value={value} values={values} onChange={onChange} placeholder={placeholder} disabled={disabled} compact={compact} />;
 }
 
 function MobileSubmit({ totalPieces, isSubmitting, onSubmit }) {
@@ -2417,6 +2588,7 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
                   <tr>
                     <th className="px-3 py-3">ชื่อ</th>
                     <th className="px-3 py-3">เสื้อ</th>
+                    <th className="px-3 py-3">สี</th>
                     <th className="px-3 py-3">ไซส์</th>
                     <th className="px-3 py-3 text-right">จำนวน</th>
                   </tr>
@@ -2426,6 +2598,7 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
                     <tr key={row.id} className="border-t border-[#E7EAF0]">
                       <td className="px-3 py-3 font-bold text-[#071638]">{row.name}</td>
                       <td className="px-3 py-3">{row.type}</td>
+                      <td className="px-3 py-3">{row.color || "-"}</td>
                       <td className="px-3 py-3">{row.size}</td>
                       <td className="px-3 py-3 text-right font-black">{row.qty}</td>
                     </tr>
@@ -2486,7 +2659,7 @@ function SizeReference({ open, setOpen }) {
                 <Tabs.Content key={tab.id} value={tab.id}>
                   <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white shadow-sm">
                     {tab.imageUrl ? (
-                      <img src={tab.imageUrl} alt={tab.type} className="h-56 w-full object-cover" />
+                      <img src={tab.imageUrl} alt={tab.type} className="h-72 w-full bg-[#F8FAFC] object-contain" />
                     ) : (
                       <div className="grid h-40 place-items-center bg-[#F1F5F9] text-sm font-bold text-[#94A3B8]">ยังไม่มีรูปเสื้อ</div>
                     )}
@@ -2755,7 +2928,7 @@ function ClothingManager({ config, setConfig }) {
               )}
             >
               <div className="overflow-hidden rounded-md border border-[#E4E4E7] bg-white">
-                {item.imageUrl ? <img src={item.imageUrl} alt={item.type} className="h-12 w-full object-cover" /> : <div className="grid h-12 place-items-center text-[#A1A1AA]"><Shirt className="size-4" /></div>}
+                {item.imageUrl ? <img src={item.imageUrl} alt={item.type} className="h-12 w-full bg-[#F8FAFC] object-contain" /> : <div className="grid h-12 place-items-center text-[#A1A1AA]"><Shirt className="size-4" /></div>}
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-extrabold text-[#18181B]">{item.type || "ยังไม่ระบุชื่อ"}</p>
@@ -2770,7 +2943,7 @@ function ClothingManager({ config, setConfig }) {
             <div className="grid gap-3 lg:grid-cols-[9rem_1fr_auto] lg:items-start">
               <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white">
                 {selectedItem.imageUrl ? (
-                  <img src={selectedItem.imageUrl} alt={selectedItem.type} className="h-32 w-full object-cover" />
+                  <img src={selectedItem.imageUrl} alt={selectedItem.type} className="h-32 w-full bg-[#F8FAFC] object-contain" />
                 ) : (
                   <div className="grid h-32 place-items-center text-sm font-bold text-[#94A3B8]">ไม่มีรูป</div>
                 )}
@@ -2921,7 +3094,7 @@ function Dashboard({ demoMode }) {
       ...batch.orders.map((order) => [
         order.name,
         order.gender,
-        ...order.items.map((item) => `${item.type} ${item.size} ${item.qty}`)
+        ...order.items.map((item) => `${item.type} ${item.color || ""} ${item.size} ${item.qty}`)
       ].join(" "))
     ].join(" ").toLowerCase();
     const inQuery = !query || searchText.includes(query.toLowerCase());
@@ -2982,11 +3155,11 @@ function Dashboard({ demoMode }) {
   }
 
   function exportCsv() {
-    const header = ["BatchID", "สถานะ", "อัปเดตสถานะ", "วันที่", "ชื่อบริษัท", "สาขา", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์ติดต่อ", "ชื่อพนักงาน", "เพศ", "ประเภท", "ไซส์", "จำนวน"];
+    const header = ["BatchID", "สถานะ", "อัปเดตสถานะ", "วันที่", "ชื่อบริษัท", "สาขา", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์ติดต่อ", "ชื่อพนักงาน", "เพศ", "ประเภท", "สี", "ไซส์", "จำนวน"];
     const batchById = new Map(filteredBatches.map((batch) => [batch.batchId, batch]));
     const csv = [header, ...rows.map((row) => {
       const batch = batchById.get(row.batchId);
-      return [row.batchId, batch?.status || ORDER_STATUS_PENDING, batch?.statusUpdatedAt || "", row.submittedAt, row.companyName, row.branch, row.supervisorName, row.supervisorPhone, row.name, row.gender, row.type, row.size, row.qty];
+      return [row.batchId, batch?.status || ORDER_STATUS_PENDING, batch?.statusUpdatedAt || "", row.submittedAt, row.companyName, row.branch, row.supervisorName, row.supervisorPhone, row.name, row.gender, row.type, row.color || "", row.size, row.qty];
     })].map((line) => line.join(",")).join("\n");
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -3126,7 +3299,7 @@ function EmployeeWithdrawalList({ rows }) {
         <table className="w-full min-w-[1180px] text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
-              {["วันที่", "BatchID", "ชื่อพนักงาน", "เพศ", "สาขา", "บริษัท", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์", "ประเภท", "ไซส์", "จำนวน", "สถานะ"].map((header) => (
+              {["วันที่", "BatchID", "ชื่อพนักงาน", "เพศ", "สาขา", "บริษัท", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์", "ประเภท", "สี", "ไซส์", "จำนวน", "สถานะ"].map((header) => (
                 <th key={header} className="border-b border-[#D8DEEA] px-3 py-3">{header}</th>
               ))}
             </tr>
@@ -3145,6 +3318,7 @@ function EmployeeWithdrawalList({ rows }) {
                 <td className="px-3 py-3 font-bold">{row.supervisorName || "-"}</td>
                 <td className="whitespace-nowrap px-3 py-3">{formatPhone(row.supervisorPhone) || "-"}</td>
                 <td className="px-3 py-3 font-bold">{row.type || "-"}</td>
+                <td className="px-3 py-3">{row.color || "-"}</td>
                 <td className="px-3 py-3">{row.size || "-"}</td>
                 <td className="px-3 py-3 text-right font-extrabold">{row.qty}</td>
                 <td className="px-3 py-3"><StatusBadge status={row.status || ORDER_STATUS_PENDING} /></td>
@@ -3256,13 +3430,14 @@ function TotalSummaryView({ summaryRows, typeTotals }) {
             </thead>
             <tbody>
               {summaryRows.length ? summaryRows.map((row) => (
-                <tr key={`${row.type}-${row.size}`} className="border-t border-[#E2E8F0]">
+                <tr key={`${row.type}-${row.color}-${row.size}`} className="border-t border-[#E2E8F0]">
                   <td className="px-4 py-3 font-bold">{row.type}</td>
+                  <td className="px-4 py-3">{row.color || "-"}</td>
                   <td className="px-4 py-3">{row.size}</td>
                   <td className="px-4 py-3 text-right font-extrabold">{row.qty}</td>
                 </tr>
               )) : (
-                <tr><td colSpan={3} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีข้อมูล</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีข้อมูล</td></tr>
               )}
             </tbody>
           </table>
@@ -3333,6 +3508,7 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                         <thead className="text-xs font-bold text-[#44536A]">
                           <tr>
                             <th className="px-3 py-3 sm:px-4">ประเภท</th>
+                            <th className="w-20 px-3 py-3 sm:w-24 sm:px-4">สี</th>
                             <th className="w-20 px-3 py-3 sm:w-24 sm:px-4">ไซส์</th>
                             <th className="w-20 px-3 py-3 text-right sm:w-24 sm:px-4">จำนวน</th>
                           </tr>
@@ -3341,6 +3517,7 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                           {order.items.map((item) => (
                             <tr key={`${order.name}-${item.type}-${item.size}`} className="border-t border-[#E2E8F0]">
                               <td className="break-words px-3 py-3 font-bold sm:px-4">{item.type}</td>
+                              <td className="break-words px-3 py-3 sm:px-4">{item.color || "-"}</td>
                               <td className="break-words px-3 py-3 sm:px-4">{item.size}</td>
                               <td className="px-3 py-3 text-right font-extrabold sm:px-4">{item.qty}</td>
                             </tr>
@@ -3380,7 +3557,7 @@ function BatchEmployeeListDialog({ batch, open, setOpen }) {
             <div className="grid gap-3">
               {batch?.orders.map((order, index) => {
                 const pieces = order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
-                const details = order.items.map((item) => `${item.type} ${item.size} x${item.qty}`).join(" · ");
+                const details = order.items.map((item) => `${item.type}${item.color ? ` ${item.color}` : ""} ${item.size} x${item.qty}`).join(" · ");
                 return (
                   <div key={`${batch.batchId}-${order.name}-${index}`} className="rounded-xl border border-[#E2E8F0] bg-white p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -3424,12 +3601,12 @@ function buildTypeTotals(rows) {
 function buildTotalSummary(rows) {
   const map = new Map();
   rows.forEach((row) => {
-    const key = `${row.type}__${row.size}`;
-    const current = map.get(key) || { type: row.type, size: row.size, qty: 0 };
+    const key = `${row.type}__${row.color || ""}__${row.size}`;
+    const current = map.get(key) || { type: row.type, color: row.color || "", size: row.size, qty: 0 };
     current.qty += Number(row.qty || 0);
     map.set(key, current);
   });
-  return [...map.values()].sort((a, b) => a.type.localeCompare(b.type, "th") || String(a.size).localeCompare(String(b.size), "th", { numeric: true }));
+  return [...map.values()].sort((a, b) => a.type.localeCompare(b.type, "th") || String(a.color).localeCompare(String(b.color), "th") || String(a.size).localeCompare(String(b.size), "th", { numeric: true }));
 }
 
 function buildDashboardMetrics(batches) {
