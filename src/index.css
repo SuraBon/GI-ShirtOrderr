@@ -229,6 +229,22 @@ select option {
   font-weight: 500;
 }
 
+:where(.app-shadcn-theme),
+:where(.app-shadcn-theme *),
+:where([role="dialog"]),
+:where([role="dialog"] *) {
+  min-width: 0;
+}
+
+:where(.app-shadcn-theme img),
+:where(.app-shadcn-theme video),
+:where(.app-shadcn-theme canvas),
+:where([role="dialog"] img),
+:where([role="dialog"] video),
+:where([role="dialog"] canvas) {
+  max-width: 100%;
+}
+
 .app-shadcn-theme header {
   background: rgba(255, 255, 255, 0.96) !important;
   border-color: var(--sc-border) !important;
@@ -406,6 +422,7 @@ body {
 }
 
 [role="dialog"] {
+  max-width: calc(100vw - 16px) !important;
   background: #ffffff !important;
   color: #102033 !important;
   border: 1px solid #d8e2ef !important;
@@ -467,4 +484,33 @@ body {
   background: #fef2f2 !important;
   border-color: #fecaca !important;
   color: #b91c1c !important;
+}
+
+@media (max-width: 767px) {
+  .app-shadcn-theme {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .app-shadcn-theme button,
+  .app-shadcn-theme a,
+  [role="dialog"] button {
+    max-width: 100%;
+  }
+
+  .app-shadcn-theme table {
+    max-width: 100%;
+  }
+
+  [role="dialog"] {
+    max-height: calc(100vh - 16px) !important;
+  }
+
+  [role="listbox"] {
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  [data-sonner-toaster] {
+    max-width: calc(100vw - 16px) !important;
+  }
 }

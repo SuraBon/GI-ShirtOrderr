@@ -1425,7 +1425,14 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
               <ReviewMetric label="พนักงาน" value={`${state.employees.length} คน`} />
               <ReviewMetric label="จำนวนรวม" value={`${totalPieces} ชิ้น`} />
             </div>
-            <div className="mt-4 overflow-hidden rounded-lg border border-[#E2E8F0]">
+            <div className="mt-4 grid gap-2 sm:hidden">
+              {totals.length ? totals.map((row) => (
+                <SummaryMobileRow key={`${row.type}-${row.color}-${row.size}`} row={row} />
+              )) : (
+                <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">ยังไม่มีรายการ</div>
+              )}
+            </div>
+            <div className="mt-4 hidden overflow-hidden rounded-lg border border-[#E2E8F0] sm:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
                   <tr>
@@ -1450,7 +1457,7 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
               </table>
             </div>
           </div>
-          <div className="grid grid-cols-[1fr_1.25fr] gap-3 border-t border-[#E7EAF0] p-4">
+          <div className="grid grid-cols-1 gap-2 border-t border-[#E7EAF0] p-3 sm:grid-cols-[1fr_1.25fr] sm:gap-3 sm:p-4">
             <Dialog.Close className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white font-bold text-[#071638]">กลับไปแก้</Dialog.Close>
             <button onClick={onConfirm} disabled={isSubmitting || !rows.length} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] font-bold text-white disabled:opacity-60">
               {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งเบิกเสื้อ
@@ -1459,6 +1466,24 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+function SummaryMobileRow({ row }) {
+  return (
+    <div className="rounded-lg border border-[#D8DEEA] bg-white p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-extrabold text-[#071638]">{row.name || row.type || "-"}</p>
+          {row.name && <p className="mt-1 break-words text-xs font-bold text-[#64748B]">{row.type || "-"}</p>}
+        </div>
+        <span className="shrink-0 rounded-full bg-[#E5EFFD] px-3 py-1 text-sm font-black text-[#002B5B]">{row.qty} ชิ้น</span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <MobileInfo label="สี" value={row.color || "-"} compact />
+        <MobileInfo label="ไซส์" value={row.size || "-"} compact />
+      </div>
+    </div>
   );
 }
 
@@ -1896,7 +1921,7 @@ function DashboardApp({ demoMode, onOpenOrder }) {
   return (
     <>
       <DashboardHeader onOpenOrder={onOpenOrder} />
-      <main className="relative z-10 mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-4 pb-10 pt-3 sm:px-6 lg:gap-4 lg:pt-5">
+      <main className="relative z-10 mx-auto flex w-full max-w-[1240px] flex-col gap-3 px-3 pb-10 pt-3 sm:px-5 lg:gap-4 lg:pt-5">
         <Dashboard demoMode={demoMode} />
       </main>
     </>
@@ -2058,7 +2083,7 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     const gap = 6;
-    const menuWidth = Math.max(rect.width, compact ? 192 : 224);
+    const menuWidth = Math.min(window.innerWidth - 16, Math.max(rect.width, compact ? 192 : 224));
     const left = Math.min(Math.max(8, rect.left), window.innerWidth - menuWidth - 8);
     const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
     const spaceAbove = rect.top - gap - 8;
@@ -2627,8 +2652,14 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
             <Dialog.Title className="text-2xl font-black text-[#071638]">สรุปคำสั่งเบิกเสื้อ</Dialog.Title>
             <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
           </div>
-          <div className="max-h-[58vh] overflow-auto p-4">
-            <div className="overflow-hidden rounded-2xl border border-[#D8DEEA]">
+          <div className="max-h-[58vh] overflow-auto p-3 sm:p-4">
+            <div className="grid gap-2 sm:hidden">
+              {rows.map((row) => (
+                <SummaryMobileRow key={row.id} row={row} />
+              ))}
+              {!rows.length && <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">ยังไม่มีรายการ</div>}
+            </div>
+            <div className="hidden overflow-hidden rounded-2xl border border-[#D8DEEA] sm:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-[#EEF4FF] text-xs font-black uppercase tracking-[.12em] text-[#44536A]">
                   <tr>
@@ -2657,7 +2688,7 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
               <span>{totalPieces} ชิ้น</span>
             </div>
           </div>
-          <div className="grid grid-cols-[1fr_1.35fr] gap-3 border-t border-[#E7EAF0] p-4">
+          <div className="grid grid-cols-1 gap-2 border-t border-[#E7EAF0] p-3 sm:grid-cols-[1fr_1.35fr] sm:gap-3 sm:p-4">
             <Dialog.Close className="min-h-13 rounded-2xl border border-[#CBD5E1] bg-white font-black text-[#071638]">
               กลับไปแก้ไข
             </Dialog.Close>
@@ -3036,7 +3067,35 @@ function ClothingManager({ config, setConfig }) {
                       </button>
                     ))}
                   </div>
-                  <div className="grid gap-2 overflow-x-auto rounded-lg border border-[#E4E4E7] bg-white p-2">
+                  <div className="grid gap-2 rounded-lg border border-[#E4E4E7] bg-white p-2 sm:hidden">
+                    <div className="grid gap-2 rounded-lg bg-[#F8FAFC] p-2">
+                      <p className="text-xs font-bold text-[#64748B]">ช่องรายละเอียด</p>
+                      {selectedItem.detailFields.map((field, index) => (
+                        <div key={`${selectedItem.id}-mobile-field-${index}`} className="grid grid-cols-[1fr_40px] gap-2">
+                          <input value={field} onChange={(event) => patchDetailField(selectedItem.id, index, event.target.value)} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm font-bold outline-none focus:border-[#002B5B]" placeholder="อก" />
+                          <button onClick={() => deleteDetailField(selectedItem.id, index)} disabled={selectedItem.detailFields.length <= 1} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-40" title="ลบช่องรายละเอียด">
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {selectedSizeRows.map((row, index) => (
+                      <div key={`${selectedItem.id}-mobile-size-${index}`} className="grid gap-2 rounded-lg bg-[#F8FAFC] p-2">
+                        <div className="grid grid-cols-[1fr_40px] gap-2">
+                          <input value={row.size} onChange={(event) => patchSize(selectedItem.id, index, { size: event.target.value })} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder="M" />
+                          <button onClick={() => deleteSize(selectedItem.id, index)} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" title="ลบไซส์">
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                        {selectedItem.detailFields.map((field) => (
+                          <Field key={`${selectedItem.id}-mobile-${index}-${field}`} label={field}>
+                            <input value={row.details?.[field] || ""} onChange={(event) => patchSizeDetail(selectedItem.id, index, field, event.target.value)} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder={field} />
+                          </Field>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hidden gap-2 overflow-x-auto rounded-lg border border-[#E4E4E7] bg-white p-2 sm:grid">
                     <div className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
                       <span className="text-xs font-bold text-[#64748B]">ไซส์</span>
                       {selectedItem.detailFields.map((field, index) => (
@@ -3276,20 +3335,20 @@ function Dashboard({ demoMode }) {
       </div>
 
       <Tabs.Root defaultValue="overview" className="grid gap-3">
-        <Tabs.List className="grid grid-cols-4 rounded-xl border border-[#D8DEEA] bg-white p-1 shadow-sm">
-          <Tabs.Trigger value="overview" className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:text-sm">
-            <LayoutDashboard className="size-4" /> <span className="hidden sm:inline">ภาพรวม</span>
+        <Tabs.List className="grid grid-cols-2 gap-1 rounded-xl border border-[#D8DEEA] bg-white p-1 shadow-sm sm:grid-cols-4">
+          <Tabs.Trigger value="overview" className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
+            <LayoutDashboard className="size-4 shrink-0" /> <span className="truncate">ภาพรวม</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="list" className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:text-sm">
-            <Users className="size-4" /> <span className="hidden sm:inline">รายการเบิก</span>
+          <Tabs.Trigger value="list" className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
+            <Users className="size-4 shrink-0" /> <span className="truncate">รายการเบิก</span>
             <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{rows.length}</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="orders" className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:text-sm">
-            <ClipboardList className="size-4" /> <span className="hidden sm:inline">คำสั่งเบิก</span>
+          <Tabs.Trigger value="orders" className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
+            <ClipboardList className="size-4 shrink-0" /> <span className="truncate">คำสั่งเบิก</span>
             <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{filteredBatches.length}</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="settings" className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:text-sm">
-            <Settings className="size-4" /> <span className="hidden sm:inline">ตั้งค่าเสื้อ</span>
+          <Tabs.Trigger value="settings" className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
+            <Settings className="size-4 shrink-0" /> <span className="truncate">ตั้งค่าเสื้อ</span>
           </Tabs.Trigger>
         </Tabs.List>
 
@@ -3375,12 +3434,13 @@ function TypeFilterChips({ value, onChange, options }) {
   if (!options.length) return null;
   const choices = ["ทั้งหมด", ...options];
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-[#E4E4E7] bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
+    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white px-3 py-2">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
         <p className="text-sm font-extrabold text-[#18181B]">กรองแบบเสื้อ</p>
-        <p className="text-xs font-semibold text-[#71717A]">เลือกดูเฉพาะเสื้อแต่ละแบบ</p>
+        <p className="hidden text-xs font-semibold text-[#71717A] sm:block">เลือกดูเฉพาะเสื้อแต่ละแบบ</p>
       </div>
-      <div className="employee-scroll-region flex gap-2 overflow-x-auto pb-1 sm:pb-0">
+      <div className="employee-scroll-region flex min-w-0 gap-2 overflow-x-auto pb-1 sm:pb-0">
         {choices.map((type) => {
           const active = value === type;
           return (
@@ -3396,6 +3456,7 @@ function TypeFilterChips({ value, onChange, options }) {
             </button>
           );
         })}
+      </div>
       </div>
     </div>
   );
@@ -3441,14 +3502,14 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
   ];
 
   return (
-    <Card className="p-0">
-      <div className="flex flex-col gap-3 border-b border-[#E7EAF0] px-4 py-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
+    <Card className="overflow-hidden p-0">
+      <div className="flex min-w-0 flex-col gap-3 border-b border-[#E7EAF0] px-3 py-3 sm:px-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-extrabold text-[#071638]">รายการเบิกทั้งหมด</h2>
-          <p className="mt-1 text-sm font-semibold text-[#64748B]">แสดงข้อมูลพนักงานและรายการเสื้อจากคำสั่งเบิกที่ผ่านตัวกรอง</p>
+          <p className="mt-1 hidden text-sm font-semibold text-[#64748B] sm:block">แสดงข้อมูลพนักงานและรายการเสื้อจากคำสั่งเบิกที่ผ่านตัวกรอง</p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-[minmax(18rem,26rem)_auto] sm:items-center">
-          <div className="relative">
+        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(14rem,26rem)_auto] sm:items-center">
+          <div className="relative min-w-0">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717A]" />
             <input
               value={listQuery}
@@ -3462,7 +3523,17 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
           </div>
         </div>
       </div>
-      <div className="employee-scroll-region overflow-auto">
+      <div className="grid gap-2 p-3 md:hidden">
+        {filteredRows.map((row) => (
+          <WithdrawalMobileCard key={row.id} row={row} />
+        ))}
+        {!filteredRows.length && (
+          <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">
+            ไม่พบรายการตามคำค้นหา
+          </div>
+        )}
+      </div>
+      <div className="employee-scroll-region hidden overflow-auto md:block">
         <table className="w-full min-w-[1500px] text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
@@ -3502,6 +3573,45 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
         </table>
       </div>
     </Card>
+  );
+}
+
+function WithdrawalMobileCard({ row }) {
+  return (
+    <article className="min-w-0 rounded-lg border border-[#D8DEEA] bg-white p-3">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="break-words text-sm font-extrabold leading-5 text-[#071638]">{row.name || "-"}</h3>
+          <p className="mt-1 break-words text-xs font-bold leading-5 text-[#64748B]">{row.batchId}</p>
+        </div>
+        <StatusBadge status={row.status || ORDER_STATUS_PENDING} />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <MobileInfo label="วันที่" value={new Date(row.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })} />
+        <MobileInfo label="เพศ" value={row.gender || "-"} />
+        <MobileInfo label="สาขา" value={row.branch || "-"} />
+        <MobileInfo label="บริษัท" value={row.companyName || "-"} />
+        <MobileInfo label="ผู้ขอเบิก" value={row.supervisorName || "-"} />
+        <MobileInfo label="เบอร์" value={formatPhone(row.supervisorPhone) || "-"} />
+      </div>
+      <div className="mt-3 rounded-lg bg-[#F4F7FC] p-3">
+        <p className="break-words text-sm font-extrabold text-[#071638]">{row.type || "-"}</p>
+        <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+          <MobileInfo label="สี" value={row.color || "-"} compact />
+          <MobileInfo label="ไซส์" value={row.size || "-"} compact />
+          <MobileInfo label="จำนวน" value={row.qty || "-"} compact strong />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function MobileInfo({ label, value, compact = false, strong = false }) {
+  return (
+    <div className={cn("min-w-0 rounded-lg bg-[#F8FAFC] px-2.5 py-2", compact && "bg-white")}>
+      <p className="truncate text-[11px] font-bold text-[#64748B]">{label}</p>
+      <p className={cn("mt-0.5 break-words text-xs leading-5 text-[#071638]", strong ? "font-black" : "font-bold")}>{value}</p>
+    </div>
   );
 }
 
@@ -3579,7 +3689,7 @@ function TotalSummaryView({ summaryRows, typeTotals, filteredRows }) {
   const totalPieces = filteredRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(22rem,.8fr)_minmax(0,1.2fr)]">
-      <Card className="p-4">
+      <Card className="p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามประเภทเสื้อ</h2>
           <span className="shrink-0 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-1 text-sm font-black text-[#18181B]">{totalPieces} ชิ้น</span>
@@ -3599,9 +3709,14 @@ function TotalSummaryView({ summaryRows, typeTotals, filteredRows }) {
         </div>
       </Card>
 
-      <Card className="p-4">
+      <Card className="p-3 sm:p-4">
         <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามไซส์</h2>
-        <div className="mt-3 overflow-hidden rounded-xl border border-[#E2E8F0]">
+        <div className="mt-3 grid gap-2 sm:hidden">
+          {summaryRows.length ? summaryRows.map((row) => (
+            <SummaryMobileRow key={`${row.type}-${row.color}-${row.size}`} row={row} />
+          )) : <EmptyDashboardState text="ยังไม่มีข้อมูล" compact />}
+        </div>
+        <div className="mt-3 hidden overflow-hidden rounded-xl border border-[#E2E8F0] sm:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
               <tr>
@@ -3650,18 +3765,18 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           {batch && (
             <>
-              <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
-                <div>
-                  <Dialog.Title className="text-xl font-extrabold text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</Dialog.Title>
+              <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[#E7EAF0] px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
+                <div className="min-w-0">
+                  <Dialog.Title className="break-words text-lg font-extrabold text-[#071638] sm:text-xl">{batch.companyName || "ไม่ระบุบริษัท"}</Dialog.Title>
                   <p className="mt-1 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
-                  <p className="mt-1 text-sm font-semibold text-[#64748B]">{batch.batchId}</p>
+                  <p className="mt-1 break-words text-sm font-semibold text-[#64748B]">{batch.batchId}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <StatusBadge status={batch.status} />
                   <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
                 </div>
               </div>
-              <div className="max-h-[64vh] overflow-auto p-4">
+              <div className="max-h-[64vh] overflow-auto p-3 sm:p-4">
                 <div className="mb-4 grid gap-3 sm:grid-cols-5">
                   <MiniMetric label="บริษัท" value={batch.companyName || "-"} />
                   <MiniMetric label="ผู้ติดต่อ" value={batch.supervisorName || "-"} />
@@ -3683,14 +3798,26 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
                 <div className="grid gap-3">
                   {batch.orders.map((order) => (
                     <div key={`${batch.batchId}-${order.name}`} className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
-                      <div className="flex items-center justify-between bg-[#EEF4FF] px-4 py-3">
-                        <div>
-                          <p className="font-extrabold text-[#071638]">{order.name}</p>
+                      <div className="flex min-w-0 items-center justify-between gap-3 bg-[#EEF4FF] px-3 py-3 sm:px-4">
+                        <div className="min-w-0">
+                          <p className="break-words font-extrabold text-[#071638]">{order.name}</p>
                           <p className="text-xs font-bold text-[#64748B]">{order.gender}</p>
                         </div>
-                        <span className="text-sm font-extrabold text-[#002B5B]">{order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0)} ชิ้น</span>
+                        <span className="shrink-0 text-sm font-extrabold text-[#002B5B]">{order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0)} ชิ้น</span>
                       </div>
-                      <table className="w-full table-fixed text-left text-sm">
+                      <div className="grid gap-2 p-3 sm:hidden">
+                        {order.items.map((item) => (
+                          <div key={`${order.name}-${item.type}-${item.color}-${item.size}`} className="rounded-lg bg-[#F8FAFC] p-3">
+                            <p className="break-words text-sm font-extrabold text-[#071638]">{item.type}</p>
+                            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                              <MobileInfo label="สี" value={item.color || "-"} compact />
+                              <MobileInfo label="ไซส์" value={item.size || "-"} compact />
+                              <MobileInfo label="จำนวน" value={item.qty} compact strong />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <table className="hidden w-full table-fixed text-left text-sm sm:table">
                         <thead className="text-xs font-bold text-[#44536A]">
                           <tr>
                             <th className="px-3 py-3 sm:px-4">ประเภท</th>
@@ -3732,21 +3859,21 @@ function BatchEmployeeListDialog({ batch, open, setOpen }) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-[#0F172A]/35 backdrop-blur-sm" />
-        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-4 bottom-4 top-4 z-[61] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[82vh] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
-          <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
-            <div>
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-2 bottom-2 top-2 z-[61] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[82vh] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+          <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[#E7EAF0] px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
+            <div className="min-w-0">
               <Dialog.Title className="text-lg font-extrabold text-[#071638]">รายชื่อพนักงานทั้งหมด</Dialog.Title>
-              <p className="mt-1 text-sm font-bold text-[#64748B]">{batch?.supervisorName || "-"} เป็นผู้ขอเบิก · {batch?.branch || "-"}</p>
+              <p className="mt-1 break-words text-sm font-bold text-[#64748B]">{batch?.supervisorName || "-"} เป็นผู้ขอเบิก · {batch?.branch || "-"}</p>
             </div>
             <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
           </div>
-          <div className="employee-scroll-region min-h-0 flex-1 overflow-auto p-4">
+          <div className="employee-scroll-region min-h-0 flex-1 overflow-auto p-3 sm:p-4">
             <div className="grid gap-3">
               {batch?.orders.map((order, index) => {
                 const pieces = order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
                 const details = order.items.map((item) => `${item.type}${item.color ? ` ${item.color}` : ""} ${item.size} x${item.qty}`).join(" · ");
                 return (
-                  <div key={`${batch.batchId}-${order.name}-${index}`} className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+                  <div key={`${batch.batchId}-${order.name}-${index}`} className="rounded-xl border border-[#E2E8F0] bg-white p-3 sm:p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-extrabold text-[#071638]">{index + 1}. {order.name || "-"}</p>
@@ -3754,7 +3881,7 @@ function BatchEmployeeListDialog({ batch, open, setOpen }) {
                       </div>
                       <span className="shrink-0 rounded-full bg-[#EEF4FF] px-3 py-1 text-sm font-black text-[#002B5B]">{pieces} ชิ้น</span>
                     </div>
-                    <p className="mt-3 text-sm font-semibold leading-6 text-[#44536A]">{details || "-"}</p>
+                    <p className="mt-3 break-words text-sm font-semibold leading-6 text-[#44536A]">{details || "-"}</p>
                   </div>
                 );
               })}
@@ -3808,10 +3935,10 @@ function buildDashboardMetrics(batches) {
 
 function Stat({ icon: Icon, value, label }) {
   return (
-    <Card className="p-4 sm:p-5">
-      <div className="grid size-9 place-items-center rounded-xl bg-[#EEF4FF] text-[#002B5B]"><Icon /></div>
-      <p className="mt-3 text-2xl font-extrabold text-[#071638]">{value}</p>
-      <p className="mt-1 text-xs font-bold text-[#64748B]">{label}</p>
+    <Card className="min-w-0 p-3 sm:p-4">
+      <div className="grid size-8 place-items-center rounded-xl bg-[#EEF4FF] text-[#002B5B] sm:size-9"><Icon className="size-4 sm:size-5" /></div>
+      <p className="mt-2 truncate text-xl font-extrabold text-[#071638] sm:mt-3 sm:text-2xl">{value}</p>
+      <p className="mt-1 truncate text-[11px] font-bold text-[#64748B] sm:text-xs">{label}</p>
     </Card>
   );
 }
