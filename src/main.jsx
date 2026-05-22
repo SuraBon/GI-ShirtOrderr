@@ -748,7 +748,7 @@ function QuickOrderApp({ gasConfigured }) {
       <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
       <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-3 px-3 pb-40 pt-3 sm:px-5 lg:gap-4 lg:pb-36">
         {!gasConfigured && <SetupWarning />}
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-stretch">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
           <QuickOrderSetupPanel state={state} dispatch={dispatch} />
           <QuickOrderActionsPanel
             employees={state.employees}
@@ -950,7 +950,7 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
   const completedEmployees = employees.filter(isEmployeeComplete).length;
 
   return (
-    <section className="flex h-full flex-col rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4">
+    <section className="flex flex-col rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-base font-extrabold text-[#071638]">รายการพนักงาน</h1>
@@ -962,7 +962,7 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
         </label>
       </div>
 
-      <div className="mt-3 grid flex-1 grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <button onClick={onQuickOrder} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-2.5 text-xs font-bold text-white sm:min-h-11 sm:text-sm">
           <UserPlus /> เพิ่มหลายคน
         </button>
@@ -1842,7 +1842,7 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="grid gap-1.5">
       <button
         type="button"
         disabled={disabled}
@@ -1859,7 +1859,7 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-[#D4D4D8] bg-white p-1 shadow-lg">
+        <div className="relative z-20 max-w-full overflow-hidden rounded-lg border border-[#D4D4D8] bg-white p-1 shadow-lg">
           <div className="employee-scroll-region max-h-64 overflow-y-auto">
             <div role="listbox" className="grid gap-0.5">
               {values.map((item, index) => {
@@ -3225,7 +3225,11 @@ function Stat({ icon: Icon, value, label }) {
 
 function SkeletonDashboard() {
   return (
-    <div className="relative z-10 mx-auto grid w-full max-w-[1240px] gap-4 px-4 py-6 sm:px-6">
+    <div className="relative z-10 mx-auto grid w-full max-w-[1240px] gap-4 px-4 py-6 sm:px-6" aria-busy="true" aria-live="polite">
+      <div className="flex min-h-24 items-center justify-center gap-3 rounded-2xl border border-[#D8DEEA] bg-white/90 text-sm font-bold text-[#44536A] shadow-sm">
+        <Loader2 className="size-5 animate-spin text-[#002B5B]" />
+        <span>กำลังโหลดข้อมูล...</span>
+      </div>
       {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-32 animate-pulse rounded-2xl bg-white/80" />)}
     </div>
   );
