@@ -9,19 +9,27 @@
 }
 
 html {
+  width: 100%;
   background: #f5f7fb;
 }
 
 body {
   margin: 0;
+  width: 100%;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
   color: #071638;
   background: #f5f7fb;
   font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.55;
   text-rendering: geometricPrecision;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
 }
 
 button,

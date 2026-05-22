@@ -11,6 +11,7 @@ const HEADERS = [
   "ชื่อพนักงาน",
   "เพศ",
   "ประเภท",
+  "สี",
   "ไซส์",
   "จำนวน"
 ];
@@ -147,6 +148,7 @@ function buildRows_(batch) {
         order.name || "",
         order.gender || "",
         item.type || "",
+        item.color || "",
         item.size || "",
         Number(item.qty || 0)
       ]);
@@ -173,6 +175,7 @@ function readBatches_(sheet) {
       employeeName,
       gender,
       type,
+      color,
       size,
       qty
     ] = row;
@@ -200,7 +203,7 @@ function readBatches_(sheet) {
       batch.orders.push(order);
     }
 
-    order.items.push({ type, size, qty: Number(qty || 0) });
+    order.items.push({ type, color: color || "", size, qty: Number(qty || 0) });
   });
 
   return Array.from(batches.values()).sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));

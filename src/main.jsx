@@ -14,13 +14,13 @@ import {
   Download,
   Eraser,
   FileText,
-  Gauge,
   LayoutDashboard,
   Loader2,
   PackageCheck,
   Pencil,
   Phone,
   Plus,
+  Ruler,
   Search,
   Send,
   Settings,
@@ -37,8 +37,8 @@ import { cn } from "./lib/utils";
 import "./index.css";
 
 const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || "YOUR_SCRIPT_URL_HERE";
-const DASHBOARD_PATH = "/";
-const ORDER_PATH = "#/order";
+const DASHBOARD_PATH = "#/dashboard";
+const ORDER_PATH = "/";
 const DASHBOARD_PASSCODE = import.meta.env.VITE_DASHBOARD_PASSCODE || "";
 const ORDER_STORAGE_KEY = "gi-shirt-order-batches";
 const ORDER_DRAFT_KEY = "gi-shirt-order-draft";
@@ -629,7 +629,7 @@ function getEmployeeMissingFields(employee) {
   if (!employee.name.trim()) missing.push("ชื่อ");
   if (!employee.gender) missing.push("เพศ");
   if (!employee.items.length) {
-    missing.push("ประเภทชุด");
+    missing.push("ประเภทเสื้อ");
     return missing;
   }
 
@@ -694,13 +694,13 @@ function App() {
       .catch(() => {});
   }, []);
 
-  const isDashboard = path === DASHBOARD_PATH || path === "/dashboard";
+  const isDashboard = path === "/dashboard";
 
   return (
-    <div className="app-shadcn-theme min-h-screen bg-[#FAFAFA] text-[#09090B]">
+    <div className="app-shadcn-theme min-h-screen w-full overflow-x-hidden bg-[#FAFAFA] text-[#09090B]">
       {isDashboard
         ? <DashboardApp key={`dashboard-${configVersion}`} demoMode={!gasConfigured} onOpenOrder={() => navigate(ORDER_PATH)} />
-        : <QuickOrderApp key={`order-${configVersion}`} gasConfigured={gasConfigured} />}
+        : <QuickOrderApp key={`order-${configVersion}`} gasConfigured={gasConfigured} onOpenDashboard={() => navigate(DASHBOARD_PATH)} />}
       <Toaster
         richColors
         closeButton
@@ -718,7 +718,7 @@ function App() {
   );
 }
 
-function QuickOrderApp({ gasConfigured }) {
+function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const [sizeOpen, setSizeOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -751,7 +751,7 @@ function QuickOrderApp({ gasConfigured }) {
 
   function validateCompany() {
     if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
-      toast.error("ข้อมูลผู้ติดต่อยังไม่ครบ", { description: "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อก่อนส่งคำสั่งซื้อ" });
+      toast.error("ข้อมูลผู้ติดต่อยังไม่ครบ", { description: "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อก่อนส่งคำสั่งเบิกเสื้อ" });
       window.scrollTo({ top: 0, behavior: "smooth" });
       return false;
     }
@@ -778,7 +778,7 @@ function QuickOrderApp({ gasConfigured }) {
     if (invalidEmployee) {
       const index = state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1;
       const missing = getEmployeeMissingFields(invalidEmployee).join(", ");
-      toast.error(`ข้อมูลพนักงานลำดับ ${index} ยังไม่ครบ`, { description: missing || "ตรวจชื่อ เพศ ประเภทชุด ไซส์ และจำนวน" });
+      toast.error(`ข้อมูลพนักงานลำดับ ${index} ยังไม่ครบ`, { description: missing || "ตรวจชื่อ เพศ ประเภทเสื้อ ไซส์ และจำนวน" });
       jumpToEmployee(invalidEmployee.id);
       return false;
     }
@@ -789,7 +789,7 @@ function QuickOrderApp({ gasConfigured }) {
   function openSummary() {
     if (!validateCompany() || !validateEmployees()) return;
     if (!gasConfigured) {
-      toast.error("ระบบบันทึกคำสั่งซื้อยังไม่พร้อม", { description: "ตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ" });
+      toast.error("ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อม", { description: "ตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งเบิกเสื้อ" });
       return;
     }
     setSummaryOpen(true);
@@ -818,12 +818,13 @@ function QuickOrderApp({ gasConfigured }) {
     };
 
     setIsSubmitting(true);
+    const loadingToastId = toast.loading("กำลังส่งคำสั่งเบิกเสื้อ...", { description: "ระบบกำลังบันทึกข้อมูลไปยัง Google Sheets" });
     try {
       const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
       saveStoredBatch(payload);
-      toast.success("บันทึกคำสั่งซื้อเข้าระบบแล้ว");
+      toast.success("บันทึกคำสั่งเบิกเสื้อแล้ว", { id: loadingToastId });
       localStorage.removeItem(ORDER_DRAFT_KEY);
       skipDraftSaveRef.current = true;
       setSummaryOpen(false);
@@ -832,7 +833,7 @@ function QuickOrderApp({ gasConfigured }) {
       setMobileEmployeeId("");
       dispatch({ type: "reset" });
     } catch {
-      toast.error("บันทึกคำสั่งซื้อไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("ส่งคำสั่งเบิกเสื้อไม่สำเร็จ", { id: loadingToastId, description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
     } finally {
       setIsSubmitting(false);
     }
@@ -840,7 +841,7 @@ function QuickOrderApp({ gasConfigured }) {
 
   return (
     <>
-      <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
+      <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} onOpenDashboard={onOpenDashboard} />
       <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-3 px-3 pb-40 pt-3 sm:px-5 lg:gap-4 lg:pb-36">
         {!gasConfigured && <SetupWarning />}
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
@@ -985,7 +986,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45" />
-        <Dialog.Content className="fixed inset-x-3 bottom-3 z-50 max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
             <div>
               <Dialog.Title className="text-xl font-extrabold text-[#071638]">เพิ่มหลายคน</Dialog.Title>
@@ -1021,7 +1022,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
               <Select value={defaultSizeValue} values={quickSizes} onChange={setDefaultSizeValue} />
             </Field>
           </div>
-          <Field label="กำหนดประเภทชุด สี และจำนวน">
+          <Field label="กำหนดประเภทเสื้อ สี และจำนวน">
             <div className="grid max-h-[20rem] gap-2 overflow-y-auto rounded-xl border border-[#D8DEEA] bg-white p-2">
               {clothingTypes.map((type, index) => {
                 const colors = getColorOptions(type);
@@ -1226,7 +1227,7 @@ function GarmentEditorDialog({ employee, dispatch, onClose }) {
     <Dialog.Root modal={false} open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(42rem,88vh)] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(42rem,88vh)] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           {employee && (
             <>
               <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
@@ -1330,7 +1331,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
     <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 lg:hidden" />
-        <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-xl bg-white shadow-2xl lg:hidden">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-xl bg-white shadow-2xl lg:hidden">
           {employee && (
             <>
               <div className="flex min-h-14 items-center justify-between border-b border-[#E7EAF0] px-4">
@@ -1357,7 +1358,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
                         <p className="font-extrabold text-[#071638]">{type}</p>
                         <label className="flex items-center gap-2 text-sm font-bold text-[#002B5B]">
                           <input type="checkbox" checked={employee.items.some((item) => item.type === type)} onChange={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="size-4 accent-[#002B5B]" />
-                          สั่ง
+                          เบิก
                         </label>
                       </div>
                       {employee.items.some((item) => item.type === type) && <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} />}
@@ -1398,7 +1399,7 @@ function QuickSummaryBar({ totalPieces, completedEmployees, totalEmployees, hasI
             ไปแถวที่ยังไม่ครบ
           </button>
           <button onClick={onSubmit} disabled={isSubmitting} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-3 text-sm font-bold text-white disabled:opacity-60 sm:min-h-11 sm:gap-2 sm:px-5 sm:text-base">
-            {isSubmitting ? <Loader2 className="animate-spin" /> : <Send />} สั่ง
+            {isSubmitting ? <Loader2 className="animate-spin" /> : <Send />} ส่งเบิก
           </button>
         </div>
       </div>
@@ -1412,7 +1413,7 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45" />
-        <Dialog.Content className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(44rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(44rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
             <Dialog.Title className="text-xl font-extrabold text-[#071638]">สรุปก่อนส่ง</Dialog.Title>
             <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
@@ -1452,7 +1453,7 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
           <div className="grid grid-cols-[1fr_1.25fr] gap-3 border-t border-[#E7EAF0] p-4">
             <Dialog.Close className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white font-bold text-[#071638]">กลับไปแก้</Dialog.Close>
             <button onClick={onConfirm} disabled={isSubmitting || !rows.length} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] font-bold text-white disabled:opacity-60">
-              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งซื้อ
+              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งเบิกเสื้อ
             </button>
           </div>
         </Dialog.Content>
@@ -1562,7 +1563,7 @@ function OrderApp({ gasConfigured }) {
 
   function validateCompanyStep() {
     if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
-      toast.error("ข้อมูลผู้ติดต่อยังไม่ครบ", { description: "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อก่อนส่งคำสั่งซื้อ" });
+      toast.error("ข้อมูลผู้ติดต่อยังไม่ครบ", { description: "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อก่อนส่งคำสั่งเบิกเสื้อ" });
       setActiveStep(1);
       return false;
     }
@@ -1581,7 +1582,7 @@ function OrderApp({ gasConfigured }) {
     if (!state.employees.length || invalidEmployee) {
       const index = invalidEmployee ? state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1 : 1;
       const missing = invalidEmployee ? getEmployeeMissingFields(invalidEmployee).join(", ") : "";
-      toast.error(`ข้อมูลพนักงานลำดับ ${index} ยังไม่ครบ`, { description: missing || "ตรวจชื่อ เพศ ประเภทชุด ไซส์ และจำนวน" });
+      toast.error(`ข้อมูลพนักงานลำดับ ${index} ยังไม่ครบ`, { description: missing || "ตรวจชื่อ เพศ ประเภทเสื้อ ไซส์ และจำนวน" });
       setActiveStep(2);
       if (invalidEmployee) jumpToEmployee(invalidEmployee.id);
       return false;
@@ -1609,7 +1610,7 @@ function OrderApp({ gasConfigured }) {
   function openSummary() {
     if (!validateCompanyStep() || !validateEmployeeStep()) return;
     if (!gasConfigured) {
-      toast.error("ระบบบันทึกคำสั่งซื้อยังไม่พร้อม", { description: "ตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งซื้อ" });
+      toast.error("ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อม", { description: "ตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งเบิกเสื้อ" });
       return;
     }
     setActiveStep(3);
@@ -1645,7 +1646,7 @@ function OrderApp({ gasConfigured }) {
       if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
       saveStoredBatch(payload);
       await new Promise((resolve) => setTimeout(resolve, 650));
-      toast.success("บันทึกคำสั่งซื้อเข้าระบบแล้ว");
+      toast.success("บันทึกคำสั่งเบิกเสื้อแล้ว");
       localStorage.removeItem(ORDER_DRAFT_KEY);
       skipDraftSaveRef.current = true;
       setSummaryOpen(false);
@@ -1653,7 +1654,7 @@ function OrderApp({ gasConfigured }) {
       setEmployeeCount("1");
       dispatch({ type: "reset", count: 1 });
     } catch {
-      toast.error("บันทึกคำสั่งซื้อไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("ส่งคำสั่งเบิกเสื้อไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
     } finally {
       setIsSubmitting(false);
     }
@@ -1672,7 +1673,7 @@ function OrderApp({ gasConfigured }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <SectionTitle icon={Users} title="รายชื่อพนักงาน" compact />
               <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[22rem_auto] sm:items-end">
-                <Field label="ระบุจำนวนพนักงานที่ต้องการสั่งชุด">
+                <Field label="ระบุจำนวนพนักงานที่ต้องการเบิกเสื้อ">
                   <div className="grid w-full grid-cols-[1fr_auto] gap-2">
                     <TextInput value={employeeCount} onChange={(value) => {
                       const nextCount = digitsOnly(value);
@@ -1740,7 +1741,7 @@ function OrderApp({ gasConfigured }) {
 const ORDER_STEPS = [
   { id: 1, title: "ข้อมูลบริษัท/สาขา", icon: FileText },
   { id: 2, title: "รายชื่อพนักงาน", icon: Users },
-  { id: 3, title: "ตรวจสอบคำสั่งซื้อ", icon: PackageCheck }
+  { id: 3, title: "ตรวจสอบคำสั่งเบิกเสื้อ", icon: PackageCheck }
 ];
 
 function OrderStepNav({ activeStep, onStepClick }) {
@@ -1803,7 +1804,7 @@ function OrderStepActions({ activeStep, totalPieces, completedEmployees, totalEm
             </button>
           ) : (
             <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-6 font-bold text-white disabled:opacity-60">
-              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งซื้อ
+              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งเบิกเสื้อ
             </button>
           )}
         </div>
@@ -1817,7 +1818,7 @@ function OrderReviewCard({ state, rows, totalPieces, onEditCompany, onEditEmploy
     <div className="grid gap-4">
       <Card>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <SectionTitle icon={PackageCheck} title="ตรวจสอบคำสั่งซื้อ" />
+          <SectionTitle icon={PackageCheck} title="ตรวจสอบคำสั่งเบิกเสื้อ" />
           <button onClick={onEditEmployees} className="min-h-10 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-bold text-[#002B5B]">
             แก้ไขรายชื่อ
           </button>
@@ -1927,7 +1928,7 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
           </span>
         </div>
         <h2 className="text-3xl font-black tracking-tight text-[#071638]">เข้าสู่ Dashboard</h2>
-        <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">กรอกรหัสเพื่อดูข้อมูลสรุปคำสั่งซื้อ</p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">กรอกรหัสเพื่อดูข้อมูลสรุปคำสั่งเบิกเสื้อ</p>
         <form onSubmit={submit} className="mt-6 grid gap-4">
           <Field label="รหัส Dashboard">
             <TextInput value={passcode} onChange={setPasscode} placeholder="กรอกรหัส" inputMode="numeric" type="password" />
@@ -1938,7 +1939,7 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
           </button>
         </form>
         <button onClick={onOpenOrder} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#C8D6EA] bg-white font-black text-[#002B5B]">
-          <Shirt /> เปิดหน้า Order
+          <Shirt /> เปิดหน้าสั่งเบิกเสื้อ
         </button>
       </Card>
     </main>
@@ -1956,20 +1957,24 @@ function Logo() {
         <Shirt />
       </div>
       <div>
-        <h1 className="text-lg font-black leading-none tracking-tight text-[#071638] sm:text-xl">GI-ShirtOrder</h1>
+        <h1 className="text-lg font-black leading-none tracking-tight text-[#071638] sm:text-xl">ShirtClaim</h1>
+        <p className="mt-0.5 hidden text-[11px] font-bold leading-none text-[#64748B] sm:block">ระบบเบิกเสื้อ</p>
       </div>
     </div>
   );
 }
 
-function OrderHeader({ branch, onSizeOpen }) {
+function OrderHeader({ branch, onSizeOpen, onOpenDashboard }) {
   return (
-    <header className="relative z-10 border-b border-[#D8DEEA] bg-[#F7FAFF]/94 px-3 py-2 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-3">
+    <header className="relative z-10 border-b border-[#D8DEEA] bg-[#F7FAFF]/94 px-2 py-2 backdrop-blur-xl sm:px-3">
+      <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-2 sm:gap-3">
         <Logo />
-        <div className="flex items-center gap-2">
-          <button onClick={onSizeOpen} className="flex min-h-9 items-center gap-1 rounded-xl bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]">
-            <Gauge /> ข้อมูลเสื้อ
+        <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
+          <button onClick={onSizeOpen} className="flex min-h-9 shrink-0 items-center gap-1 rounded-xl bg-[#E5EFFD] px-2.5 text-xs font-bold text-[#002B5B] sm:px-3 sm:text-sm">
+            <Ruler /> ข้อมูลเสื้อ
+          </button>
+          <button onClick={onOpenDashboard} className="flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-[#C8D6EA] bg-white px-2.5 text-xs font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:px-3 sm:text-sm">
+            <LayoutDashboard /> Dashboard
           </button>
         </div>
       </div>
@@ -1984,7 +1989,7 @@ function DashboardHeader({ onOpenOrder }) {
         <Logo />
         <div className="flex items-center gap-2">
           <button onClick={onOpenOrder} className="flex min-h-9 items-center gap-1 rounded-xl border border-[#C8D6EA] bg-white px-3 text-sm font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <Shirt /> เปิดหน้า Order
+            <Shirt /> เปิดหน้าสั่งเบิกเสื้อ
           </button>
           <span className="hidden min-h-9 items-center gap-1 rounded-xl bg-[#002B5B] px-3 text-sm font-bold text-white shadow-sm sm:flex">
             <LayoutDashboard /> Dashboard
@@ -2152,7 +2157,7 @@ function Select(props) {
 function OrderSetupCard({ state, dispatch }) {
   return (
     <Card>
-      <SectionTitle icon={FileText} title="ข้อมูลการสั่งชุด" />
+      <SectionTitle icon={FileText} title="ข้อมูลการเบิกเสื้อ" />
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)] lg:items-end">
         <Field label="ชื่อบริษัท">
           <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
@@ -2174,7 +2179,7 @@ function OrderSetupCard({ state, dispatch }) {
 function SetupWarning() {
   return (
     <div className="rounded-2xl border border-[#F6D88B] bg-[#FFF8E3] px-4 py-3 text-sm font-semibold leading-6 text-[#725000] shadow-sm">
-      ยังไม่ได้ตั้งค่า Google Sheets URL ระบบจะไม่อนุญาตให้ส่งคำสั่งซื้อจนกว่าจะตั้งค่า VITE_GAS_URL
+      ยังไม่ได้ตั้งค่า Google Sheets URL ระบบจะไม่อนุญาตให้ส่งคำสั่งเบิกเสื้อจนกว่าจะตั้งค่า VITE_GAS_URL
     </div>
   );
 }
@@ -2292,7 +2297,7 @@ function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
       <Dialog.Root open={Boolean(selectedEmployee)} onOpenChange={(open) => !open && setEditingEmployeeId("")}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm lg:hidden" />
-          <Dialog.Content className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white lg:hidden">
+          <Dialog.Content aria-describedby={undefined} className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white lg:hidden">
             {selectedEmployee && (
               <>
                 <div className="flex min-h-14 items-center justify-between border-b border-[#E7EAF0] bg-white px-4">
@@ -2362,7 +2367,7 @@ function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
 function GarmentChoices({ employee, dispatch }) {
   const clothingTypes = getClothingTypes();
   return (
-    <Field label="เลือกประเภทชุด">
+    <Field label="เลือกประเภทเสื้อ">
       <div className="grid gap-2.5 sm:gap-3">
         {clothingTypes.map((type) => {
           const checked = employee.items.some((item) => item.type === type);
@@ -2395,7 +2400,7 @@ function GenderChoices({ employee, dispatch }) {
 function ItemEditors({ employee, dispatch }) {
   const clothingTypes = getClothingTypes();
   if (!employee.items.length) {
-    return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#64748B] sm:p-4">เลือกประเภทชุดอย่างน้อย 1 รายการ</div>;
+    return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#64748B] sm:p-4">เลือกประเภทเสื้ออย่างน้อย 1 รายการ</div>;
   }
 
   return (
@@ -2455,7 +2460,7 @@ function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }
     <>
     <Card className="hidden overflow-hidden p-0 lg:block">
       <div className="flex items-center justify-between gap-4 border-b border-[#E7EAF0] p-5">
-        <h2 className="text-xl font-extrabold text-[#071638]">รายการสั่งซื้อพนักงาน</h2>
+        <h2 className="text-xl font-extrabold text-[#071638]">รายการเบิกเสื้อพนักงาน</h2>
         <div className="flex items-center gap-2">
           <div className="relative w-80">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]" />
@@ -2541,7 +2546,7 @@ function DesktopGarmentChoices({ employee, dispatch }) {
 
 function DesktopItemEditors({ employee, dispatch }) {
   if (!employee.items.length) {
-    return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#64748B]">ติ๊กประเภทชุดทางซ้าย</div>;
+    return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#64748B]">ติ๊กประเภทเสื้อทางซ้าย</div>;
   }
 
   return (
@@ -2588,7 +2593,7 @@ function MobileSubmit({ totalPieces, isSubmitting, onSubmit }) {
           <span className="text-xs font-bold">รายการ</span>
         </div>
         <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#002B5B] font-bold text-white">
-          {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันการสั่งชุด
+          {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันการเบิกเสื้อ
         </button>
       </div>
     </div>
@@ -2602,11 +2607,11 @@ function DesktopSubmit({ totalPieces, isSubmitting, onSubmit }) {
         <span className="grid size-11 place-items-center rounded-xl bg-[#EEF4FF] text-xl font-black text-[#002B5B]">{totalPieces}</span>
         <div>
           <p className="font-black text-[#071638]">จำนวนรวม</p>
-          <p className="text-sm font-semibold text-[#64748B]">ตรวจสอบรายการก่อนส่งคำสั่งซื้อ</p>
+          <p className="text-sm font-semibold text-[#64748B]">ตรวจสอบรายการก่อนส่งคำสั่งเบิกเสื้อ</p>
         </div>
       </div>
       <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 min-w-72 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-6 font-bold text-white">
-        {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันการสั่งชุด
+        {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันการเบิกเสื้อ
       </button>
     </div>
   );
@@ -2617,9 +2622,9 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-[1.5rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(46rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-[1.5rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(46rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
-            <Dialog.Title className="text-2xl font-black text-[#071638]">สรุปคำสั่งซื้อ</Dialog.Title>
+            <Dialog.Title className="text-2xl font-black text-[#071638]">สรุปคำสั่งเบิกเสื้อ</Dialog.Title>
             <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
           </div>
           <div className="max-h-[58vh] overflow-auto p-4">
@@ -2657,7 +2662,7 @@ function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, on
               กลับไปแก้ไข
             </Dialog.Close>
             <button onClick={onConfirm} disabled={isSubmitting || !rows.length} className="reactbits-shine flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-[#002B5B] font-black text-white disabled:opacity-60">
-              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งซื้อ
+              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งเบิกเสื้อ
             </button>
           </div>
         </Dialog.Content>
@@ -2673,7 +2678,7 @@ function SizeReference({ open, setOpen }) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-4 bottom-4 top-4 z-50 flex flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(46rem,88vh)] sm:w-[min(42rem,88vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-4 bottom-4 top-4 z-50 flex flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(46rem,88vh)] sm:w-[min(42rem,88vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-4 py-3">
             <Dialog.Title className="text-xl font-black text-[#071638]">ข้อมูลเสื้อ</Dialog.Title>
             <Dialog.Close className="grid size-9 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
@@ -2935,12 +2940,13 @@ function ClothingManager({ config, setConfig }) {
       return;
     }
     setUploadingId(id);
+    const loadingToastId = toast.loading("กำลังอัปโหลดรูปเสื้อ...", { description: "ระบบกำลังส่งรูปไปยัง Vercel Blob" });
     try {
       const result = await uploadImageToBlob(file);
       patchItem(id, { imageUrl: result.url });
-      toast.success("อัปโหลดรูปไป Vercel Blob แล้ว");
+      toast.success("อัปโหลดรูปเสื้อแล้ว", { id: loadingToastId });
     } catch (error) {
-      toast.error("อัปโหลดรูปไม่สำเร็จ", { description: error?.message || "ตรวจการตั้งค่า Vercel Blob แล้วลองใหม่" });
+      toast.error("อัปโหลดรูปเสื้อไม่สำเร็จ", { id: loadingToastId, description: error?.message || "ตรวจการตั้งค่า Vercel Blob แล้วลองใหม่" });
     } finally {
       setUploadingId("");
     }
@@ -3061,12 +3067,13 @@ function ClothingManager({ config, setConfig }) {
                 </button>
               </div>
               <div className="grid gap-2">
-                <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]">
+                <label className={cn("flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]", uploadingId === selectedItem.id ? "cursor-not-allowed opacity-70" : "cursor-pointer")}>
                   {uploadingId === selectedItem.id ? <Loader2 className="animate-spin" /> : <Upload />}
-                  แนบรูป
+                  {uploadingId === selectedItem.id ? "กำลังอัปโหลด" : "แนบรูป"}
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
+                    disabled={uploadingId === selectedItem.id}
                     onChange={(event) => {
                       uploadImage(selectedItem.id, event.target.files?.[0]);
                       event.target.value = "";
@@ -3089,14 +3096,21 @@ function ClothingManager({ config, setConfig }) {
 function Dashboard({ demoMode }) {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [statusLoadingId, setStatusLoadingId] = useState("");
+  const [deleteLoadingId, setDeleteLoadingId] = useState("");
   const [clothingConfig, setClothingConfig] = useState(readClothingConfig);
   const [branchFilter, setBranchFilter] = useState("ทุกสาขา");
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const [query, setQuery] = useState("");
   const [selectedBatch, setSelectedBatch] = useState(null);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData({ silent = false } = {}) {
+    if (refreshing) return;
+    const showSkeleton = !silent && !batches.length;
+    if (showSkeleton) setLoading(true);
+    setRefreshing(true);
+    const loadingToastId = silent ? toast.loading("กำลังโหลดข้อมูล...", { description: "ระบบกำลังดึงข้อมูลคำสั่งเบิกเสื้อ" }) : null;
     try {
       const storedBatches = readStoredBatches();
       if (!demoMode) {
@@ -3111,16 +3125,21 @@ function Dashboard({ demoMode }) {
         await new Promise((resolve) => setTimeout(resolve, 400));
         setBatches(storedBatches);
       }
+      if (loadingToastId) toast.success("โหลดข้อมูล Dashboard แล้ว", { id: loadingToastId });
     } catch {
       const storedBatches = readStoredBatches();
       setBatches(storedBatches);
-      toast.error("โหลดข้อมูล Dashboard ไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("โหลดข้อมูล Dashboard ไม่สำเร็จ", { id: loadingToastId || undefined, description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
-  useEffect(() => { loadData(); }, [demoMode]);
+  useEffect(() => {
+    setLoading(true);
+    loadData();
+  }, [demoMode]);
 
   const filteredBatches = useMemo(() => batches.filter((batch) => {
     const inBranch = branchFilter === "ทุกสาขา" || batch.branch === branchFilter;
@@ -3156,10 +3175,13 @@ function Dashboard({ demoMode }) {
 
   async function updateBatchStatus(batchId, status) {
     const statusUpdatedAt = new Date().toISOString();
+    setStatusLoadingId(batchId);
+    const loadingToastId = toast.loading("กำลังอัปเดตสถานะ...", { description: "ระบบกำลังบันทึกสถานะคำสั่งเบิกเสื้อ" });
     try {
       await syncDashboardAction({ action: "updateStatus", batchId, status, statusUpdatedAt });
     } catch {
-      toast.error("อัปเดตสถานะไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("อัปเดตสถานะไม่สำเร็จ", { id: loadingToastId, description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      setStatusLoadingId("");
       return;
     }
 
@@ -3169,14 +3191,18 @@ function Dashboard({ demoMode }) {
       return next;
     });
     setSelectedBatch((current) => current?.batchId === batchId ? { ...current, status, statusUpdatedAt } : current);
-    toast.success("อัปเดตสถานะคำสั่งซื้อแล้ว");
+    setStatusLoadingId("");
+    toast.success("อัปเดตสถานะคำสั่งเบิกเสื้อแล้ว", { id: loadingToastId });
   }
 
   async function deleteBatch(batchId) {
+    setDeleteLoadingId(batchId);
+    const loadingToastId = toast.loading("กำลังลบคำสั่งเบิกเสื้อ...", { description: "ระบบกำลังลบข้อมูลจาก Dashboard" });
     try {
       await syncDashboardAction({ action: "deleteBatch", batchId });
     } catch {
-      toast.error("ลบคำสั่งซื้อไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("ลบคำสั่งเบิกเสื้อไม่สำเร็จ", { id: loadingToastId, description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      setDeleteLoadingId("");
       return;
     }
 
@@ -3186,7 +3212,8 @@ function Dashboard({ demoMode }) {
       return next;
     });
     setSelectedBatch(null);
-    toast.success("ลบคำสั่งซื้อแล้ว");
+    setDeleteLoadingId("");
+    toast.success("ลบคำสั่งเบิกเสื้อแล้ว", { id: loadingToastId });
   }
 
   function clearFilters() {
@@ -3215,55 +3242,58 @@ function Dashboard({ demoMode }) {
 
   return (
     <>
-      <section className="rounded-2xl border border-[#D8E3F5] bg-white/96 px-4 py-4 shadow-sm sm:px-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <section className="rounded-xl border border-[#D8E3F5] bg-white/96 px-3 py-3 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-extrabold tracking-tight text-[#071638] sm:text-2xl">Dashboard</h2>
-            <p className="mt-1 text-sm font-semibold text-[#64748B]">ดูชุดคำสั่งซื้อและยอดรวมจากข้อมูลที่หน้า Order ส่งเข้ามา</p>
+            <h2 className="text-lg font-extrabold tracking-tight text-[#071638] sm:text-xl">Dashboard</h2>
+            <p className="mt-0.5 text-xs font-semibold text-[#64748B] sm:text-sm">ติดตามคำสั่งเบิกเสื้อและยอดรวม</p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <button onClick={loadData} className="flex min-h-10 items-center justify-center rounded-xl border border-[#BFD0EA] bg-white px-4 text-sm font-bold text-[#002B5B]">Refresh</button>
-            <button onClick={exportCsv} className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-bold text-[#002B5B]">
+            <button onClick={() => loadData({ silent: true })} disabled={refreshing} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
+              {refreshing ? <Loader2 className="size-4 animate-spin" /> : null}
+              {refreshing ? "กำลังโหลด" : "Refresh"}
+            </button>
+            <button onClick={exportCsv} disabled={refreshing || !rows.length} className="flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
               <Download /> Export CSV
             </button>
           </div>
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat icon={Users} value={metrics.totalEmployees} label="พนักงาน" />
         <Stat icon={ClipboardList} value={metrics.pendingBatches} label="รอจัดส่ง" />
         <Stat icon={PackageCheck} value={metrics.deliveredBatches} label="จัดส่งแล้ว" />
       </div>
 
-      <Tabs.Root defaultValue="overview" className="grid gap-4">
-        <Tabs.List className="grid grid-cols-4 rounded-2xl border border-[#D8DEEA] bg-white p-1 shadow-sm">
-          <Tabs.Trigger value="overview" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
-            <Gauge className="size-4" /> <span className="hidden sm:inline">ข้อมูลรวม</span>
+      <Tabs.Root defaultValue="overview" className="grid gap-3">
+        <Tabs.List className="grid grid-cols-4 rounded-xl border border-[#D8DEEA] bg-white p-1 shadow-sm">
+          <Tabs.Trigger value="overview" className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:text-sm">
+            <LayoutDashboard className="size-4" /> <span className="hidden sm:inline">ภาพรวม</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="list" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
+          <Tabs.Trigger value="list" className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:text-sm">
             <Users className="size-4" /> <span className="hidden sm:inline">รายการเบิก</span>
             <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{rows.length}</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="orders" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
-            <ClipboardList className="size-4" /> <span className="hidden sm:inline">คำสั่งเสื้อ</span>
+          <Tabs.Trigger value="orders" className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:text-sm">
+            <ClipboardList className="size-4" /> <span className="hidden sm:inline">คำสั่งเบิก</span>
             <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{filteredBatches.length}</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="settings" className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white">
+          <Tabs.Trigger value="settings" className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:text-sm">
             <Settings className="size-4" /> <span className="hidden sm:inline">ตั้งค่าเสื้อ</span>
           </Tabs.Trigger>
         </Tabs.List>
 
-        <Tabs.Content value="overview" className="grid gap-4">
-          <Card>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <Tabs.Content value="overview" className="grid gap-3">
+          <Card className="p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-extrabold text-[#071638]">ข้อมูลรวม</h2>
-                <p className="mt-1 text-sm font-semibold text-[#64748B]">สรุปยอดจากคำสั่งเสื้อทั้งหมดที่ผ่านตัวกรองปัจจุบัน</p>
+                <h2 className="text-base font-extrabold text-[#071638]">ภาพรวม</h2>
+                <p className="mt-0.5 text-xs font-semibold text-[#64748B]">สรุปยอดตามตัวกรองปัจจุบัน</p>
               </div>
-              <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-3 text-right">
+              <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-right">
                 <p className="text-xs font-bold text-[#71717A]">รวมทั้งหมด</p>
-                <p className="text-2xl font-black text-[#18181B]">{metrics.totalPieces} ชิ้น</p>
+                <p className="text-xl font-black text-[#18181B]">{metrics.totalPieces} ชิ้น</p>
               </div>
             </div>
           </Card>
@@ -3275,39 +3305,47 @@ function Dashboard({ demoMode }) {
         </Tabs.Content>
 
         <Tabs.Content value="orders">
-          <div className="grid gap-4">
-            <Card>
-              <div className="grid gap-3 lg:grid-cols-[14rem_14rem_1fr_auto] lg:items-end">
+          <div className="grid gap-3">
+            <Card className="p-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[12rem_12rem_1fr_auto] lg:items-end">
                 <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={["ทุกสาขา", ...BRANCHES]} /></Field>
                 <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={["ทุกสถานะ", ...ORDER_STATUSES]} /></Field>
                 <Field label="ค้นหา"><TextInput value={query} onChange={setQuery} placeholder="ค้นหา BatchID บริษัท ผู้ติดต่อ เบอร์ หรือชื่อพนักงาน" /></Field>
-                <button onClick={clearFilters} className="min-h-12 rounded-xl border border-[#CBD5E1] bg-white px-5 font-bold text-[#002B5B] shadow-sm">
+                <button onClick={clearFilters} className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white px-4 font-bold text-[#002B5B] shadow-sm">
                   ล้างตัวกรอง
                 </button>
               </div>
             </Card>
 
             {filteredBatches.length ? (
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-3 lg:grid-cols-2">
                 {filteredBatches.map((batch) => (
-                  <DashboardOrderCard key={batch.batchId} batch={batch} onOpen={() => setSelectedBatch(batch)} onStatusChange={updateBatchStatus} onDelete={deleteBatch} />
+                  <DashboardOrderCard
+                    key={batch.batchId}
+                    batch={batch}
+                    onOpen={() => setSelectedBatch(batch)}
+                    onStatusChange={updateBatchStatus}
+                    onDelete={deleteBatch}
+                    statusLoadingId={statusLoadingId}
+                    deleteLoadingId={deleteLoadingId}
+                  />
                 ))}
               </div>
             ) : (
-              <EmptyDashboardState text="ยังไม่มีชุดคำสั่งซื้อตามเงื่อนไขที่เลือก" />
+              <EmptyDashboardState text="ยังไม่มีคำสั่งเบิกเสื้อตามเงื่อนไขที่เลือก" />
             )}
           </div>
         </Tabs.Content>
 
         <Tabs.Content value="settings">
-          <div className="grid gap-4">
-            <Card>
+          <div className="grid gap-3">
+            <Card className="p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-extrabold text-[#071638]">ตั้งค่าเสื้อและไซส์</h2>
-                  <p className="mt-1 text-sm font-semibold text-[#64748B]">แยกจากคำสั่งซื้อเพื่อให้แก้ง่าย แม้มีเสื้อหลายแบบ</p>
+                  <h2 className="text-base font-extrabold text-[#071638]">ตั้งค่าเสื้อและไซส์</h2>
+                  <p className="mt-0.5 text-xs font-semibold text-[#64748B]">แก้แบบเสื้อ สี และไซส์</p>
                 </div>
-                <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-3 text-sm font-bold text-[#52525B]">
+                <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-bold text-[#52525B]">
                   {clothingConfig.length} แบบเสื้อ
                 </div>
               </div>
@@ -3317,7 +3355,7 @@ function Dashboard({ demoMode }) {
         </Tabs.Content>
       </Tabs.Root>
 
-      <BatchDetailDialog batch={selectedBatch} onClose={() => setSelectedBatch(null)} onStatusChange={updateBatchStatus} onDelete={deleteBatch} />
+      <BatchDetailDialog batch={selectedBatch} onClose={() => setSelectedBatch(null)} onStatusChange={updateBatchStatus} onDelete={deleteBatch} statusLoadingId={statusLoadingId} deleteLoadingId={deleteLoadingId} />
     </>
   );
 }
@@ -3330,7 +3368,7 @@ function EmployeeWithdrawalList({ rows }) {
       <div className="flex flex-col gap-2 border-b border-[#E7EAF0] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-extrabold text-[#071638]">รายการเบิกทั้งหมด</h2>
-          <p className="mt-1 text-sm font-semibold text-[#64748B]">แสดงข้อมูลระดับพนักงานและรายการเสื้อจากคำสั่งที่ผ่านตัวกรอง</p>
+          <p className="mt-1 text-sm font-semibold text-[#64748B]">แสดงข้อมูลระดับพนักงานและรายการเสื้อจากคำสั่งเบิกที่ผ่านตัวกรอง</p>
         </div>
         <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-2 text-sm font-black text-[#18181B]">
           {rows.length} รายการ
@@ -3372,47 +3410,51 @@ function EmployeeWithdrawalList({ rows }) {
   );
 }
 
-function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete }) {
+function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "" }) {
   const totalPieces = getBatchPieces(batch);
   const totalEmployees = batch.orders.length;
+  const isUpdatingStatus = statusLoadingId === batch.batchId;
+  const isDeleting = deleteLoadingId === batch.batchId;
+  const isBusy = isUpdatingStatus || isDeleting;
   function confirmDelete() {
-    if (window.confirm(`ลบชุดคำสั่งซื้อ ${batch.batchId}?`)) onDelete(batch.batchId);
+    if (!isBusy && window.confirm(`ลบคำสั่งเบิกเสื้อ ${batch.batchId}?`)) onDelete(batch.batchId);
   }
 
   return (
-    <div className="rounded-2xl border border-[#D8DEEA] bg-white/96 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#9EB7DD] hover:shadow-md">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+    <div className="rounded-xl border border-[#D8DEEA] bg-white/96 p-3 text-left shadow-sm transition hover:border-[#9EB7DD]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-[12px] font-bold text-[#64748B]">{batch.batchId}</p>
-          <h3 className="mt-1 text-lg font-extrabold text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</h3>
-          <p className="mt-1 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
-          <p className="mt-1 text-sm font-semibold text-[#64748B]">
+          <h3 className="mt-0.5 truncate text-base font-extrabold text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</h3>
+          <p className="mt-0.5 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
+          <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
             {new Date(batch.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
           </p>
         </div>
         <StatusBadge status={batch.status} />
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <MiniMetric label="บริษัท" value={batch.companyName || "-"} />
         <MiniMetric label="ผู้ติดต่อ" value={batch.supervisorName || "-"} />
         <MiniMetric label="พนักงาน" value={totalEmployees} />
         <MiniMetric label="จำนวน" value={`${totalPieces} ชิ้น`} />
       </div>
-      <p className="mt-3 text-xs font-semibold text-[#64748B]">อัปเดตสถานะ: {new Date(batch.statusUpdatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <p className="mt-2 text-xs font-semibold text-[#64748B]">อัปเดตสถานะ: {new Date(batch.statusUpdatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
         {buildTypeTotals(flattenBatches([batch])).map((row) => (
-          <span key={row.type} className="rounded-full border border-[#D8DEEA] px-3 py-1 text-xs font-bold text-[#44536A]">{row.type}: {row.qty}</span>
+          <span key={row.type} className="rounded-full border border-[#D8DEEA] px-2.5 py-1 text-xs font-bold text-[#44536A]">{row.type}: {row.qty}</span>
         ))}
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
         <Field label="สถานะ">
-          <Select value={batch.status} values={ORDER_STATUSES} onChange={(status) => onStatusChange(batch.batchId, status)} />
+          <Select value={batch.status} values={ORDER_STATUSES} disabled={isBusy} onChange={(status) => onStatusChange(batch.batchId, status)} />
         </Field>
-        <button onClick={onOpen} className="min-h-12 rounded-xl bg-[#002B5B] px-5 font-bold text-white">
+        <button onClick={onOpen} disabled={isBusy} className="min-h-11 rounded-lg bg-[#002B5B] px-4 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
           ดูรายละเอียด
         </button>
-        <button onClick={confirmDelete} className="min-h-12 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-5 font-bold text-[#B91C1C]">
-          ลบ
+        <button onClick={confirmDelete} disabled={isBusy} className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-4 font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60">
+          {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
+          {isDeleting ? "กำลังลบ" : "ลบ"}
         </button>
       </div>
     </div>
@@ -3430,9 +3472,9 @@ function StatusBadge({ status }) {
 
 function MiniMetric({ label, value }) {
   return (
-    <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3">
+    <div className="min-w-0 rounded-lg bg-[#F4F7FC] px-2.5 py-2">
       <p className="truncate text-xs font-bold text-[#64748B]">{label}</p>
-      <p className="mt-1 truncate font-extrabold text-[#071638]">{value}</p>
+      <p className="mt-0.5 truncate text-sm font-extrabold text-[#071638]">{value}</p>
     </div>
   );
 }
@@ -3442,7 +3484,7 @@ function TotalSummaryView({ summaryRows, typeTotals }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[.82fr_1.18fr]">
       <Card>
-        <h2 className="text-lg font-extrabold text-[#071638]">ยอดรวมตามประเภทชุด</h2>
+        <h2 className="text-lg font-extrabold text-[#071638]">ยอดรวมตามประเภทเสื้อ</h2>
         <div className="mt-4 grid gap-3">
           {typeTotals.length ? typeTotals.map((row) => (
             <div key={row.type}>
@@ -3465,6 +3507,7 @@ function TotalSummaryView({ summaryRows, typeTotals }) {
             <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
               <tr>
                 <th className="px-4 py-3">ประเภท</th>
+                <th className="px-4 py-3">สี</th>
                 <th className="px-4 py-3">ไซส์</th>
                 <th className="px-4 py-3 text-right">จำนวน</th>
               </tr>
@@ -3488,21 +3531,24 @@ function TotalSummaryView({ summaryRows, typeTotals }) {
   );
 }
 
-function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
+function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "" }) {
   const rows = batch ? flattenBatches([batch]) : [];
   const [showEmployeeList, setShowEmployeeList] = useState(false);
+  const isUpdatingStatus = Boolean(batch && statusLoadingId === batch.batchId);
+  const isDeleting = Boolean(batch && deleteLoadingId === batch.batchId);
+  const isBusy = isUpdatingStatus || isDeleting;
   useEffect(() => {
     if (!batch) setShowEmployeeList(false);
   }, [batch]);
   function confirmDelete() {
-    if (batch && window.confirm(`ลบชุดคำสั่งซื้อ ${batch.batchId}?`)) onDelete(batch.batchId);
+    if (batch && !isBusy && window.confirm(`ลบคำสั่งเบิกเสื้อ ${batch.batchId}?`)) onDelete(batch.batchId);
   }
 
   return (
     <Dialog.Root open={Boolean(batch)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           {batch && (
             <>
               <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
@@ -3525,7 +3571,7 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                   <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3">
                     <p className="truncate text-xs font-bold text-[#64748B]">สถานะ</p>
                     <div className="mt-1">
-                      <CustomSelect value={batch.status} values={ORDER_STATUSES} onChange={(status) => onStatusChange(batch.batchId, status)} compact />
+                      <CustomSelect value={batch.status} values={ORDER_STATUSES} disabled={isBusy} onChange={(status) => onStatusChange(batch.batchId, status)} compact />
                     </div>
                   </div>
                 </div>
@@ -3568,8 +3614,9 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete }) {
                     </div>
                   ))}
                 </div>
-                <button onClick={confirmDelete} className="mt-4 min-h-12 w-full rounded-xl border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C]">
-                  ลบชุดคำสั่งซื้อนี้
+                <button onClick={confirmDelete} disabled={isBusy} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60">
+                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {isDeleting ? "กำลังลบคำสั่งเบิกเสื้อ" : "ลบคำสั่งเบิกเสื้อนี้"}
                 </button>
               </div>
             </>
@@ -3586,7 +3633,7 @@ function BatchEmployeeListDialog({ batch, open, setOpen }) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-[#0F172A]/35 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-4 bottom-4 top-4 z-[61] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[82vh] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-4 bottom-4 top-4 z-[61] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[82vh] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
             <div>
               <Dialog.Title className="text-lg font-extrabold text-[#071638]">รายชื่อพนักงานทั้งหมด</Dialog.Title>
