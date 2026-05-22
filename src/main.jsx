@@ -202,6 +202,12 @@ function needsColorSelection(type) {
   return getColorOptions(type).length > 1;
 }
 
+function resolveItemColor(type, color = "") {
+  const colors = getColorOptions(type);
+  if (colors.length === 1) return colors[0];
+  return colors.includes(color) ? color : "";
+}
+
 function getSizeRows(type, gender) {
   const clothing = findClothingConfig(type);
   const genderRows = clothing?.genderSizeRows?.[gender];
@@ -313,7 +319,7 @@ function createOrderItem(type, gender, size = "", qty = 2, color = "") {
     type,
     size: nextSize,
     customSize: "",
-    color: colors.length === 1 ? colors[0] : (colors.includes(color) ? color : ""),
+    color: resolveItemColor(type, color),
     qty: digitsOnly(qty || 2)
   };
 }
@@ -359,7 +365,7 @@ function normalizeDraftEmployee(employee, index) {
         type: item.type || "",
         size: item.size || "",
         customSize: item.customSize || "",
-        color: item.color || "",
+        color: resolveItemColor(item.type || "", item.color || ""),
         qty: digitsOnly(item.qty || "")
       })).filter((item) => getClothingTypes().includes(item.type))
       : []
@@ -538,7 +544,7 @@ function flattenBatches(batches) {
         gender: order.gender,
         type: item.type,
         size: item.size,
-        color: item.color || "",
+        color: resolveItemColor(item.type, item.color || ""),
         qty: Number(item.qty || 0)
       }))
     )
@@ -563,7 +569,7 @@ function normalizeBatch(batch) {
           ? order.items.map((item) => ({
             type: item.type || "-",
             size: item.size || "-",
-            color: item.color || "",
+            color: resolveItemColor(item.type || "-", item.color || ""),
             qty: Number(item.qty || 0)
           })).filter((item) => item.qty > 0)
           : []
@@ -594,11 +600,11 @@ function saveStoredBatches(batches) {
 function buildOrderSummaryRows(employees) {
   return employees.flatMap((employee) =>
     employee.items.filter((item) => item.size).map((item) => ({
-      id: `${employee.id}-${item.type}-${item.color || ""}`,
+      id: `${employee.id}-${item.type}-${resolveItemColor(item.type, item.color || "")}`,
       name: employee.name || "-",
       type: item.type,
       size: item.size === OTHER_SIZE ? (item.customSize || "-") : item.size,
-      color: item.color || "",
+      color: resolveItemColor(item.type, item.color || ""),
       qty: Number(item.qty || 0)
     }))
   );
@@ -612,7 +618,7 @@ function isEmployeeComplete(employee) {
     employee.items.every((item) =>
       item.size &&
       Number(item.qty || 0) > 0 &&
-      (!needsColorSelection(item.type) || item.color) &&
+      (!needsColorSelection(item.type) || resolveItemColor(item.type, item.color || "")) &&
       (item.size !== OTHER_SIZE || item.customSize.trim())
     )
   );
@@ -628,7 +634,7 @@ function getEmployeeMissingFields(employee) {
   }
 
   if (employee.items.some((item) => !item.size)) missing.push("ไซส์");
-  if (employee.items.some((item) => needsColorSelection(item.type) && !item.color)) missing.push("สี");
+  if (employee.items.some((item) => needsColorSelection(item.type) && !resolveItemColor(item.type, item.color || ""))) missing.push("สี");
   if (employee.items.some((item) => Number(item.qty || 0) <= 0)) missing.push("จำนวน");
   if (employee.items.some((item) => item.size === OTHER_SIZE && !item.customSize.trim())) missing.push("ระบุไซส์เพิ่มเติม");
   return missing;
@@ -805,7 +811,7 @@ function QuickOrderApp({ gasConfigured }) {
         items: items.filter((item) => item.size).map((item) => ({
           type: item.type,
           size: item.size === OTHER_SIZE ? (item.customSize || "-") : item.size,
-          color: item.color || "",
+          color: resolveItemColor(item.type, item.color || ""),
           qty: Number(item.qty || 0)
         }))
       }))
@@ -1626,7 +1632,7 @@ function OrderApp({ gasConfigured }) {
         items: items.filter((item) => item.size).map((item) => ({
           type: item.type,
           size: item.size === OTHER_SIZE ? (item.customSize || "-") : item.size,
-          color: item.color || "",
+          color: resolveItemColor(item.type, item.color || ""),
           qty: Number(item.qty || 0)
         }))
       }))
@@ -2030,7 +2036,7 @@ const TextInput = React.forwardRef(function TextInput({ value, onChange, placeho
       placeholder={placeholder}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
-      className="min-h-11 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:px-3.5 sm:text-[15px]"
+      className="h-11 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:px-3.5 sm:text-[15px]"
     />
   );
 });
@@ -2096,7 +2102,7 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
         onClick={() => setOpen((value) => !value)}
         className={cn(
           "flex w-full items-center justify-between gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 text-left text-sm font-bold text-[#09090B] outline-none transition focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA]",
-          compact ? "min-h-11" : "min-h-11 sm:px-3.5 sm:text-[15px]"
+          compact ? "h-11" : "h-11 sm:px-3.5 sm:text-[15px]"
         )}
       >
         <span className={cn("min-w-0 truncate", !value && "text-[#A1A1AA]")}>{selectedLabel}</span>
@@ -2566,7 +2572,7 @@ function DesktopItemEditors({ employee, dispatch }) {
 }
 
 function GridInput({ value, onChange, placeholder, type = "text", inputMode, pattern, autoCapitalize }) {
-  return <input type={type} value={value} placeholder={placeholder} inputMode={inputMode} pattern={pattern} autoCapitalize={autoCapitalize} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#D8DEEA] bg-white px-3 text-[#071638] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" />;
+  return <input type={type} value={value} placeholder={placeholder} inputMode={inputMode} pattern={pattern} autoCapitalize={autoCapitalize} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-[#D8DEEA] bg-white px-3 text-[#071638] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" />;
 }
 
 function GridSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false }) {
