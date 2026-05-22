@@ -789,7 +789,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   function openSummary() {
     if (!validateCompany() || !validateEmployees()) return;
     if (!gasConfigured) {
-      toast.error("ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อม", { description: "ตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งเบิกเสื้อ" });
+      toast.error("ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อม", { description: "กรุณาติดต่อผู้ดูแลระบบก่อนส่งคำสั่งเบิกเสื้อ" });
       return;
     }
     setSummaryOpen(true);
@@ -818,7 +818,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     };
 
     setIsSubmitting(true);
-    const loadingToastId = toast.loading("กำลังส่งคำสั่งเบิกเสื้อ...", { description: "ระบบกำลังบันทึกข้อมูลไปยัง Google Sheets" });
+    const loadingToastId = toast.loading("กำลังส่งคำสั่งเบิกเสื้อ...", { description: "ระบบกำลังบันทึกคำสั่ง กรุณารอสักครู่" });
     try {
       const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
       const result = await response.json().catch(() => null);
@@ -833,7 +833,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       setMobileEmployeeId("");
       dispatch({ type: "reset" });
     } catch {
-      toast.error("ส่งคำสั่งเบิกเสื้อไม่สำเร็จ", { id: loadingToastId, description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("ส่งคำสั่งเบิกเสื้อไม่สำเร็จ", { id: loadingToastId, description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
     } finally {
       setIsSubmitting(false);
     }
@@ -1610,7 +1610,7 @@ function OrderApp({ gasConfigured }) {
   function openSummary() {
     if (!validateCompanyStep() || !validateEmployeeStep()) return;
     if (!gasConfigured) {
-      toast.error("ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อม", { description: "ตั้งค่า VITE_GAS_URL ก่อนส่งคำสั่งเบิกเสื้อ" });
+      toast.error("ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อม", { description: "กรุณาติดต่อผู้ดูแลระบบก่อนส่งคำสั่งเบิกเสื้อ" });
       return;
     }
     setActiveStep(3);
@@ -1654,7 +1654,7 @@ function OrderApp({ gasConfigured }) {
       setEmployeeCount("1");
       dispatch({ type: "reset", count: 1 });
     } catch {
-      toast.error("ส่งคำสั่งเบิกเสื้อไม่สำเร็จ", { description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("ส่งคำสั่งเบิกเสื้อไม่สำเร็จ", { description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
     } finally {
       setIsSubmitting(false);
     }
@@ -2179,7 +2179,7 @@ function OrderSetupCard({ state, dispatch }) {
 function SetupWarning() {
   return (
     <div className="rounded-2xl border border-[#F6D88B] bg-[#FFF8E3] px-4 py-3 text-sm font-semibold leading-6 text-[#725000] shadow-sm">
-      ยังไม่ได้ตั้งค่า Google Sheets URL ระบบจะไม่อนุญาตให้ส่งคำสั่งเบิกเสื้อจนกว่าจะตั้งค่า VITE_GAS_URL
+      ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ
     </div>
   );
 }
@@ -2207,7 +2207,7 @@ function getBlobUploadErrorMessage(error) {
   const message = String(error?.message || "");
   if (message.includes("404")) return "ไม่พบ API อัปโหลด Blob ให้รันผ่าน Vercel หรือ deploy ก่อนใช้งาน";
   if (message.toLowerCase().includes("token") || message.includes("BLOB_READ_WRITE_TOKEN")) return "ยังไม่ได้ตั้งค่า BLOB_READ_WRITE_TOKEN ใน Vercel";
-  return "อัปโหลดรูปไป Vercel Blob ไม่สำเร็จ";
+  return "อัปโหลดรูปไม่สำเร็จ";
 }
 
 async function uploadImageToBlob(file) {
@@ -2774,7 +2774,7 @@ function ClothingManager({ config, setConfig }) {
     window.clearTimeout(syncTimerRef.current);
     syncTimerRef.current = window.setTimeout(() => {
       publishSharedClothingConfig(normalizedConfig).catch((error) => {
-        toast.error("บันทึกการตั้งค่าเสื้อไม่สำเร็จ", { description: error?.message || "ตรวจการเชื่อมต่อ Vercel Blob แล้วลองใหม่" });
+        toast.error("บันทึกการตั้งค่าเสื้อไม่สำเร็จ", { description: error?.message || "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
       });
     }, 700);
   }
@@ -2940,13 +2940,13 @@ function ClothingManager({ config, setConfig }) {
       return;
     }
     setUploadingId(id);
-    const loadingToastId = toast.loading("กำลังอัปโหลดรูปเสื้อ...", { description: "ระบบกำลังส่งรูปไปยัง Vercel Blob" });
+    const loadingToastId = toast.loading("กำลังอัปโหลดรูปเสื้อ...", { description: "ระบบกำลังบันทึกรูป กรุณารอสักครู่" });
     try {
       const result = await uploadImageToBlob(file);
       patchItem(id, { imageUrl: result.url });
       toast.success("อัปโหลดรูปเสื้อแล้ว", { id: loadingToastId });
     } catch (error) {
-      toast.error("อัปโหลดรูปเสื้อไม่สำเร็จ", { id: loadingToastId, description: error?.message || "ตรวจการตั้งค่า Vercel Blob แล้วลองใหม่" });
+      toast.error("อัปโหลดรูปเสื้อไม่สำเร็จ", { id: loadingToastId, description: error?.message || "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
     } finally {
       setUploadingId("");
     }
@@ -3103,6 +3103,7 @@ function Dashboard({ demoMode }) {
   const [branchFilter, setBranchFilter] = useState("ทุกสาขา");
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("ทั้งหมด");
   const [selectedBatch, setSelectedBatch] = useState(null);
 
   async function loadData({ silent = false } = {}) {
@@ -3110,7 +3111,7 @@ function Dashboard({ demoMode }) {
     const showSkeleton = !silent && !batches.length;
     if (showSkeleton) setLoading(true);
     setRefreshing(true);
-    const loadingToastId = silent ? toast.loading("กำลังโหลดข้อมูล...", { description: "ระบบกำลังดึงข้อมูลคำสั่งเบิกเสื้อ" }) : null;
+    const loadingToastId = silent ? toast.loading("กำลังโหลดข้อมูล...", { description: "ระบบกำลังเตรียมข้อมูล กรุณารอสักครู่" }) : null;
     try {
       const storedBatches = readStoredBatches();
       if (!demoMode) {
@@ -3129,7 +3130,7 @@ function Dashboard({ demoMode }) {
     } catch {
       const storedBatches = readStoredBatches();
       setBatches(storedBatches);
-      toast.error("โหลดข้อมูล Dashboard ไม่สำเร็จ", { id: loadingToastId || undefined, description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("โหลดข้อมูล Dashboard ไม่สำเร็จ", { id: loadingToastId || undefined, description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -3162,9 +3163,17 @@ function Dashboard({ demoMode }) {
   }), [batches, branchFilter, statusFilter, query]);
 
   const rows = useMemo(() => flattenBatches(filteredBatches), [filteredBatches]);
+  const typeFilterOptions = useMemo(() => buildTypeTotals(rows).map((row) => row.type), [rows]);
+  const visibleRows = useMemo(() => typeFilter === "ทั้งหมด" ? rows : rows.filter((row) => row.type === typeFilter), [rows, typeFilter]);
   const metrics = useMemo(() => buildDashboardMetrics(filteredBatches), [filteredBatches]);
-  const summaryRows = useMemo(() => buildTotalSummary(rows), [rows]);
-  const typeTotals = useMemo(() => buildTypeTotals(rows), [rows]);
+  const summaryRows = useMemo(() => buildTotalSummary(visibleRows), [visibleRows]);
+  const typeTotals = useMemo(() => buildTypeTotals(visibleRows), [visibleRows]);
+
+  useEffect(() => {
+    if (typeFilter !== "ทั้งหมด" && !typeFilterOptions.includes(typeFilter)) {
+      setTypeFilter("ทั้งหมด");
+    }
+  }, [typeFilter, typeFilterOptions]);
 
   async function syncDashboardAction(payload) {
     if (demoMode || !isGasConfigured()) return;
@@ -3176,11 +3185,11 @@ function Dashboard({ demoMode }) {
   async function updateBatchStatus(batchId, status) {
     const statusUpdatedAt = new Date().toISOString();
     setStatusLoadingId(batchId);
-    const loadingToastId = toast.loading("กำลังอัปเดตสถานะ...", { description: "ระบบกำลังบันทึกสถานะคำสั่งเบิกเสื้อ" });
+    const loadingToastId = toast.loading("กำลังอัปเดตสถานะ...", { description: "ระบบกำลังบันทึกการเปลี่ยนแปลง กรุณารอสักครู่" });
     try {
       await syncDashboardAction({ action: "updateStatus", batchId, status, statusUpdatedAt });
     } catch {
-      toast.error("อัปเดตสถานะไม่สำเร็จ", { id: loadingToastId, description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("อัปเดตสถานะไม่สำเร็จ", { id: loadingToastId, description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
       setStatusLoadingId("");
       return;
     }
@@ -3197,11 +3206,11 @@ function Dashboard({ demoMode }) {
 
   async function deleteBatch(batchId) {
     setDeleteLoadingId(batchId);
-    const loadingToastId = toast.loading("กำลังลบคำสั่งเบิกเสื้อ...", { description: "ระบบกำลังลบข้อมูลจาก Dashboard" });
+    const loadingToastId = toast.loading("กำลังลบคำสั่งเบิกเสื้อ...", { description: "ระบบกำลังดำเนินการ กรุณารอสักครู่" });
     try {
       await syncDashboardAction({ action: "deleteBatch", batchId });
     } catch {
-      toast.error("ลบคำสั่งเบิกเสื้อไม่สำเร็จ", { id: loadingToastId, description: "ตรวจการเชื่อมต่อ Google Sheets แล้วลองใหม่" });
+      toast.error("ลบคำสั่งเบิกเสื้อไม่สำเร็จ", { id: loadingToastId, description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
       setDeleteLoadingId("");
       return;
     }
@@ -3297,11 +3306,13 @@ function Dashboard({ demoMode }) {
               </div>
             </div>
           </Card>
-          <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} />
+          <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} />
+          <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} filteredRows={visibleRows} />
         </Tabs.Content>
 
         <Tabs.Content value="list">
-          <EmployeeWithdrawalList rows={rows} />
+          <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} />
+          <EmployeeWithdrawalList rows={visibleRows} totalRows={rows.length} />
         </Tabs.Content>
 
         <Tabs.Content value="orders">
@@ -3360,49 +3371,133 @@ function Dashboard({ demoMode }) {
   );
 }
 
-function EmployeeWithdrawalList({ rows }) {
+function TypeFilterChips({ value, onChange, options }) {
+  if (!options.length) return null;
+  const choices = ["ทั้งหมด", ...options];
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-[#E4E4E7] bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-extrabold text-[#18181B]">กรองแบบเสื้อ</p>
+        <p className="text-xs font-semibold text-[#71717A]">เลือกดูเฉพาะเสื้อแต่ละแบบ</p>
+      </div>
+      <div className="employee-scroll-region flex gap-2 overflow-x-auto pb-1 sm:pb-0">
+        {choices.map((type) => {
+          const active = value === type;
+          return (
+            <button
+              key={type}
+              onClick={() => onChange(type)}
+              className={cn(
+                "min-h-9 shrink-0 rounded-lg border px-3 text-sm font-bold transition",
+                active ? "border-[#18181B] bg-[#18181B] text-white" : "border-[#D4D4D8] bg-white text-[#52525B] hover:border-[#A1A1AA]"
+              )}
+            >
+              {type}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
+  const [listQuery, setListQuery] = useState("");
+  const normalizedQuery = listQuery.trim().toLowerCase();
+  const filteredRows = useMemo(() => rows.filter((row) => {
+    if (!normalizedQuery) return true;
+    return [
+      row.batchId,
+      row.name,
+      row.gender,
+      row.branch,
+      row.companyName,
+      row.supervisorName,
+      row.supervisorPhone,
+      row.type,
+      row.color,
+      row.size,
+      row.qty,
+      row.status
+    ].join(" ").toLowerCase().includes(normalizedQuery);
+  }), [rows, normalizedQuery]);
+
   if (!rows.length) return <EmptyDashboardState text="ยังไม่มีรายการเบิกตามเงื่อนไขที่เลือก" />;
+
+  const columns = [
+    { label: "วันที่", className: "min-w-[11rem]" },
+    { label: "BatchID", className: "min-w-[11rem]" },
+    { label: "ชื่อพนักงาน", className: "min-w-[12rem]" },
+    { label: "เพศ", className: "min-w-[5rem]" },
+    { label: "สาขา", className: "min-w-[10rem]" },
+    { label: "บริษัท", className: "min-w-[13rem]" },
+    { label: "ผู้ขอเบิก/ผู้ติดต่อ", className: "min-w-[11rem]" },
+    { label: "เบอร์", className: "min-w-[9rem]" },
+    { label: "ประเภท", className: "min-w-[9rem]" },
+    { label: "สี", className: "min-w-[7rem]" },
+    { label: "ไซส์", className: "min-w-[5rem]" },
+    { label: "จำนวน", className: "min-w-[5rem] text-right" },
+    { label: "สถานะ", className: "min-w-[7rem]" }
+  ];
 
   return (
     <Card className="p-0">
-      <div className="flex flex-col gap-2 border-b border-[#E7EAF0] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-[#E7EAF0] px-4 py-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="text-lg font-extrabold text-[#071638]">รายการเบิกทั้งหมด</h2>
-          <p className="mt-1 text-sm font-semibold text-[#64748B]">แสดงข้อมูลระดับพนักงานและรายการเสื้อจากคำสั่งเบิกที่ผ่านตัวกรอง</p>
+          <p className="mt-1 text-sm font-semibold text-[#64748B]">แสดงข้อมูลพนักงานและรายการเสื้อจากคำสั่งเบิกที่ผ่านตัวกรอง</p>
         </div>
-        <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-2 text-sm font-black text-[#18181B]">
-          {rows.length} รายการ
+        <div className="grid gap-2 sm:grid-cols-[minmax(18rem,26rem)_auto] sm:items-center">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717A]" />
+            <input
+              value={listQuery}
+              onChange={(event) => setListQuery(event.target.value)}
+              placeholder="ค้นหาชื่อ สาขา บริษัท เสื้อ สี ไซส์ หรือ BatchID"
+              className="h-11 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-3 text-sm font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10"
+            />
+          </div>
+          <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-center text-sm font-black text-[#18181B]">
+            {filteredRows.length}/{totalRows} รายการ
+          </div>
         </div>
       </div>
       <div className="employee-scroll-region overflow-auto">
-        <table className="w-full min-w-[1180px] text-left text-sm">
+        <table className="w-full min-w-[1500px] text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
-              {["วันที่", "BatchID", "ชื่อพนักงาน", "เพศ", "สาขา", "บริษัท", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์", "ประเภท", "สี", "ไซส์", "จำนวน", "สถานะ"].map((header) => (
-                <th key={header} className="border-b border-[#D8DEEA] px-3 py-3">{header}</th>
+              {columns.map((column) => (
+                <th key={column.label} className={cn("border-b border-[#D8DEEA] px-4 py-3.5", column.className)}>{column.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <tr key={row.id} className="border-b border-[#E7EAF0] align-top hover:bg-[#F8FAFC]">
-                <td className="whitespace-nowrap px-3 py-3 font-semibold text-[#44536A]">
+                <td className="whitespace-nowrap px-4 py-4 font-semibold leading-6 text-[#44536A]">
                   {new Date(row.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
                 </td>
-                <td className="px-3 py-3 font-bold text-[#64748B]">{row.batchId}</td>
-                <td className="px-3 py-3 font-extrabold text-[#071638]">{row.name || "-"}</td>
-                <td className="px-3 py-3">{row.gender || "-"}</td>
-                <td className="px-3 py-3 font-bold text-[#002B5B]">{row.branch || "-"}</td>
-                <td className="px-3 py-3">{row.companyName || "-"}</td>
-                <td className="px-3 py-3 font-bold">{row.supervisorName || "-"}</td>
-                <td className="whitespace-nowrap px-3 py-3">{formatPhone(row.supervisorPhone) || "-"}</td>
-                <td className="px-3 py-3 font-bold">{row.type || "-"}</td>
-                <td className="px-3 py-3">{row.color || "-"}</td>
-                <td className="px-3 py-3">{row.size || "-"}</td>
-                <td className="px-3 py-3 text-right font-extrabold">{row.qty}</td>
-                <td className="px-3 py-3"><StatusBadge status={row.status || ORDER_STATUS_PENDING} /></td>
+                <td className="break-words px-4 py-4 font-bold leading-6 text-[#64748B]">{row.batchId}</td>
+                <td className="break-words px-4 py-4 font-extrabold leading-6 text-[#071638]">{row.name || "-"}</td>
+                <td className="whitespace-nowrap px-4 py-4 leading-6">{row.gender || "-"}</td>
+                <td className="break-words px-4 py-4 font-bold leading-6 text-[#002B5B]">{row.branch || "-"}</td>
+                <td className="break-words px-4 py-4 leading-6">{row.companyName || "-"}</td>
+                <td className="break-words px-4 py-4 font-bold leading-6">{row.supervisorName || "-"}</td>
+                <td className="whitespace-nowrap px-4 py-4 leading-6">{formatPhone(row.supervisorPhone) || "-"}</td>
+                <td className="break-words px-4 py-4 font-bold leading-6">{row.type || "-"}</td>
+                <td className="break-words px-4 py-4 leading-6">{row.color || "-"}</td>
+                <td className="whitespace-nowrap px-4 py-4 font-bold leading-6">{row.size || "-"}</td>
+                <td className="whitespace-nowrap px-4 py-4 text-right font-extrabold leading-6">{row.qty}</td>
+                <td className="whitespace-nowrap px-4 py-4"><StatusBadge status={row.status || ORDER_STATUS_PENDING} /></td>
               </tr>
             ))}
+            {!filteredRows.length && (
+              <tr>
+                <td colSpan={columns.length} className="px-4 py-10 text-center font-bold text-[#64748B]">
+                  ไม่พบรายการตามคำค้นหา
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -3464,7 +3559,7 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoa
 function StatusBadge({ status }) {
   const delivered = status === ORDER_STATUS_DELIVERED;
   return (
-    <span className={cn("shrink-0 rounded-full px-3 py-1 text-xs font-bold", delivered ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>
+    <span className={cn("inline-flex shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold", delivered ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>
       {status}
     </span>
   );
@@ -3479,37 +3574,41 @@ function MiniMetric({ label, value }) {
   );
 }
 
-function TotalSummaryView({ summaryRows, typeTotals }) {
+function TotalSummaryView({ summaryRows, typeTotals, filteredRows }) {
   const maxQty = Math.max(1, ...typeTotals.map((row) => row.qty));
+  const totalPieces = filteredRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
   return (
-    <div className="grid gap-4 lg:grid-cols-[.82fr_1.18fr]">
-      <Card>
-        <h2 className="text-lg font-extrabold text-[#071638]">ยอดรวมตามประเภทเสื้อ</h2>
-        <div className="mt-4 grid gap-3">
+    <div className="grid gap-3 lg:grid-cols-[minmax(22rem,.8fr)_minmax(0,1.2fr)]">
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามประเภทเสื้อ</h2>
+          <span className="shrink-0 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-1 text-sm font-black text-[#18181B]">{totalPieces} ชิ้น</span>
+        </div>
+        <div className="mt-3 grid gap-2">
           {typeTotals.length ? typeTotals.map((row) => (
             <div key={row.type}>
-              <div className="mb-2 flex items-center justify-between text-sm font-bold">
+              <div className="mb-1.5 flex items-center justify-between gap-3 text-sm font-bold">
                 <span>{row.type}</span>
-                <span>{row.qty} ชิ้น</span>
+                <span className="whitespace-nowrap">{row.qty} ชิ้น</span>
               </div>
-              <div className="h-3 rounded-full bg-[#E5ECF7]">
-                <div className="h-3 rounded-full bg-[#002B5B]" style={{ width: `${Math.max(8, (row.qty / maxQty) * 100)}%` }} />
+              <div className="h-2.5 rounded-full bg-[#E5ECF7]">
+                <div className="h-2.5 rounded-full bg-[#18181B]" style={{ width: `${Math.max(8, (row.qty / maxQty) * 100)}%` }} />
               </div>
             </div>
           )) : <EmptyDashboardState text="ยังไม่มียอดรวม" compact />}
         </div>
       </Card>
 
-      <Card>
-        <h2 className="text-lg font-extrabold text-[#071638]">ยอดรวมตามไซส์</h2>
-        <div className="mt-4 overflow-hidden rounded-xl border border-[#E2E8F0]">
+      <Card className="p-4">
+        <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามไซส์</h2>
+        <div className="mt-3 overflow-hidden rounded-xl border border-[#E2E8F0]">
           <table className="w-full text-left text-sm">
             <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
               <tr>
-                <th className="px-4 py-3">ประเภท</th>
-                <th className="px-4 py-3">สี</th>
-                <th className="px-4 py-3">ไซส์</th>
-                <th className="px-4 py-3 text-right">จำนวน</th>
+                <th className="px-4 py-2.5">ประเภท</th>
+                <th className="px-4 py-2.5">สี</th>
+                <th className="px-4 py-2.5">ไซส์</th>
+                <th className="px-4 py-2.5 text-right">จำนวน</th>
               </tr>
             </thead>
             <tbody>
