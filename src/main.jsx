@@ -257,8 +257,8 @@ function EmployeeItemSummary({ employee, onEdit }) {
   }
 
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
         {visibleItems.map((item) => (
           <span key={`${item.type}-${item.color}-${item.size}`} className="max-w-full truncate rounded-full border border-[#D8DEEA] bg-[#F8FAFC] px-2.5 py-1 text-xs font-bold text-[#44536A]">
             {formatOrderItemLabel(item)}
@@ -268,7 +268,7 @@ function EmployeeItemSummary({ employee, onEdit }) {
           <span className="rounded-full bg-[#EEF4FF] px-2.5 py-1 text-xs font-black text-[#002B5B]">+{employee.items.length - visibleItems.length}</span>
         )}
       </div>
-      <button onClick={onEdit} className="min-h-9 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-black text-[#002B5B]">
+      <button onClick={onEdit} className="min-h-9 shrink-0 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-black text-[#002B5B]">
         แก้รายการ
       </button>
     </div>
@@ -305,7 +305,7 @@ function createEmployee(index = 0) {
   };
 }
 
-function createOrderItem(type, gender, size = "", qty = 2) {
+function createOrderItem(type, gender, size = "", qty = 2, color = "") {
   const options = gender ? getSizeOptions(type, gender) : [];
   const colors = getColorOptions(type);
   const nextSize = size && options.includes(size) ? size : (gender ? defaultSize(type, gender) : "");
@@ -313,17 +313,17 @@ function createOrderItem(type, gender, size = "", qty = 2) {
     type,
     size: nextSize,
     customSize: "",
-    color: colors.length === 1 ? colors[0] : "",
+    color: colors.length === 1 ? colors[0] : (colors.includes(color) ? color : ""),
     qty: digitsOnly(qty || 2)
   };
 }
 
 function createQuickOrderItems({ presetId, gender, defaultSizeValue, customItems }) {
   const sourceItems = getClothingTypes()
-    .map((type, index) => ({ type, qty: customItems?.[index]?.qty || 2, enabled: Boolean(customItems?.[index]?.enabled) }))
+    .map((type, index) => ({ type, qty: customItems?.[index]?.qty || 2, color: customItems?.[index]?.color || "", enabled: Boolean(customItems?.[index]?.enabled) }))
     .filter((item) => item.enabled);
 
-  return sourceItems.map((item) => createOrderItem(item.type, gender, defaultSizeValue, item.qty));
+  return sourceItems.map((item) => createOrderItem(item.type, gender, defaultSizeValue, item.qty, item.color));
 }
 
 function createEmployeeFromQuickOrder(name, index, quickOrder) {
@@ -915,7 +915,7 @@ function QuickOrderSetupPanel({ state, dispatch }) {
           {expanded ? <><ChevronUp className="size-3.5" /> ย่อ</> : <><Pencil className="size-3.5" /> แก้ไข</>}
         </button>
       </div>
-      <div className={cn("mt-3 grid gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-[1.25fr_1fr_1fr_.9fr]", !expanded && "hidden lg:grid")}>
+      <div className={cn("mt-3 grid gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-4", !expanded && "hidden lg:grid")}>
           <Field label="บริษัท">
             <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
           </Field>
@@ -938,17 +938,33 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
   const [gender, setGender] = useState(GENDERS[0]);
   const [defaultSizeValue, setDefaultSizeValue] = useState("M");
   const clothingTypes = getClothingTypes();
-  const [customItems, setCustomItems] = useState(() => clothingTypes.map(() => ({ enabled: false, qty: "2" })));
+  const [customItems, setCustomItems] = useState(() => clothingTypes.map((type) => {
+    const colors = getColorOptions(type);
+    return { enabled: false, qty: "2", color: colors.length === 1 ? colors[0] : "" };
+  }));
   const quickSizes = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "28", "30", "32", "34", "36", "38", "40", "42", "44"];
   const names = namesText.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
 
   useEffect(() => {
-    setCustomItems((items) => clothingTypes.map((_, index) => items[index] || { enabled: false, qty: "2" }));
+    setCustomItems((items) => clothingTypes.map((type, index) => {
+      const colors = getColorOptions(type);
+      const current = items[index] || {};
+      return {
+        enabled: Boolean(current.enabled),
+        qty: current.qty || "2",
+        color: colors.length === 1 ? colors[0] : (colors.includes(current.color) ? current.color : "")
+      };
+    }));
   }, [clothingTypes.join("|")]);
 
   function applyQuickOrder() {
     if (!names.length) {
       toast.error("ยังไม่มีรายชื่อพนักงาน", { description: "วางรายชื่ออย่างน้อย 1 บรรทัด" });
+      return;
+    }
+    const missingColorType = clothingTypes.find((type, index) => customItems[index]?.enabled && getColorOptions(type).length > 1 && !customItems[index]?.color);
+    if (missingColorType) {
+      toast.error("ยังไม่ได้เลือกสี", { description: `เลือกสีสำหรับ ${missingColorType} ก่อนเพิ่มรายการ` });
       return;
     }
     const hasExistingData = state.employees.some(hasEmployeeData);
@@ -980,13 +996,13 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
         <span className="hidden rounded-md bg-white px-3 py-2 text-sm font-bold text-[#002B5B] sm:block">{names.length} คน</span>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1.25fr_.75fr]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(25rem,.9fr)]">
         <Field label="รายชื่อพนักงาน">
           <textarea
             value={namesText}
             onChange={(event) => setNamesText(event.target.value)}
             placeholder={"สมชาย ใจดี\nสมหญิง ใจงาม\nสมศักดิ์ ตัวอย่าง"}
-            className="min-h-36 w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
+            className="min-h-44 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
           />
         </Field>
 
@@ -999,27 +1015,46 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
               <Select value={defaultSizeValue} values={quickSizes} onChange={setDefaultSizeValue} />
             </Field>
           </div>
-          <Field label="กำหนดประเภทชุดและจำนวน">
-            <div className="grid gap-2 rounded-lg border border-[#D8DEEA] bg-white p-2">
-              {clothingTypes.map((type, index) => (
-                <label key={type} className="grid grid-cols-[1fr_5rem] items-center gap-2 text-sm font-bold text-[#071638]">
-                  <span className="flex items-center gap-2">
+          <Field label="กำหนดประเภทชุด สี และจำนวน">
+            <div className="grid max-h-[20rem] gap-2 overflow-y-auto rounded-xl border border-[#D8DEEA] bg-white p-2">
+              {clothingTypes.map((type, index) => {
+                const colors = getColorOptions(type);
+                const selectedColor = colors.length === 1 ? colors[0] : (customItems[index]?.color || "");
+                return (
+                <div key={type} className={cn("grid gap-2 rounded-lg border p-2 text-sm font-bold text-[#071638] sm:grid-cols-[minmax(0,1fr)_minmax(8rem,.8fr)_5.5rem] sm:items-center", customItems[index]?.enabled ? "border-[#BFD0EA] bg-[#F8FBFF]" : "border-[#EEF2F7] bg-white")}>
+                  <label className="flex min-h-11 min-w-0 items-center gap-2">
                     <input
                       type="checkbox"
                       checked={Boolean(customItems[index]?.enabled)}
-                      onChange={(event) => setCustomItems((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item))}
-                      className="size-4 accent-[#002B5B]"
+                      onChange={(event) => setCustomItems((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked, color: colors.length === 1 ? colors[0] : (item.color || "") } : item))}
+                      className="size-4 shrink-0 accent-[#002B5B]"
                     />
-                    {type}
-                  </span>
+                    <span className="min-w-0 truncate">{type}</span>
+                  </label>
+                  {colors.length > 1 ? (
+                    <CustomSelect
+                      value={selectedColor}
+                      values={colors}
+                      placeholder="เลือกสี"
+                      compact
+                      disabled={!customItems[index]?.enabled}
+                      onChange={(color) => setCustomItems((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, color } : item))}
+                    />
+                  ) : (
+                    <div className="flex min-h-11 items-center rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] px-3 text-sm font-bold text-[#44536A]">
+                      <span className="truncate">{colors[0] || "ไม่มีสี"}</span>
+                    </div>
+                  )}
                   <input
                     value={customItems[index]?.qty || "2"}
                     onChange={(event) => setCustomItems((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, qty: digitsOnly(event.target.value) } : item))}
                     inputMode="numeric"
-                    className="min-h-9 rounded-md border border-[#CBD5E1] px-2 text-center outline-none focus:border-[#002B5B]"
+                    disabled={!customItems[index]?.enabled}
+                    className="min-h-11 rounded-lg border border-[#CBD5E1] px-2 text-center font-black outline-none focus:border-[#002B5B] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]"
                   />
-                </label>
-              ))}
+                </div>
+                );
+              })}
             </div>
           </Field>
           <button onClick={applyQuickOrder} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-4 font-bold text-white transition hover:bg-[#013A78]">
@@ -1110,7 +1145,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                   <td className="w-[17rem] px-3 py-3">
                     <GridInput value={employee.name} placeholder="ชื่อ-นามสกุล" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
                   </td>
-                  <td className="w-36 px-3 py-3">
+                  <td className="w-40 px-3 py-3">
                     <GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} />
                   </td>
                   <td className="px-3 py-3">
@@ -1182,7 +1217,7 @@ function GarmentEditorDialog({ employee, dispatch, onClose }) {
   }, [employee?.id]);
 
   return (
-    <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog.Root modal={false} open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
         <Dialog.Content className="fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(42rem,88vh)] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
@@ -1204,26 +1239,26 @@ function GarmentEditorDialog({ employee, dispatch, onClose }) {
               </div>
 
               <div className="employee-scroll-region min-h-0 flex-1 overflow-y-auto bg-[#F8FAFC] p-4">
-                <div className="grid gap-3">
+                <div className="grid gap-2.5">
                   {filteredTypes.map((type) => {
                     const item = employee.items.find((entry) => entry.type === type);
                     return (
-                      <div key={type} className={cn("rounded-xl border bg-white p-3 shadow-sm", item ? "border-[#BFD0EA]" : "border-[#E2E8F0]")}>
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div key={type} className={cn("rounded-xl border bg-white p-3 shadow-sm", item ? "border-[#BFD0EA] bg-[#FBFDFF]" : "border-[#E2E8F0]")}>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <p className="break-words text-base font-extrabold text-[#071638]">{type}</p>
                             {item && <p className="mt-1 text-xs font-bold text-[#64748B]">{formatOrderItemLabel(item)}</p>}
                           </div>
                           <button
                             onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })}
-                            className={cn("min-h-10 shrink-0 rounded-lg px-4 text-sm font-black", item ? "border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" : "border border-[#BFD0EA] bg-[#E5EFFD] text-[#002B5B]")}
+                            className={cn("min-h-11 shrink-0 rounded-lg px-4 text-sm font-black", item ? "border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" : "border border-[#BFD0EA] bg-[#E5EFFD] text-[#002B5B]")}
                           >
                             {item ? "ลบรายการ" : "เพิ่มรายการ"}
                           </button>
                         </div>
 
                         {item && (
-                          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_6rem]">
+                          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem] sm:items-start">
                             <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} compact />
                             {needsColorSelection(item.type) ? (
                               <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
@@ -1714,7 +1749,7 @@ function OrderStepNav({ activeStep, onStepClick }) {
               key={id}
               onClick={() => onStepClick(id)}
               className={cn(
-                "flex min-h-14 items-center gap-3 rounded-xl border px-3 text-left transition",
+                "flex min-h-12 items-center gap-3 rounded-xl border px-3 text-left transition",
                 active ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B] shadow-sm" : "border-[#D8DEEA] bg-white text-[#44536A]",
                 done && "border-[#B7D7C3] bg-[#F0FDF4] text-[#166534]"
               )}
@@ -1995,7 +2030,7 @@ const TextInput = React.forwardRef(function TextInput({ value, onChange, placeho
       placeholder={placeholder}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
-      className="min-h-10 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:min-h-12 sm:px-3.5 sm:text-[15px]"
+      className="min-h-11 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:px-3.5 sm:text-[15px]"
     />
   );
 });
@@ -2061,7 +2096,7 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
         onClick={() => setOpen((value) => !value)}
         className={cn(
           "flex w-full items-center justify-between gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 text-left text-sm font-bold text-[#09090B] outline-none transition focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA]",
-          compact ? "min-h-9" : "min-h-10 sm:min-h-12 sm:px-3.5 sm:text-[15px]"
+          compact ? "min-h-11" : "min-h-11 sm:px-3.5 sm:text-[15px]"
         )}
       >
         <span className={cn("min-w-0 truncate", !value && "text-[#A1A1AA]")}>{selectedLabel}</span>
@@ -2438,19 +2473,19 @@ function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }
               const isInvalidTarget = invalidEmployeeId === employee.id;
               return (
               <tr key={employee.id} data-employee-row={employee.id} className={cn("border-b border-[#E7EAF0] align-top", isInvalidTarget && "employee-attention bg-[#FFF7F7] outline outline-2 outline-[#EF4444] outline-offset-[-2px]")}>
-                <td className="px-5 py-6 text-center">
+                <td className="px-5 py-4 text-center">
                   <span className="text-lg font-black">{index + 1}</span>
                   {!complete && <span className="mt-2 block rounded-full bg-[#FEF3C7] px-2 py-1 text-[11px] font-black text-[#92400E]">ยังไม่ครบ</span>}
                 </td>
-                <td className="px-5 py-6">
+                <td className="px-5 py-4">
                   <GridInput value={employee.name} placeholder="ระบุชื่อพนักงาน" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
                   {!complete && <p className="mt-2 text-left text-xs font-black text-[#B91C1C]">ยังขาด: {missingFields.join(", ")}</p>}
                 </td>
-                <td className="px-5 py-6"><GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} /></td>
-                <td className="px-5 py-6 text-left">
+                <td className="px-5 py-4"><GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} /></td>
+                <td className="px-5 py-4 text-left">
                   <EmployeeItemSummary employee={employee} onEdit={() => setEditingEmployeeId(employee.id)} />
                 </td>
-                <td className="px-5 py-6 text-center">
+                <td className="px-5 py-4 text-center">
                   <button
                     onClick={() => dispatch({ type: "delete", id: employee.id })}
                     disabled={!canDelete}
