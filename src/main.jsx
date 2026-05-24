@@ -2015,11 +2015,9 @@ function ReactBitsAurora() {
 
 function Logo() {
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <div className="flex h-10 w-[8.75rem] shrink-0 items-center justify-center gap-2 rounded-lg border border-[#DDE6E7] bg-white px-2 shadow-sm sm:w-[10.5rem]">
-        <img src="/gold-integrate-logo.jpg" alt="Gold Integrate" className="h-7 min-w-0 flex-1 object-contain" />
-        <span className="h-6 w-px shrink-0 bg-[#DDE6E7]" aria-hidden="true" />
-        <img src="/ev7-logo.jpg" alt="EV7" className="h-7 min-w-0 flex-1 object-contain" />
+    <div className="flex min-w-0 items-center gap-2">
+      <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#35B8C5] text-white shadow-sm">
+        <Shirt className="size-5" />
       </div>
       <div className="min-w-0">
         <h1 className="text-lg font-black leading-none tracking-tight text-[#071638] sm:text-xl">ShirtClaim</h1>
