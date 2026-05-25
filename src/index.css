@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -21,9 +21,9 @@ body {
   overflow-x: hidden;
   color: #171827;
   background: #f7f7fb;
-  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1.55;
+  font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.58;
   text-rendering: geometricPrecision;
 }
 
@@ -37,7 +37,7 @@ input,
 select,
 textarea {
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 input,
@@ -206,39 +206,39 @@ select option {
 
 :root,
 .app-shadcn-theme {
-  --sc-bg: #f7f7fb;
+  --sc-bg: #f6f8fb;
   --sc-surface: #ffffff;
-  --sc-surface-muted: #fbfbff;
+  --sc-surface-muted: #f7f9fc;
   --sc-surface-raised: #ffffff;
-  --sc-surface-soft: #f1f5ff;
-  --sc-border: #e2e5f0;
-  --sc-border-strong: #c7cdef;
-  --sc-text: #171827;
-  --sc-muted: #62677b;
-  --sc-muted-strong: #414762;
-  --sc-primary: #4338ca;
-  --sc-primary-strong: #312e81;
-  --sc-primary-soft: #eef2ff;
-  --sc-accent-blue: #0891b2;
-  --sc-accent-blue-soft: #ecfeff;
-  --sc-accent-red: #e11d48;
-  --sc-accent-red-soft: #fff1f2;
-  --sc-accent-orange: #f97316;
-  --sc-accent-orange-soft: #fff7ed;
-  --sc-accent-green: #16a34a;
-  --sc-accent-green-soft: #ecfdf5;
+  --sc-surface-soft: #eef5ff;
+  --sc-border: #e7eaf0;
+  --sc-border-strong: #ccd5e4;
+  --sc-text: #0f172a;
+  --sc-muted: #697386;
+  --sc-muted-strong: #475569;
+  --sc-primary: #0d152a;
+  --sc-primary-strong: #071024;
+  --sc-primary-soft: #eef4ff;
+  --sc-accent-blue: #375f92;
+  --sc-accent-blue-soft: #f2f6fb;
+  --sc-accent-red: #d84b5f;
+  --sc-accent-red-soft: #fff5f6;
+  --sc-accent-orange: #d97706;
+  --sc-accent-orange-soft: #fff8ed;
+  --sc-accent-green: #0f766e;
+  --sc-accent-green-soft: #effaf7;
   --sc-danger: #dc2626;
   --sc-danger-soft: #fef2f2;
   --sc-warning: #b45309;
   --sc-warning-soft: #fffbeb;
   --sc-success: #15803d;
   --sc-success-soft: #dcfce7;
-  --sc-card-shadow: 0 1px 2px rgba(67, 56, 202, 0.05), 0 12px 34px rgba(8, 145, 178, 0.08);
-  --sc-control-shadow: 0 1px 2px rgba(67, 56, 202, 0.05);
+  --sc-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.05);
+  --sc-control-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(15, 23, 42, 0.03);
   background: var(--sc-bg) !important;
   color: var(--sc-text) !important;
-  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
-  font-size: 15px;
+  font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -267,6 +267,8 @@ select option {
 
 .app-shadcn-theme header h1 {
   color: var(--sc-primary) !important;
+  font-size: 1.05rem !important;
+  line-height: 1.1 !important;
 }
 
 .app-shadcn-theme main > section,
@@ -275,7 +277,7 @@ select option {
 .app-shadcn-theme [data-quick-employee-card] {
   background: var(--sc-surface) !important;
   border-color: var(--sc-border) !important;
-  border-radius: 18px !important;
+  border-radius: 16px !important;
   box-shadow: var(--sc-card-shadow) !important;
 }
 
@@ -310,6 +312,7 @@ select option {
   background: var(--sc-surface-muted) !important;
   color: var(--sc-text) !important;
   font-weight: 600;
+  line-height: 1.45;
   box-shadow: var(--sc-control-shadow) !important;
 }
 
@@ -327,7 +330,7 @@ select option {
 .app-shadcn-theme select:focus,
 .app-shadcn-theme textarea:focus {
   border-color: var(--sc-accent-blue) !important;
-  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.16) !important;
+  box-shadow: 0 0 0 3px rgba(55, 95, 146, 0.12) !important;
 }
 
 .app-shadcn-theme button,
@@ -337,6 +340,7 @@ select option {
 
 .app-shadcn-theme button {
   font-weight: 700;
+  line-height: 1.25;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
@@ -365,20 +369,20 @@ select option {
 .app-shadcn-theme .bg-\[\#E8F0FF\],
 .app-shadcn-theme .bg-\[\#EEF4FF\] {
   background: var(--sc-accent-blue-soft) !important;
-  border-color: #bae6fd !important;
+  border-color: #dbeafe !important;
   color: var(--sc-accent-blue) !important;
 }
 
 .app-shadcn-theme button[class*="bg-[#FFFBEB]"] {
-  background: var(--sc-warning-soft) !important;
-  border-color: #fde68a !important;
-  color: var(--sc-warning) !important;
+  background: #fffaf0 !important;
+  border-color: #f3dfb6 !important;
+  color: #9a6509 !important;
 }
 
 .app-shadcn-theme button[class*="bg-[#FEF2F2]"] {
-  background: var(--sc-danger-soft) !important;
-  border-color: #fecaca !important;
-  color: var(--sc-danger) !important;
+  background: #fff5f6 !important;
+  border-color: #f4c7ce !important;
+  color: #b42337 !important;
 }
 
 .app-shadcn-theme .bg-\[\#DCFCE7\] {
@@ -417,7 +421,7 @@ select option {
 .app-shadcn-theme .border-\[\#BFD0EA\],
 .app-shadcn-theme .border-\[\#C8D6EA\],
 .app-shadcn-theme .border-\[\#8FA4C7\] {
-  border-color: #bae6fd !important;
+  border-color: #dbeafe !important;
 }
 
 .app-shadcn-theme .border-\[\#D8DEEA\],
@@ -577,6 +581,237 @@ body {
   background: #fef2f2 !important;
   border-color: #fecaca !important;
   color: #b91c1c !important;
+}
+
+.app-shadcn-theme {
+  background:
+    linear-gradient(180deg, #f8fafc 0%, #f5f7fb 100%) !important;
+}
+
+.app-shadcn-theme :where(h1, h2, h3) {
+  letter-spacing: 0 !important;
+  line-height: 1.25 !important;
+}
+
+.app-shadcn-theme :where(p, span, label, td, th, button, input, textarea) {
+  letter-spacing: 0 !important;
+}
+
+.app-shadcn-theme .shadcn-card {
+  overflow: hidden;
+  padding: 16px !important;
+}
+
+.app-shadcn-theme .shadcn-card.p-0 {
+  padding: 0 !important;
+}
+
+.app-shadcn-theme :where(.shadcn-card, [data-quick-employee-card]) > :where(.border-b, .bg-\[\#EEF4FF\]) {
+  background: #ffffff !important;
+}
+
+.app-shadcn-theme button:where(:not(:disabled)):active {
+  transform: translateY(1px);
+}
+
+.app-shadcn-theme button[class*="bg-[#002B5B]"],
+.app-shadcn-theme button[class*="bg-[#18181B]"] {
+  box-shadow: 0 8px 18px rgba(13, 21, 42, 0.1) !important;
+}
+
+.app-shadcn-theme table thead {
+  letter-spacing: 0 !important;
+}
+
+.app-shadcn-theme table thead {
+  background: #f7f9fc !important;
+}
+
+.app-shadcn-theme tbody tr:hover {
+  background: #f8fafc;
+}
+
+.app-shadcn-theme :where(button, input, textarea, [aria-haspopup="listbox"]) {
+  min-height: 42px;
+}
+
+.app-shadcn-theme :where(svg) {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.app-shadcn-theme header :where(svg) {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.app-shadcn-theme :where(.text-xl) {
+  font-size: 1.1rem !important;
+  line-height: 1.28 !important;
+}
+
+.app-shadcn-theme :where(.text-2xl) {
+  font-size: 1.28rem !important;
+  line-height: 1.25 !important;
+}
+
+.app-shadcn-theme :where(.text-lg) {
+  font-size: 1rem !important;
+  line-height: 1.32 !important;
+}
+
+.app-shadcn-theme :where(.text-base) {
+  font-size: .94rem !important;
+  line-height: 1.45 !important;
+}
+
+.app-shadcn-theme :where(.text-sm, .text-\[15px\]) {
+  font-size: .82rem !important;
+  line-height: 1.55 !important;
+}
+
+.app-shadcn-theme :where(.text-xs, .text-\[13px\]) {
+  font-size: .74rem !important;
+  line-height: 1.45 !important;
+}
+
+.app-shadcn-theme :where(.font-black, .font-extrabold) {
+  font-weight: 700 !important;
+}
+
+.app-shadcn-theme :where(.font-bold) {
+  font-weight: 650 !important;
+}
+
+.app-shadcn-theme :where(table th, table td) {
+  vertical-align: middle;
+}
+
+.app-shadcn-theme :where(table th) {
+  font-size: .76rem !important;
+  line-height: 1.35 !important;
+  font-weight: 700 !important;
+  padding-top: .62rem !important;
+  padding-bottom: .62rem !important;
+  text-align: center !important;
+}
+
+.app-shadcn-theme :where(table td) {
+  font-size: .84rem !important;
+  line-height: 1.45 !important;
+  padding-top: .65rem !important;
+  padding-bottom: .65rem !important;
+}
+
+.app-shadcn-theme :where(label.flex-col > span:first-child) {
+  margin-bottom: 2px;
+  color: #58657a !important;
+  font-size: .76rem !important;
+  line-height: 1.3 !important;
+  font-weight: 700 !important;
+}
+
+.app-shadcn-theme :where(input, textarea, [aria-haspopup="listbox"]) {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.app-shadcn-theme :where(button[class*="items-center"], button[class*="place-items-center"], button[class*="justify-center"]) {
+  align-items: center;
+}
+
+.app-shadcn-theme :where(button[class*="justify-center"]) {
+  justify-content: center;
+}
+
+.app-shadcn-theme :where(.grid, .flex) > :where(h1, h2, h3, p) {
+  min-width: 0;
+}
+
+.app-shadcn-theme [data-quick-employee-card] button {
+  align-items: center;
+}
+
+.app-shadcn-theme [data-quick-employee-row] {
+  background: #ffffff;
+}
+
+.app-shadcn-theme [data-quick-employee-row] :where(input, [aria-haspopup="listbox"], button) {
+  min-height: 38px !important;
+  height: 38px !important;
+  font-size: .82rem !important;
+}
+
+.app-shadcn-theme [data-quick-employee-row] :where(input, [aria-haspopup="listbox"]) {
+  border-radius: 12px !important;
+  background: #f8fafc !important;
+}
+
+.app-shadcn-theme [data-quick-employee-row] :where(td:first-child) {
+  color: #64748b !important;
+  font-size: .82rem !important;
+}
+
+.app-shadcn-theme [data-quick-employee-row] :where(td:nth-child(4)),
+.app-shadcn-theme table:has([data-quick-employee-row]) :where(th:nth-child(4)) {
+  width: 34%;
+  min-width: 24rem;
+}
+
+.app-shadcn-theme [data-quick-employee-row] :where(td:nth-child(5)),
+.app-shadcn-theme table:has([data-quick-employee-row]) :where(th:nth-child(5)) {
+  width: 11rem;
+}
+
+.app-shadcn-theme [data-quick-employee-row] :where(.rounded-full) {
+  border-radius: 999px !important;
+  padding: .22rem .55rem !important;
+}
+
+.app-shadcn-theme [data-quick-employee-row] button:has(svg):not([aria-haspopup="listbox"]) {
+  border-radius: 12px !important;
+}
+
+.app-shadcn-theme .clothing-manager-card {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05) !important;
+}
+
+.app-shadcn-theme .clothing-manager-card .clothing-list {
+  align-content: start;
+}
+
+.app-shadcn-theme .clothing-manager-card .clothing-list > button {
+  min-height: 64px;
+  align-items: center;
+}
+
+.app-shadcn-theme .clothing-manager-card .clothing-list > button:first-child:last-child,
+.app-shadcn-theme .clothing-manager-card .clothing-list > button:hover {
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.app-shadcn-theme .clothing-manager-card .clothing-editor {
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.app-shadcn-theme .clothing-manager-card .clothing-editor input:not([type="file"]):not([type="color"]),
+.app-shadcn-theme .clothing-manager-card .clothing-editor [aria-haspopup="listbox"] {
+  min-height: 38px !important;
+  border-radius: 10px !important;
+}
+
+.app-shadcn-theme .clothing-manager-card input[type="color"] {
+  min-height: 38px !important;
+  height: 38px !important;
+  border-radius: 10px !important;
+}
+
+.app-shadcn-theme .clothing-manager-card .clothing-editor button {
+  border-radius: 10px !important;
+}
+
+.app-shadcn-theme .clothing-manager-card .clothing-editor .bg-\[\#F8FAFC\] {
+  background-color: #f8fafc !important;
 }
 
 @media (max-width: 767px) {

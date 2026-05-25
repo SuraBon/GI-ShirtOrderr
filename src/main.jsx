@@ -13,12 +13,10 @@ import {
   Copy,
   Download,
   Eraser,
-  FileText,
   LayoutDashboard,
   Loader2,
   PackageCheck,
   Pencil,
-  Phone,
   Plus,
   Ruler,
   Search,
@@ -27,7 +25,6 @@ import {
   Shirt,
   Trash2,
   Upload,
-  User,
   UserCheck,
   UserPlus,
   Users,
@@ -302,7 +299,7 @@ function EmployeeItemSummary({ employee, onEdit }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+      <div className="flex min-w-[14rem] flex-1 flex-wrap gap-1.5">
         {visibleItems.map((item) => (
           <span key={`${item.type}-${item.color}-${item.size}`} className="max-w-full truncate rounded-full border border-[#D8DEEA] bg-[#F8FAFC] px-2.5 py-1 text-xs font-bold text-[#44536A]">
             {formatOrderItemLabel(item)}
@@ -312,7 +309,7 @@ function EmployeeItemSummary({ employee, onEdit }) {
           <span className="rounded-full bg-[#EEF4FF] px-2.5 py-1 text-xs font-black text-[#002B5B]">+{employee.items.length - visibleItems.length}</span>
         )}
       </div>
-      <button onClick={onEdit} className="min-h-9 shrink-0 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-black text-[#002B5B]">
+      <button onClick={onEdit} className="min-h-9 shrink-0 rounded-lg border border-[#D9E2EF] bg-white px-3 text-sm font-black text-[#0D152A]">
         แก้รายการ
       </button>
     </div>
@@ -332,10 +329,6 @@ function formatPhone(value) {
   if (phone.length <= 3) return phone;
   if (phone.length <= 6) return `${phone.slice(0, 3)}-${phone.slice(3)}`;
   return `${phone.slice(0, 3)}-${phone.slice(3, 6)}-${phone.slice(6)}`;
-}
-
-function employeeIdOnly(value) {
-  return String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 function createEmployee(index = 0) {
@@ -431,19 +424,6 @@ function readOrderDraft() {
 
 function canDeleteEmployee(employees) {
   return employees.length > 1;
-}
-
-function scrollInsideEmployeeList(target) {
-  const scrollRegion = target?.closest(".employee-scroll-region");
-  if (!target || !scrollRegion) {
-    target?.scrollIntoView({ behavior: "smooth", block: "center" });
-    return;
-  }
-
-  const targetRect = target.getBoundingClientRect();
-  const regionRect = scrollRegion.getBoundingClientRect();
-  const top = targetRect.top - regionRect.top + scrollRegion.scrollTop - ((scrollRegion.clientHeight - targetRect.height) / 2);
-  scrollRegion.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
 function orderReducer(state, action) {
@@ -1174,7 +1154,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
         <table className="w-full min-w-[980px] table-fixed text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
-              {["#", "ชื่อพนักงาน", "เพศ", "รายการที่เลือก", "สถานะ", ""].map((header) => (
+              {["ลำดับ", "ชื่อพนักงาน", "เพศ", "รายการที่เลือก", "สถานะ", ""].map((header) => (
                 <th key={header || "actions"} className="border-b border-[#D8DEEA] px-3 py-3">{header}</th>
               ))}
             </tr>
@@ -1196,7 +1176,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                   <td className="px-3 py-3">
                     <EmployeeItemSummary employee={employee} onEdit={() => setEditingEmployeeId(employee.id)} />
                   </td>
-                  <td className="w-44 px-3 py-3">
+                  <td className="w-44 px-3 py-3 text-center">
                     <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "ยังไม่ครบ"}</span>
                     {!complete && <p className="mt-2 text-xs font-bold leading-5 text-[#B91C1C]">ขาด: {missingFields.join(", ")}</p>}
                   </td>
@@ -1451,12 +1431,13 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45" />
-        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(44rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(46rem,94vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
             <Dialog.Title className="text-xl font-extrabold text-[#071638]">สรุปก่อนส่ง</Dialog.Title>
             <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
           </div>
-          <div className="employee-scroll-region max-h-[64vh] overflow-y-auto p-4">
+          <div className="employee-scroll-region max-h-[64vh] overflow-y-auto bg-[#F7F9FC] p-4">
+            <div className="rounded-2xl border border-[#E7EAF0] bg-white p-4">
             <div className="grid gap-2 sm:grid-cols-4">
               <ReviewMetric label="สาขา" value={state.branch || "-"} />
               <ReviewMetric label="ผู้ติดต่อ" value={state.supervisorName || "-"} />
@@ -1494,6 +1475,7 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
                 </tbody>
               </table>
             </div>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-2 border-t border-[#E7EAF0] p-3 sm:grid-cols-[1fr_1.25fr] sm:gap-3 sm:p-4">
             <Dialog.Close className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white font-bold text-[#071638]">กลับไปแก้</Dialog.Close>
@@ -1521,416 +1503,6 @@ function SummaryMobileRow({ row }) {
         <MobileInfo label="สี" value={row.color || "-"} compact />
         <MobileInfo label="ไซส์" value={row.size || "-"} compact />
       </div>
-    </div>
-  );
-}
-
-function OrderApp({ gasConfigured }) {
-  const [employeeCount, setEmployeeCount] = useState("1");
-  const [activeStep, setActiveStep] = useState(1);
-  const [sizeOpen, setSizeOpen] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [invalidEmployeeId, setInvalidEmployeeId] = useState("");
-  const [pastedNames, setPastedNames] = useState("");
-  const skipDraftSaveRef = useRef(false);
-  const [state, dispatch] = useReducer(orderReducer, undefined, readOrderDraft);
-
-  const summaryRows = useMemo(() => buildOrderSummaryRows(state.employees), [state.employees]);
-  const totalPieces = summaryRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
-  const completedEmployees = useMemo(() => state.employees.filter(isEmployeeComplete).length, [state.employees]);
-  const firstIncompleteEmployee = useMemo(() => state.employees.find((employee) => !isEmployeeComplete(employee)) || null, [state.employees]);
-
-  useEffect(() => {
-    setEmployeeCount(String(state.employees.length));
-  }, [state.employees.length]);
-
-  useEffect(() => {
-    if (skipDraftSaveRef.current) {
-      skipDraftSaveRef.current = false;
-      return;
-    }
-    localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(state));
-  }, [state]);
-
-  useEffect(() => {
-    const invalidEmployee = state.employees.find((employee) => employee.id === invalidEmployeeId);
-    if (invalidEmployeeId && invalidEmployee && isEmployeeComplete(invalidEmployee)) {
-      setInvalidEmployeeId("");
-    }
-  }, [invalidEmployeeId, state.employees]);
-
-  function jumpToEmployee(employeeId) {
-    setActiveStep(2);
-    setInvalidEmployeeId(employeeId);
-    dispatch({ type: "focusEmployee", id: employeeId });
-    window.setTimeout(() => {
-      const targetSelector = window.matchMedia("(min-width: 1024px)").matches ? `[data-employee-row="${employeeId}"]` : `[data-employee-card="${employeeId}"]`;
-      const target = document.querySelector(targetSelector);
-      scrollInsideEmployeeList(target);
-      target?.querySelector("input:not([type='checkbox']), select, button")?.focus({ preventScroll: true });
-    }, 120);
-  }
-
-  function addEmployeeFromButton() {
-    dispatch({ type: "add" });
-    window.setTimeout(() => {
-      const targetSelector = window.matchMedia("(min-width: 1024px)").matches ? "[data-employee-row]" : "[data-employee-card]";
-      const employees = document.querySelectorAll(targetSelector);
-      scrollInsideEmployeeList(employees[employees.length - 1]);
-    }, 120);
-  }
-
-  function applyPastedNames() {
-    const names = pastedNames.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
-    if (!names.length) {
-      toast.error("ยังไม่มีรายชื่อพนักงาน", { description: "วางรายชื่ออย่างน้อย 1 บรรทัด" });
-      return;
-    }
-    dispatch({ type: "setNamesFromPaste", names });
-    setPastedNames("");
-    toast.success(`สร้างรายชื่อพนักงาน ${names.length} คนแล้ว`);
-  }
-
-  function jumpToFirstIncompleteEmployee() {
-    const invalidEmployee = state.employees.find((employee) => !isEmployeeComplete(employee));
-    if (!invalidEmployee) {
-      toast.success("ข้อมูลพนักงานครบทุกคนแล้ว");
-      return;
-    }
-    const index = state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1;
-    toast.info(`เปิดพนักงานลำดับ ${index}`);
-    jumpToEmployee(invalidEmployee.id);
-  }
-
-  function applyEmployeeCount() {
-    const targetCount = Math.max(1, Number(employeeCount || 1));
-    const currentCount = state.employees.length;
-    if (targetCount === currentCount) {
-      toast.info("จำนวนรายการตรงกับที่มีอยู่แล้ว");
-      return;
-    }
-
-    if (targetCount < currentCount) {
-      const removedEmployees = state.employees.slice(targetCount);
-      const willRemoveFilledRows = removedEmployees.some(hasEmployeeData);
-      if (willRemoveFilledRows && !window.confirm("การลดจำนวนจะทำให้ข้อมูลพนักงานรายการท้าย ๆ ถูกลบ คุณต้องการดำเนินการต่อหรือไม่?")) {
-        setEmployeeCount(String(currentCount));
-        return;
-      }
-    }
-
-    dispatch({ type: "syncCount", count: targetCount });
-    toast.success(`สร้างรายการพนักงาน ${targetCount} รายการแล้ว`);
-  }
-
-  function validateCompanyStep() {
-    if (!state.companyName.trim() || !state.branch || !state.supervisorName.trim() || !state.supervisorPhone.trim()) {
-      toast.error("ข้อมูลผู้ติดต่อยังไม่ครบ", { description: "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อก่อนส่งคำสั่งเบิกเสื้อ" });
-      setActiveStep(1);
-      return false;
-    }
-
-    if (state.supervisorPhone.length !== PHONE_LENGTH) {
-      toast.error("เบอร์ติดต่อไม่ถูกต้อง", { description: `กรอกตัวเลข ${PHONE_LENGTH} หลัก` });
-      setActiveStep(1);
-      return false;
-    }
-
-    return true;
-  }
-
-  function validateEmployeeStep() {
-    const invalidEmployee = state.employees.find((employee) => !isEmployeeComplete(employee));
-    if (!state.employees.length || invalidEmployee) {
-      const index = invalidEmployee ? state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1 : 1;
-      const missing = invalidEmployee ? getEmployeeMissingFields(invalidEmployee).join(", ") : "";
-      toast.error(`ข้อมูลพนักงานลำดับ ${index} ยังไม่ครบ`, { description: missing || "ตรวจชื่อ เพศ ประเภทเสื้อ ไซส์ และจำนวน" });
-      setActiveStep(2);
-      if (invalidEmployee) jumpToEmployee(invalidEmployee.id);
-      return false;
-    }
-    setInvalidEmployeeId("");
-    return true;
-  }
-
-  function goToStep(step) {
-    if (step > 1 && !validateCompanyStep()) return;
-    if (step > 2 && !validateEmployeeStep()) return;
-    setActiveStep(step);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function goNextStep() {
-    goToStep(Math.min(3, activeStep + 1));
-  }
-
-  function goBackStep() {
-    setActiveStep((step) => Math.max(1, step - 1));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function openSummary() {
-    if (!validateCompanyStep() || !validateEmployeeStep()) return;
-    if (!gasConfigured) {
-      toast.error("ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อม", { description: "กรุณาติดต่อผู้ดูแลระบบก่อนส่งคำสั่งเบิกเสื้อ" });
-      return;
-    }
-    setActiveStep(3);
-    setSummaryOpen(true);
-  }
-
-  async function submitOrder() {
-    const payload = {
-      batchId: `ORD-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${Date.now().toString().slice(-5)}`,
-      companyName: state.companyName,
-      branch: state.branch,
-      supervisorName: state.supervisorName,
-      supervisorPhone: state.supervisorPhone,
-      submittedAt: new Date().toISOString(),
-      status: ORDER_STATUS_PENDING,
-      statusUpdatedAt: new Date().toISOString(),
-      orders: state.employees.map(({ name, gender, items }) => ({
-        name,
-        gender,
-        items: items.filter((item) => item.size).map((item) => ({
-          type: item.type,
-          size: item.size === OTHER_SIZE ? (item.customSize || "-") : item.size,
-          color: resolveItemColor(item.type, item.color || ""),
-          qty: Number(item.qty || 0)
-        }))
-      }))
-    };
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
-      saveStoredBatch(payload);
-      await new Promise((resolve) => setTimeout(resolve, 650));
-      toast.success("บันทึกคำสั่งเบิกเสื้อแล้ว");
-      localStorage.removeItem(ORDER_DRAFT_KEY);
-      skipDraftSaveRef.current = true;
-      setSummaryOpen(false);
-      setActiveStep(1);
-      setEmployeeCount("1");
-      dispatch({ type: "reset", count: 1 });
-    } catch {
-      toast.error("ส่งคำสั่งเบิกเสื้อไม่สำเร็จ", { description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  return (
-    <>
-      <OrderHeader branch={state.branch} onSizeOpen={() => setSizeOpen(true)} />
-      <main className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-col gap-3 px-4 pb-6 pt-3 sm:px-6 lg:gap-5 lg:pb-12 lg:pt-5">
-        {!gasConfigured && <SetupWarning />}
-
-        {activeStep === 1 && <OrderSetupCard state={state} dispatch={dispatch} />}
-
-        {activeStep === 2 && (
-          <>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <SectionTitle icon={Users} title="รายชื่อพนักงาน" compact />
-              <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[22rem_auto] sm:items-end">
-                <Field label="ระบุจำนวนพนักงานที่ต้องการเบิกเสื้อ">
-                  <div className="grid w-full grid-cols-[1fr_auto] gap-2">
-                    <TextInput value={employeeCount} onChange={(value) => {
-                      const nextCount = digitsOnly(value);
-                      setEmployeeCount(nextCount);
-                    }} placeholder="ใส่จำนวน" inputMode="numeric" pattern="[0-9]*" />
-                    <button onClick={applyEmployeeCount} className="reactbits-shine flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-[#002B5B] px-3 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 sm:min-h-12 sm:gap-2 sm:px-5 sm:text-[15px]">
-                      <UserPlus /> สร้างรายการ
-                    </button>
-                  </div>
-                </Field>
-                <button onClick={addEmployeeFromButton} className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-dashed border-[#8FA4C7] bg-white/80 px-4 text-sm font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:bg-white sm:min-h-12 sm:px-5 sm:text-[15px] lg:hidden">
-                  <UserPlus /> เพิ่มพนักงาน
-                </button>
-              </div>
-            </div>
-            <EmployeeCards employees={state.employees} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} />
-            <EmployeeTable employees={state.employees} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} onAddEmployee={addEmployeeFromButton} />
-            <Card className="p-3 sm:p-4">
-              <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-                <Field label="วางรายชื่อหลายบรรทัด">
-                  <textarea
-                    value={pastedNames}
-                    onChange={(event) => setPastedNames(event.target.value)}
-                    placeholder={"สมชาย ใจดี\nสมหญิง ใจงาม"}
-                    className="min-h-24 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
-                  />
-                </Field>
-                <button onClick={applyPastedNames} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5">
-                  <Users /> สร้างจากรายชื่อ
-                </button>
-              </div>
-            </Card>
-          </>
-        )}
-
-        {activeStep === 3 && (
-          <OrderReviewCard
-            state={state}
-            rows={summaryRows}
-            totalPieces={totalPieces}
-            onEditCompany={() => goToStep(1)}
-            onEditEmployees={() => goToStep(2)}
-          />
-        )}
-
-        <OrderStepActions
-          activeStep={activeStep}
-          totalPieces={totalPieces}
-          completedEmployees={completedEmployees}
-          totalEmployees={state.employees.length}
-          hasIncompleteEmployee={Boolean(firstIncompleteEmployee)}
-          isSubmitting={isSubmitting}
-          onBack={goBackStep}
-          onNext={goNextStep}
-          onSubmit={openSummary}
-          onJumpIncomplete={jumpToFirstIncompleteEmployee}
-        />
-      </main>
-      <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
-      <OrderSummaryDialog open={summaryOpen} setOpen={setSummaryOpen} rows={summaryRows} totalPieces={totalPieces} isSubmitting={isSubmitting} onConfirm={submitOrder} />
-    </>
-  );
-}
-
-const ORDER_STEPS = [
-  { id: 1, title: "ข้อมูลบริษัท/สาขา", icon: FileText },
-  { id: 2, title: "รายชื่อพนักงาน", icon: Users },
-  { id: 3, title: "ตรวจสอบคำสั่งเบิกเสื้อ", icon: PackageCheck }
-];
-
-function OrderStepNav({ activeStep, onStepClick }) {
-  return (
-    <Card className="p-3 sm:p-4">
-      <div className="grid gap-2 sm:grid-cols-3">
-        {ORDER_STEPS.map(({ id, title, icon: Icon }) => {
-          const active = activeStep === id;
-          const done = activeStep > id;
-          return (
-            <button
-              key={id}
-              onClick={() => onStepClick(id)}
-              className={cn(
-                "flex min-h-12 items-center gap-3 rounded-xl border px-3 text-left transition",
-                active ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B] shadow-sm" : "border-[#D8DEEA] bg-white text-[#44536A]",
-                done && "border-[#B7D7C3] bg-[#F0FDF4] text-[#166534]"
-              )}
-            >
-              <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl font-black", active ? "bg-[#002B5B] text-white" : done ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#EEF4FF] text-[#002B5B]")}>
-                {done ? <Check /> : <Icon />}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-xs font-black uppercase text-current/70">Step {id}</span>
-                <span className="block break-words text-sm font-black sm:text-base">{title}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
-function OrderStepActions({ activeStep, totalPieces, completedEmployees, totalEmployees, hasIncompleteEmployee, isSubmitting, onBack, onNext, onSubmit, onJumpIncomplete }) {
-  return (
-    <div className="sticky bottom-3 z-20 rounded-2xl border border-[#D8DEEA] bg-white/95 p-3 shadow-lg backdrop-blur lg:static lg:shadow-sm">
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div className="flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-xl bg-[#EEF4FF] text-xl font-black text-[#002B5B]">{totalPieces}</span>
-          <div>
-            <p className="font-black text-[#071638]">{activeStep === 3 ? "จำนวนรวมก่อนส่ง" : "จำนวนรวม"}</p>
-            <p className="text-sm font-semibold text-[#64748B]">
-              {activeStep === 2 ? `กรอกครบ ${completedEmployees}/${totalEmployees} คน` : `Step ${activeStep} จาก 3`}
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:flex">
-          {activeStep === 2 && (
-            <button onClick={onJumpIncomplete} disabled={!hasIncompleteEmployee} className="col-span-2 min-h-11 rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-4 text-sm font-black text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:col-span-1">
-              ไปคนที่ยังไม่ครบ
-            </button>
-          )}
-          <button onClick={onBack} disabled={activeStep === 1 || isSubmitting} className="min-h-12 rounded-xl border border-[#CBD5E1] bg-white px-5 font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-40">
-            ย้อนกลับ
-          </button>
-          {activeStep < 3 ? (
-            <button onClick={onNext} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-6 font-bold text-white">
-              ถัดไป
-            </button>
-          ) : (
-            <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-6 font-bold text-white disabled:opacity-60">
-              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งเบิกเสื้อ
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OrderReviewCard({ state, rows, totalPieces, onEditCompany, onEditEmployees }) {
-  return (
-    <div className="grid gap-4">
-      <Card>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <SectionTitle icon={PackageCheck} title="ตรวจสอบคำสั่งเบิกเสื้อ" />
-          <button onClick={onEditEmployees} className="min-h-10 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-bold text-[#002B5B]">
-            แก้ไขรายชื่อ
-          </button>
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <ReviewMetric label="บริษัท" value={state.companyName || "-"} />
-          <ReviewMetric label="สาขา" value={state.branch || "-"} />
-          <ReviewMetric label="ผู้ติดต่อ" value={state.supervisorName || "-"} />
-          <ReviewMetric label="เบอร์" value={formatPhone(state.supervisorPhone) || "-"} />
-        </div>
-        <button onClick={onEditCompany} className="mt-4 min-h-10 rounded-xl border border-[#CBD5E1] bg-white px-4 text-sm font-bold text-[#002B5B]">
-          แก้ไขข้อมูลบริษัท/สาขา
-        </button>
-      </Card>
-
-      <Card className="overflow-hidden p-0">
-        <div className="flex items-center justify-between gap-3 border-b border-[#E7EAF0] p-4 sm:p-5">
-          <h2 className="text-lg font-extrabold text-[#071638]">สรุปรายการทั้งหมด</h2>
-          <span className="rounded-xl bg-[#EEF4FF] px-4 py-2 text-sm font-black text-[#002B5B]">{totalPieces} ชิ้น</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left text-sm">
-            <thead className="bg-[#EEF4FF] text-xs font-black uppercase tracking-[.12em] text-[#44536A]">
-              <tr>
-                <th className="px-4 py-3">ชื่อพนักงาน</th>
-                <th className="px-4 py-3">ประเภท</th>
-                <th className="px-4 py-3">สี</th>
-                <th className="px-4 py-3">ไซส์</th>
-                <th className="px-4 py-3 text-right">จำนวน</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-t border-[#E7EAF0]">
-                  <td className="px-4 py-3 font-bold text-[#071638]">{row.name}</td>
-                  <td className="px-4 py-3">{row.type}</td>
-                  <td className="px-4 py-3">{row.size}</td>
-                  <td className="px-4 py-3 text-right font-black">{row.qty}</td>
-                </tr>
-              ))}
-              {!rows.length && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีรายการสำหรับตรวจสอบ</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
     </div>
   );
 }
@@ -2009,10 +1581,6 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
   );
 }
 
-function ReactBitsAurora() {
-  return <div className="reactbits-aurora" aria-hidden="true" />;
-}
-
 function Logo() {
   return (
     <div className="flex min-w-0 items-center">
@@ -2065,17 +1633,6 @@ function Card({ children, className, ...props }) {
     <section {...props} className={cn("shadcn-card reactbits-soft-border reactbits-fade-up rounded-2xl border border-[#DCE5F4] bg-white/96 p-4 shadow-sm backdrop-blur sm:p-5", className)}>
       {children}
     </section>
-  );
-}
-
-function SectionTitle({ icon: Icon, title, compact }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className={cn("grid place-items-center rounded-xl bg-[#E9F1FF] text-[#002B5B]", compact ? "size-9" : "size-11")}>
-        <Icon />
-      </span>
-      <h2 className={cn("font-extrabold tracking-tight text-[#071638]", compact ? "text-lg" : "text-xl")}>{title}</h2>
-    </div>
   );
 }
 
@@ -2214,527 +1771,12 @@ function Select(props) {
   return <CustomSelect {...props} />;
 }
 
-function OrderSetupCard({ state, dispatch }) {
-  return (
-    <Card>
-      <SectionTitle icon={FileText} title="ข้อมูลการเบิกเสื้อ" />
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(12rem,1fr)] lg:items-end">
-        <Field label="ชื่อบริษัท">
-          <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
-        </Field>
-        <Field label="สาขา">
-          <Select value={state.branch} onChange={(value) => dispatch({ type: "patchBatch", patch: { branch: value } })} values={BRANCHES} />
-        </Field>
-        <Field label="ผู้ติดต่อ">
-          <TextInput value={state.supervisorName} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorName: value } })} placeholder="ระบุชื่อ-นามสกุล" />
-        </Field>
-        <Field label="เบอร์ติดต่อ">
-          <TextInput value={state.supervisorPhone} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorPhone: phoneDigitsOnly(value) } })} placeholder="08X-XXX-XXXX" inputMode="numeric" pattern="[0-9]*" />
-        </Field>
-      </div>
-    </Card>
-  );
-}
-
-function SetupWarning() {
-  return (
-    <div className="rounded-2xl border border-[#F6D88B] bg-[#FFF8E3] px-4 py-3 text-sm font-semibold leading-6 text-[#725000] shadow-sm">
-      ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ
-    </div>
-  );
-}
-
-function validateImageFile(file) {
-  if (!file) return "ไม่พบไฟล์รูปภาพ";
-  if (!IMAGE_UPLOAD_TYPES.includes(file.type)) return "รองรับเฉพาะไฟล์ JPG, PNG หรือ WEBP";
-  if (file.size > IMAGE_UPLOAD_MAX_BYTES) return "รูปภาพต้องมีขนาดไม่เกิน 10MB";
-  return "";
-}
-
-function sanitizeAssetFileName(fileName) {
-  const extension = fileName.split(".").pop()?.toLowerCase() || "jpg";
-  const safeExtension = ["jpg", "jpeg", "png", "webp"].includes(extension) ? extension : "jpg";
-  const baseName = fileName
-    .replace(/\.[^/.]+$/, "")
-    .normalize("NFKD")
-    .replace(/[^\w-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48) || "shirt";
-  return `${baseName}.${safeExtension}`;
-}
-
-function getBlobUploadErrorMessage(error) {
-  const message = String(error?.message || "");
-  if (message.includes("404")) return "ไม่พบ API อัปโหลด Blob ให้รันผ่าน Vercel หรือ deploy ก่อนใช้งาน";
-  if (message.toLowerCase().includes("token") || message.includes("BLOB_READ_WRITE_TOKEN")) return "ยังไม่ได้ตั้งค่า BLOB_READ_WRITE_TOKEN ใน Vercel";
-  return "อัปโหลดรูปไม่สำเร็จ";
-}
-
-async function uploadImageToBlob(file) {
-  try {
-    const blob = await upload(`shirt-assets/${Date.now()}-${sanitizeAssetFileName(file.name)}`, file, {
-      access: "public",
-      handleUploadUrl: "/api/blob/upload"
-    });
-    return { url: blob.url, storage: "blob" };
-  } catch (error) {
-    throw new Error(getBlobUploadErrorMessage(error));
-  }
-}
-
-function EmployeeCards({ employees, dispatch, invalidEmployeeId }) {
-  const canDelete = canDeleteEmployee(employees);
-  const [editingEmployeeId, setEditingEmployeeId] = useState("");
-  const firstPopupInputRef = useRef(null);
-  const selectedEmployee = employees.find((employee) => employee.id === editingEmployeeId) || null;
-  const selectedIndex = selectedEmployee ? employees.findIndex((employee) => employee.id === selectedEmployee.id) : -1;
-
-  useEffect(() => {
-    if (invalidEmployeeId) setEditingEmployeeId(invalidEmployeeId);
-  }, [invalidEmployeeId]);
-
-  useEffect(() => {
-    if (editingEmployeeId && !employees.some((employee) => employee.id === editingEmployeeId)) {
-      setEditingEmployeeId("");
-    }
-  }, [editingEmployeeId, employees]);
-
-  useEffect(() => {
-    if (!selectedEmployee) return;
-    window.setTimeout(() => firstPopupInputRef.current?.focus(), 80);
-  }, [selectedEmployee?.id]);
-
-  function saveAndOpenNext(index) {
-    const nextIndex = index + 1 < employees.length ? index + 1 : -1;
-    const nextEmployee = employees[nextIndex];
-    dispatch({ type: "saveAndOpenNext", nextIndex });
-    if (nextEmployee) {
-      setEditingEmployeeId(nextEmployee.id);
-      window.setTimeout(() => {
-        scrollInsideEmployeeList(document.querySelector(`[data-employee-card="${nextEmployee.id}"]`));
-      }, 80);
-    } else {
-      setEditingEmployeeId("");
-    }
-  }
-
-  function copyPreviousEmployee() {
-    if (!selectedEmployee || selectedIndex <= 0) return;
-    const previousEmployee = employees[selectedIndex - 1];
-    dispatch({ type: "copyEmployeeSetup", id: selectedEmployee.id, sourceId: previousEmployee.id });
-    toast.success("คัดลอกข้อมูลจากคนก่อนหน้าแล้ว");
-  }
-
-  return (
-    <>
-      <div className="employee-scroll-region max-h-[min(44rem,72vh)] overflow-y-auto scroll-smooth pr-1 lg:hidden">
-        <div className="grid gap-3">
-          {employees.map((employee, index) => {
-            const complete = isEmployeeComplete(employee);
-            const missingFields = getEmployeeMissingFields(employee);
-            const isInvalidTarget = invalidEmployeeId === employee.id;
-            return (
-              <Card key={employee.id} className={cn("p-0 transition", isInvalidTarget && "employee-attention border-[#FCA5A5] bg-[#FFF7F7] ring-2 ring-[#EF4444]")} data-employee-card={employee.id}>
-                <button onClick={() => setEditingEmployeeId(employee.id)} className="flex min-h-12 w-full items-center justify-between gap-2 p-2.5 text-left sm:min-h-14 sm:gap-3 sm:p-3">
-                  <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#E8F0FF] text-sm font-extrabold text-[#002B5B] sm:size-10 sm:text-base">{index + 1}</span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-[#071638] sm:text-[15px]">{employee.name || "ยังไม่ระบุชื่อ"}</p>
-                      <p className="mt-1 text-xs font-semibold text-[#64748B]">{employee.gender || "เลือกเพศ"}</p>
-                      {!complete && (
-                        <p className="mt-1 text-xs font-black text-[#B91C1C]">ยังขาด: {missingFields.join(", ")}</p>
-                      )}
-                    </div>
-                  </div>
-                  <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-black sm:px-3 sm:text-xs", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "ยังไม่ครบ"}</span>
-                </button>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      <Dialog.Root open={Boolean(selectedEmployee)} onOpenChange={(open) => !open && setEditingEmployeeId("")}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm lg:hidden" />
-          <Dialog.Content aria-describedby={undefined} className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white lg:hidden">
-            {selectedEmployee && (
-              <>
-                <div className="flex min-h-14 items-center justify-between border-b border-[#E7EAF0] bg-white px-4">
-                  <div className="min-w-0">
-                    <Dialog.Title className="truncate text-base font-black text-[#071638]">
-                      พนักงานลำดับ {selectedIndex + 1}
-                    </Dialog.Title>
-                    <p className="truncate text-xs font-bold text-[#64748B]">{selectedEmployee.name || "ยังไม่ระบุชื่อ"}</p>
-                  </div>
-                  <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด">
-                    <X />
-                  </Dialog.Close>
-                </div>
-
-                <div className="employee-scroll-region min-h-0 flex-1 overflow-y-auto bg-[#F5F7FB] p-3">
-                  <div className="grid gap-3">
-                    {selectedIndex > 0 && (
-                      <button onClick={copyPreviousEmployee} className="min-h-10 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-black text-[#002B5B]">
-                        คัดลอกจากคนก่อนหน้า
-                      </button>
-                    )}
-                    <Field label="ชื่อ-นามสกุล">
-                      <TextInput ref={firstPopupInputRef} value={selectedEmployee.name} onChange={(value) => dispatch({ type: "patchEmployee", id: selectedEmployee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
-                    </Field>
-                    <div className="grid grid-cols-[.85fr_1.15fr] gap-2.5">
-                      <GenderChoices employee={selectedEmployee} dispatch={dispatch} />
-                      <GarmentChoices employee={selectedEmployee} dispatch={dispatch} />
-                    </div>
-                    <ItemEditors employee={selectedEmployee} dispatch={dispatch} />
-                  </div>
-                </div>
-
-                <div className={cn("grid gap-2.5 border-t border-[#E7EAF0] bg-white p-3", selectedIndex + 1 < employees.length ? "grid-cols-[1fr_48px]" : "grid-cols-[48px] justify-end")}>
-                  {selectedIndex + 1 < employees.length && (
-                    <button onClick={() => saveAndOpenNext(selectedIndex)} disabled={!isEmployeeComplete(selectedEmployee)} className="reactbits-shine flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#002B5B] text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">
-                      <Check /> ถัดไป
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (!canDelete) return;
-                      setEditingEmployeeId("");
-                      dispatch({ type: "delete", id: selectedEmployee.id });
-                    }}
-                    disabled={!canDelete}
-                    aria-label={canDelete ? "Delete employee" : "At least one employee is required"}
-                    title={canDelete ? "Delete employee" : "At least one employee is required"}
-                    className={cn(
-                      "grid min-h-11 place-items-center rounded-xl border transition",
-                      canDelete
-                        ? "border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]"
-                        : "cursor-not-allowed border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8]"
-                    )}
-                  >
-                    <Trash2 />
-                  </button>
-                </div>
-              </>
-            )}
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-    </>
-  );
-}
-
-function GarmentChoices({ employee, dispatch }) {
-  const clothingTypes = getClothingTypes();
-  return (
-    <Field label="เลือกประเภทเสื้อ">
-      <div className="grid gap-2.5 sm:gap-3">
-        {clothingTypes.map((type) => {
-          const checked = employee.items.some((item) => item.type === type);
-          return (
-            <label key={type} className={cn("flex min-h-10 items-center gap-2 rounded-xl border px-2.5 text-sm font-bold transition sm:min-h-12 sm:px-3 sm:text-[15px]", checked ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B]" : "border-[#CBD5E1] bg-white text-[#071638]")}>
-              <input type="checkbox" checked={checked} onChange={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="size-4 accent-[#002B5B] sm:size-5" />
-              <span className="min-w-0 break-words leading-tight">{type}</span>
-            </label>
-          );
-        })}
-      </div>
-    </Field>
-  );
-}
-
-function GenderChoices({ employee, dispatch }) {
-  return (
-    <Field label="เพศ">
-      <div className="grid gap-2.5 sm:gap-3">
-        {GENDERS.map((gender) => (
-          <button key={gender} onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })} className={cn("min-h-10 rounded-xl border text-sm font-bold transition sm:min-h-12 sm:text-[15px]", employee.gender === gender ? "border-[#002B5B] bg-[#002B5B] text-white shadow-md" : "border-[#CBD5E1] bg-white text-[#071638]")}>
-            {gender}
-          </button>
-        ))}
-      </div>
-    </Field>
-  );
-}
-
-function ItemEditors({ employee, dispatch }) {
-  const clothingTypes = getClothingTypes();
-  if (!employee.items.length) {
-    return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#64748B] sm:p-4">เลือกประเภทเสื้ออย่างน้อย 1 รายการ</div>;
-  }
-
-  return (
-    <div className="rounded-2xl bg-[#EDF4FF] p-2.5 sm:p-3">
-      <div className="mb-2 flex items-center gap-2 text-sm font-extrabold text-[#002B5B] sm:mb-3"><Shirt /> รายละเอียดชุด</div>
-      <div className="grid gap-2.5 sm:gap-3">
-        {clothingTypes.map((type) => {
-          const item = employee.items.find((item) => item.type === type);
-          return (
-            <div key={type} className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
-              {item ? (
-                <>
-                  <div className="grid grid-cols-[1fr_88px] items-center gap-2.5 sm:grid-cols-[1fr_110px] sm:gap-3">
-                    <Select value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} />
-                    <TextInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
-                  </div>
-                  {needsColorSelection(item.type) && (
-                    <div className="mt-2.5 sm:mt-3">
-                      <ItemColorSelect employee={employee} item={item} dispatch={dispatch} />
-                    </div>
-                  )}
-                  {item.size === OTHER_SIZE && (
-                    <div className="mt-2.5 sm:mt-3">
-                      <TextInput value={item.customSize} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} placeholder="ระบุไซส์เพิ่มเติม" />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <span className="block min-h-10 sm:min-h-14" aria-hidden="true" />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function EmployeeTable({ employees, dispatch, invalidEmployeeId, onAddEmployee }) {
-  const [query, setQuery] = useState("");
-  const [editingEmployeeId, setEditingEmployeeId] = useState("");
-  const canDelete = canDeleteEmployee(employees);
-  const editingEmployee = employees.find((employee) => employee.id === editingEmployeeId) || null;
-
-  useEffect(() => {
-    if (invalidEmployeeId) setQuery("");
-  }, [invalidEmployeeId]);
-
-  const filteredEmployees = employees.filter((employee) =>
-    [employee.name, employee.gender, ...employee.items.map((item) => `${item.type} ${item.color} ${item.size} ${item.customSize}`)]
-      .join(" ")
-      .toLowerCase()
-      .includes(query.trim().toLowerCase())
-  );
-
-  return (
-    <>
-    <Card className="hidden overflow-hidden p-0 lg:block">
-      <div className="flex items-center justify-between gap-4 border-b border-[#E7EAF0] p-5">
-        <h2 className="text-xl font-extrabold text-[#071638]">รายการเบิกเสื้อพนักงาน</h2>
-        <div className="flex items-center gap-2">
-          <div className="relative w-80">
-            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#CBD5E1] bg-white pl-11 pr-4 text-[15px] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" placeholder="ค้นหาชื่อพนักงาน" />
-          </div>
-          <button onClick={onAddEmployee} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-[#8FA4C7] bg-white/90 px-4 font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
-            <UserPlus /> เพิ่มพนักงาน
-          </button>
-        </div>
-      </div>
-      <div className="employee-scroll-region max-h-[34rem] overflow-auto scroll-smooth">
-        <table className="w-full min-w-[980px] text-center text-sm">
-          <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs uppercase tracking-[.16em] text-[#1F2937]">
-            <tr>{["#", "ชื่อ", "เพศ", "รายการที่เลือก", "จัดการ"].map((header) => <th key={header} className="px-5 py-4 text-center">{header}</th>)}</tr>
-          </thead>
-          <tbody>
-            {filteredEmployees.map((employee) => {
-              const index = employees.findIndex((item) => item.id === employee.id);
-              const complete = isEmployeeComplete(employee);
-              const missingFields = getEmployeeMissingFields(employee);
-              const isInvalidTarget = invalidEmployeeId === employee.id;
-              return (
-              <tr key={employee.id} data-employee-row={employee.id} className={cn("border-b border-[#E7EAF0] align-top", isInvalidTarget && "employee-attention bg-[#FFF7F7] outline outline-2 outline-[#EF4444] outline-offset-[-2px]")}>
-                <td className="px-5 py-4 text-center">
-                  <span className="text-lg font-black">{index + 1}</span>
-                  {!complete && <span className="mt-2 block rounded-full bg-[#FEF3C7] px-2 py-1 text-[11px] font-black text-[#92400E]">ยังไม่ครบ</span>}
-                </td>
-                <td className="px-5 py-4">
-                  <GridInput value={employee.name} placeholder="ระบุชื่อพนักงาน" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
-                  {!complete && <p className="mt-2 text-left text-xs font-black text-[#B91C1C]">ยังขาด: {missingFields.join(", ")}</p>}
-                </td>
-                <td className="px-5 py-4"><GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} /></td>
-                <td className="px-5 py-4 text-left">
-                  <EmployeeItemSummary employee={employee} onEdit={() => setEditingEmployeeId(employee.id)} />
-                </td>
-                <td className="px-5 py-4 text-center">
-                  <button
-                    onClick={() => dispatch({ type: "delete", id: employee.id })}
-                    disabled={!canDelete}
-                    aria-label={canDelete ? "Delete employee" : "At least one employee is required"}
-                    title={canDelete ? "Delete employee" : "At least one employee is required"}
-                    className={cn(
-                      "grid size-11 place-items-center rounded-2xl border transition",
-                      canDelete
-                        ? "border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]"
-                        : "cursor-not-allowed border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8]"
-                    )}
-                  >
-                    <Trash2 />
-                  </button>
-                </td>
-              </tr>
-            );})}
-            {!filteredEmployees.length && (
-              <tr>
-                <td colSpan={5} className="px-5 py-10 text-center font-bold text-[#64748B]">ไม่พบพนักงานตามคำค้นหา</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-    <GarmentEditorDialog employee={editingEmployee} dispatch={dispatch} onClose={() => setEditingEmployeeId("")} />
-    </>
-  );
-}
-
-function DesktopGarmentChoices({ employee, dispatch }) {
-  return (
-    <div className="mx-auto grid w-44 gap-2">
-      {CLOTHING_TYPES.map((type) => {
-        const checked = employee.items.some((item) => item.type === type);
-        return (
-          <label key={type} className={cn("flex min-h-12 items-center justify-start gap-3 rounded-xl border px-3 text-left font-bold transition", checked ? "border-[#002B5B] bg-[#E8F0FF] text-[#002B5B]" : "border-[#D8DEEA] bg-white text-[#071638]")}>
-            <input type="checkbox" checked={checked} onChange={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="size-4 accent-[#002B5B]" />
-            {type}
-          </label>
-        );
-      })}
-    </div>
-  );
-}
-
-function DesktopItemEditors({ employee, dispatch }) {
-  if (!employee.items.length) {
-    return <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#64748B]">ติ๊กประเภทเสื้อทางซ้าย</div>;
-  }
-
-  return (
-    <div className="mx-auto grid min-w-[280px] gap-2">
-      {CLOTHING_TYPES.map((type) => {
-        const item = employee.items.find((item) => item.type === type);
-        return (
-          <div key={type} className="grid min-h-12 grid-cols-[1fr_5.5rem] items-center gap-3">
-            {item ? (
-              <>
-                <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} />
-                <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
-                {needsColorSelection(item.type) && (
-                  <div className="col-span-2">
-                    <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
-                  </div>
-                )}
-                {item.size === OTHER_SIZE && <div className="col-span-2"><GridInput value={item.customSize} placeholder="ระบุไซส์เพิ่มเติม" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} /></div>}
-              </>
-            ) : (
-              <span className="col-span-2 min-h-12 rounded-xl border border-dashed border-transparent" aria-hidden="true" />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function GridInput({ value, onChange, placeholder, type = "text", inputMode, pattern, autoCapitalize }) {
   return <input type={type} value={value} placeholder={placeholder} inputMode={inputMode} pattern={pattern} autoCapitalize={autoCapitalize} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-[#D8DEEA] bg-white px-3 text-[#071638] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" />;
 }
 
 function GridSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false }) {
   return <CustomSelect value={value} values={values} onChange={onChange} placeholder={placeholder} disabled={disabled} compact={compact} />;
-}
-
-function MobileSubmit({ totalPieces, isSubmitting, onSubmit }) {
-  return (
-    <div className="relative z-10 mx-auto w-full max-w-[1180px] px-4 pb-6 sm:px-6 lg:hidden">
-      <div className="grid grid-cols-[86px_1fr] gap-3 rounded-2xl border border-[#D8DEEA] bg-white/95 p-3 shadow-sm backdrop-blur">
-        <div className="flex min-h-12 flex-col justify-center rounded-xl bg-[#EEF4FF] px-3 text-[#002B5B]">
-          <span className="text-xl font-black">{totalPieces}</span>
-          <span className="text-xs font-bold">รายการ</span>
-        </div>
-        <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#002B5B] font-bold text-white">
-          {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันการเบิกเสื้อ
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function DesktopSubmit({ totalPieces, isSubmitting, onSubmit }) {
-  return (
-    <div className="hidden items-center justify-between rounded-2xl border border-[#D8DEEA] bg-white/95 p-4 shadow-sm backdrop-blur lg:flex">
-      <div className="flex items-center gap-3">
-        <span className="grid size-11 place-items-center rounded-xl bg-[#EEF4FF] text-xl font-black text-[#002B5B]">{totalPieces}</span>
-        <div>
-          <p className="font-black text-[#071638]">จำนวนรวม</p>
-          <p className="text-sm font-semibold text-[#64748B]">ตรวจสอบรายการก่อนส่งคำสั่งเบิกเสื้อ</p>
-        </div>
-      </div>
-      <button onClick={onSubmit} disabled={isSubmitting} className="reactbits-shine flex min-h-12 min-w-72 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-6 font-bold text-white">
-        {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันการเบิกเสื้อ
-      </button>
-    </div>
-  );
-}
-
-function OrderSummaryDialog({ open, setOpen, rows, totalPieces, isSubmitting, onConfirm }) {
-  return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-[1.5rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(46rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
-          <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
-            <Dialog.Title className="text-2xl font-black text-[#071638]">สรุปคำสั่งเบิกเสื้อ</Dialog.Title>
-            <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
-          </div>
-          <div className="max-h-[58vh] overflow-auto p-3 sm:p-4">
-            <div className="grid gap-2 sm:hidden">
-              {rows.map((row) => (
-                <SummaryMobileRow key={row.id} row={row} />
-              ))}
-              {!rows.length && <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">ยังไม่มีรายการ</div>}
-            </div>
-            <div className="hidden overflow-hidden rounded-2xl border border-[#D8DEEA] sm:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[#EEF4FF] text-xs font-black uppercase tracking-[.12em] text-[#44536A]">
-                  <tr>
-                    <th className="px-3 py-3">ชื่อ</th>
-                    <th className="px-3 py-3">เสื้อ</th>
-                    <th className="px-3 py-3">สี</th>
-                    <th className="px-3 py-3">ไซส์</th>
-                    <th className="px-3 py-3 text-right">จำนวน</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id} className="border-t border-[#E7EAF0]">
-                      <td className="px-3 py-3 font-bold text-[#071638]">{row.name}</td>
-                      <td className="px-3 py-3">{row.type}</td>
-                      <td className="px-3 py-3">{row.color || "-"}</td>
-                      <td className="px-3 py-3">{row.size}</td>
-                      <td className="px-3 py-3 text-right font-black">{row.qty}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#EEF4FF] px-4 py-3 font-black text-[#002B5B]">
-              <span>จำนวนทั้งหมด</span>
-              <span>{totalPieces} ชิ้น</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 border-t border-[#E7EAF0] p-3 sm:grid-cols-[1fr_1.35fr] sm:gap-3 sm:p-4">
-            <Dialog.Close className="min-h-13 rounded-2xl border border-[#CBD5E1] bg-white font-black text-[#071638]">
-              กลับไปแก้ไข
-            </Dialog.Close>
-            <button onClick={onConfirm} disabled={isSubmitting || !rows.length} className="reactbits-shine flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-[#002B5B] font-black text-white disabled:opacity-60">
-              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />} ยืนยันส่งคำสั่งเบิกเสื้อ
-            </button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
 }
 
 function SizeReference({ open, setOpen }) {
@@ -3028,8 +2070,8 @@ function ClothingManager({ config, setConfig }) {
   }
 
   return (
-    <Card>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <Card className="clothing-manager-card p-0">
+      <div className="flex flex-col gap-3 border-b border-[#E7EAF0] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-extrabold text-[#071638]">ตั้งค่าเสื้อและไซส์</h2>
           <p className="mt-1 text-sm font-semibold text-[#64748B]">เลือกแบบเสื้อจากรายการ แล้วแก้รายละเอียดเฉพาะตัวที่ต้องการ</p>
@@ -3038,15 +2080,15 @@ function ClothingManager({ config, setConfig }) {
           <Plus /> เพิ่มแบบเสื้อ
         </button>
       </div>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[18rem_1fr] lg:items-start">
-        <div className="grid max-h-[70vh] gap-2 overflow-auto rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] p-2">
+      <div className="grid gap-4 bg-[#F7F9FC] p-3 lg:grid-cols-[18rem_1fr] lg:items-start">
+        <div className="clothing-list grid max-h-[70vh] gap-2 overflow-auto rounded-xl border border-[#E4E4E7] bg-white p-2">
           {config.map((item) => (
             <button
               key={item.id}
               onClick={() => setSelectedId(item.id)}
               className={cn(
                 "grid grid-cols-[3.25rem_1fr] gap-3 rounded-lg border p-2 text-left transition",
-                item.id === selectedItem?.id ? "border-[#18181B] bg-white shadow-sm" : "border-transparent bg-transparent hover:bg-white"
+                item.id === selectedItem?.id ? "border-[#0D152A] bg-[#F8FAFC] shadow-sm" : "border-transparent bg-white hover:border-[#E7EAF0] hover:bg-[#F8FAFC]"
               )}
             >
               <div className="overflow-hidden rounded-md border border-[#E4E4E7] bg-white">
@@ -3061,7 +2103,7 @@ function ClothingManager({ config, setConfig }) {
         </div>
 
         {selectedItem && (
-          <div className="rounded-xl border border-[#D8DEEA] bg-[#F8FAFC] p-3">
+          <div className="clothing-editor rounded-xl border border-[#D8DEEA] bg-white p-3">
             <div className="grid gap-3 lg:grid-cols-[9rem_1fr_auto] lg:items-start">
               <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white">
                 {selectedItem.imageUrl ? (
@@ -4000,3 +3042,9 @@ function SkeletonDashboard() {
 }
 
 createRoot(document.getElementById("root")).render(<App />);
+
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}

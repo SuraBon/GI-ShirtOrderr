@@ -1,0 +1,25 @@
+{
+  "name": "ShirtClaim",
+  "short_name": "ShirtClaim",
+  "description": "ระบบเบิกเสื้อพนักงาน",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#0d152a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/gold-integrate-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/gold-integrate-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
