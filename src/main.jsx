@@ -726,9 +726,9 @@ function App() {
         toastOptions={{
           duration: 4200,
           classNames: {
-            toast: "rounded-lg border text-[14px] font-semibold",
-            title: "font-extrabold",
-            description: "font-semibold"
+            toast: "gi-toast rounded-2xl border text-[14px] font-semibold",
+            title: "gi-toast-title font-extrabold",
+            description: "gi-toast-description font-semibold"
           }
         }}
       />
@@ -1786,39 +1786,43 @@ function SizeReference({ open, setOpen }) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-4 bottom-4 top-4 z-50 flex flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(46rem,88vh)] sm:w-[min(42rem,88vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
-          <div className="flex items-center justify-between border-b border-[#E7EAF0] px-4 py-3">
-            <Dialog.Title className="text-xl font-black text-[#071638]">ข้อมูลเสื้อ</Dialog.Title>
-            <Dialog.Close className="grid size-9 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+        <Dialog.Content aria-describedby={undefined} className="size-reference-dialog fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#DDE5F0] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(44rem,88vh)] sm:w-[min(46rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+          <div className="flex items-center justify-between border-b border-[#E7EAF0] bg-white px-4 py-3 sm:px-5">
+            <div className="min-w-0">
+              <Dialog.Title className="text-lg font-black text-[#071638] sm:text-xl">ข้อมูลเสื้อ</Dialog.Title>
+            </div>
+            <Dialog.Close className="grid size-10 shrink-0 place-items-center rounded-full text-[#1F2937] transition hover:bg-[#F1F5F9]" aria-label="ปิด"><X className="size-5" /></Dialog.Close>
           </div>
           <Tabs.Root defaultValue={tabs[0]?.id} className="flex min-h-0 flex-1 flex-col">
-            <Tabs.List className="flex shrink-0 overflow-x-auto border-b border-[#E7EAF0] bg-[#F8FAFD]">
-              {tabs.map((tab) => <Tabs.Trigger key={tab.id} value={tab.id} className="min-h-10 shrink-0 border-b-2 border-transparent px-3 text-xs font-black text-[#4B5565] data-[state=active]:border-[#002B5B] data-[state=active]:text-[#002B5B]">{tab.type}</Tabs.Trigger>)}
+            <Tabs.List className="size-reference-tabs flex shrink-0 gap-1 overflow-x-auto border-b border-[#E7EAF0] bg-[#F8FAFD] px-3 py-2">
+              {tabs.map((tab) => <Tabs.Trigger key={tab.id} value={tab.id} className="min-h-9 shrink-0 rounded-lg border border-transparent px-3 text-xs font-black text-[#4B5565] transition data-[state=active]:border-[#BFD0EA] data-[state=active]:bg-white data-[state=active]:text-[#071638] data-[state=active]:shadow-sm">{tab.type}</Tabs.Trigger>)}
             </Tabs.List>
-            <div className="grid grid-cols-2 gap-2 border-b border-[#E7EAF0] bg-white p-3">
+            <div className="grid grid-cols-2 gap-2 border-b border-[#E7EAF0] bg-white p-3 sm:px-5">
               {GENDERS.map((gender) => (
                 <button
                   key={gender}
                   onClick={() => setSelectedGender(gender)}
-                  className={cn("min-h-10 rounded-xl border text-sm font-black transition", selectedGender === gender ? "border-[#002B5B] bg-[#002B5B] text-white" : "border-[#CBD5E1] bg-white text-[#071638]")}
+                  className={cn("min-h-10 rounded-xl border text-sm font-black transition", selectedGender === gender ? "border-[#0D152A] bg-[#0D152A] text-white shadow-sm" : "border-[#CBD5E1] bg-white text-[#071638] hover:bg-[#F8FAFC]")}
                 >
                   {gender}
                 </button>
               ))}
             </div>
-            <div className="min-h-0 flex-1 overflow-auto bg-[#FBFCFF] p-3">
+            <div className="employee-scroll-region min-h-0 flex-1 overflow-auto bg-[#F6F8FB] p-3 sm:p-4">
               {tabs.map((tab) => {
                 const sizeRows = tab.genderSizeRows?.[selectedGender] || tab.sizeRows || [];
                 return (
-                <Tabs.Content key={tab.id} value={tab.id}>
-                  <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white shadow-sm">
+                <Tabs.Content key={tab.id} value={tab.id} className="outline-none">
+                  <div className="overflow-hidden rounded-2xl border border-[#D8DEEA] bg-white shadow-sm">
                     {tab.imageUrl ? (
-                      <img src={tab.imageUrl} alt={tab.type} className="h-72 w-full bg-[#F8FAFC] object-contain" />
+                      <div className="border-b border-[#E7EAF0] bg-gradient-to-b from-white to-[#F8FAFC] px-4 py-3">
+                        <img src={tab.imageUrl} alt={tab.type} className="mx-auto h-36 w-full max-w-[28rem] object-contain sm:h-44" />
+                      </div>
                     ) : (
-                      <div className="grid h-40 place-items-center bg-[#F1F5F9] text-sm font-bold text-[#94A3B8]">ยังไม่มีรูปเสื้อ</div>
+                      <div className="grid h-32 place-items-center border-b border-[#E7EAF0] bg-[#F1F5F9] text-sm font-bold text-[#94A3B8]">ยังไม่มีรูปเสื้อ</div>
                     )}
-                    <div className="border-b border-[#E7EAF0] px-4 py-3">
-                      <h3 className="text-lg font-black text-[#071638]">{tab.type}</h3>
+                    <div className="border-b border-[#E7EAF0] px-4 py-3 sm:px-5">
+                      <h3 className="text-base font-black text-[#071638] sm:text-lg">{tab.type}</h3>
                       {tab.colors?.length ? (
                         <div className="mt-3 flex flex-wrap gap-2">
                           {tab.colors.map((color) => (
@@ -1832,26 +1836,26 @@ function SizeReference({ open, setOpen }) {
                         <p className="mt-2 text-sm font-semibold text-[#64748B]">ยังไม่ได้กำหนดสีสำหรับเสื้อนี้</p>
                       )}
                     </div>
-                    <table className="size-reference-table w-full text-center text-sm">
+                    <table className="size-reference-table w-full table-fixed text-center text-sm">
                       <thead>
                         <tr>
-                          <th colSpan={Math.max(2, tab.detailFields.length + 1)} className="border px-3 py-2.5 text-lg font-black">
+                          <th colSpan={Math.max(2, tab.detailFields.length + 1)} className="border px-3 py-3 text-base font-black sm:text-lg">
                             {tab.type === "เสื้อโปโล" ? `${tab.type} ${selectedGender}` : tab.type}
                           </th>
                         </tr>
                         <tr>
-                          <th className="border px-3 py-2 text-base font-black">{tab.type.includes("กางเกง") ? "เอว" : "ไซส์"}</th>
+                          <th className="border px-3 py-2.5 text-sm font-black sm:text-base">{tab.type.includes("กางเกง") ? "เอว" : "ไซส์"}</th>
                           {tab.detailFields.map((field) => (
-                            <th key={`${tab.id}-${field}`} className="border px-3 py-2 text-base font-black">{field}</th>
+                            <th key={`${tab.id}-${field}`} className="border px-3 py-2.5 text-sm font-black sm:text-base">{field}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {sizeRows.map(({ size, details }, index) => (
                           <tr key={`${selectedGender}-${size}-${index}`}>
-                            <td className="border bg-white px-3 py-2 text-base font-semibold">{size}</td>
+                            <td className="border bg-white px-3 py-2.5 text-base font-semibold">{size}</td>
                             {tab.detailFields.map((field) => (
-                              <td key={`${selectedGender}-${size}-${field}`} className="border bg-white px-3 py-2 text-base font-semibold">
+                              <td key={`${selectedGender}-${size}-${field}`} className="border bg-white px-3 py-2.5 text-base font-semibold">
                                 {details?.[field] || ""}
                               </td>
                             ))}
