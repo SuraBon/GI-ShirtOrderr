@@ -1003,7 +1003,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45" />
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45" />
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
             <div>
@@ -1244,7 +1244,7 @@ function GarmentEditorDialog({ employee, dispatch, onClose }) {
   return (
     <Dialog.Root modal={false} open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(42rem,88vh)] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           {employee && (
             <>
@@ -1348,7 +1348,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
   return (
     <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 lg:hidden" />
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 lg:hidden" />
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-xl bg-white shadow-2xl lg:hidden">
           {employee && (
             <>
@@ -1430,7 +1430,7 @@ function QuickOrderSummaryDialog({ open, setOpen, state, rows, totalPieces, isSu
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45" />
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45" />
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(46rem,94vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
             <Dialog.Title className="text-xl font-extrabold text-[#071638]">สรุปก่อนส่ง</Dialog.Title>
@@ -1785,7 +1785,7 @@ function SizeReference({ open, setOpen }) {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
         <Dialog.Content aria-describedby={undefined} className="size-reference-dialog fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#DDE5F0] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(44rem,88vh)] sm:w-[min(46rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] bg-white px-4 py-3 sm:px-5">
             <div className="min-w-0">
@@ -1819,7 +1819,10 @@ function SizeReference({ open, setOpen }) {
                         <img src={tab.imageUrl} alt={tab.type} className="mx-auto h-36 w-full max-w-[28rem] object-contain sm:h-44" />
                       </div>
                     ) : (
-                      <div className="grid h-32 place-items-center border-b border-[#E7EAF0] bg-[#F1F5F9] text-sm font-bold text-[#94A3B8]">ยังไม่มีรูปเสื้อ</div>
+                      <div className="size-reference-empty flex h-32 flex-col items-center justify-center gap-2 border-b border-[#E7EAF0] bg-[#F1F5F9] text-sm font-bold text-[#94A3B8]">
+                        <span className="grid size-11 place-items-center rounded-2xl border border-[#D8E3F5] bg-white text-[#64748B]"><Shirt className="size-5" /></span>
+                        <span>ยังไม่มีรูปเสื้อ</span>
+                      </div>
                     )}
                     <div className="border-b border-[#E7EAF0] px-4 py-3 sm:px-5">
                       <h3 className="text-base font-black text-[#071638] sm:text-lg">{tab.type}</h3>
@@ -2716,7 +2719,7 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoa
   }
 
   return (
-    <div className="rounded-xl border border-[#D8DEEA] bg-white/96 p-3 text-left shadow-sm transition hover:border-[#9EB7DD]">
+    <div data-dashboard-order={batch.status === ORDER_STATUS_DELIVERED ? "delivered" : "pending"} className="dashboard-order-card rounded-xl border border-[#D8DEEA] bg-white/96 p-3 text-left shadow-sm transition hover:border-[#9EB7DD]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[12px] font-bold text-[#64748B]">{batch.batchId}</p>
@@ -2759,7 +2762,7 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoa
 function StatusBadge({ status }) {
   const delivered = status === ORDER_STATUS_DELIVERED;
   return (
-    <span className={cn("inline-flex shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold", delivered ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>
+    <span data-status={delivered ? "delivered" : "pending"} className={cn("status-badge inline-flex shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold", delivered ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>
       {status}
     </span>
   );
@@ -2851,7 +2854,7 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
   return (
     <Dialog.Root open={Boolean(batch)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           {batch && (
             <>
@@ -2948,7 +2951,7 @@ function BatchEmployeeListDialog({ batch, open, setOpen }) {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[60] bg-[#0F172A]/35 backdrop-blur-sm" />
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-[60] bg-[#0F172A]/35 backdrop-blur-sm" />
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-2 bottom-2 top-2 z-[61] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[82vh] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[#E7EAF0] px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
             <div className="min-w-0">
@@ -2985,8 +2988,11 @@ function BatchEmployeeListDialog({ batch, open, setOpen }) {
 
 function EmptyDashboardState({ text, compact = false }) {
   return (
-    <div className={cn("rounded-2xl border border-dashed border-[#CBD5E1] bg-white/70 text-center font-bold text-[#64748B]", compact ? "p-4" : "p-10")}>
-      {text}
+    <div className={cn("empty-state rounded-2xl border border-dashed border-[#CBD5E1] bg-white/70 text-center font-bold text-[#64748B]", compact ? "p-4" : "p-10")}>
+      <span className={cn("mx-auto mb-3 grid place-items-center rounded-2xl border border-[#D8E3F5] bg-white text-[#64748B]", compact ? "size-9" : "size-12")}>
+        <ClipboardList className={compact ? "size-4" : "size-5"} />
+      </span>
+      <span>{text}</span>
     </div>
   );
 }
