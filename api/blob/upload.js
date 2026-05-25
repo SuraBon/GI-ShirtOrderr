@@ -1,14 +1,20 @@
 import { handleUpload } from "@vercel/blob/client";
+import { rateLimit, readJsonBody, verifyAdminToken } from "../_security.js";
 
 async function readUploadBody(request) {
-  if (typeof request.json === "function") return request.json();
-  if (request.body && typeof request.body === "object") return request.body;
+  return readJsonBody(request);
+}
 
-  const chunks = [];
-  for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+function getUploadToken(...args) {
+  const candidate = args.find((value) => value && typeof value === "object" && "clientPayload" in value);
+  const clientPayload = candidate?.clientPayload || args.find((value) => typeof value === "string") || "";
+  if (!clientPayload) return "";
+  try {
+    const parsed = JSON.parse(clientPayload);
+    return parsed?.token || "";
+  } catch {
+    return "";
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
 export default async function handler(request, response) {
@@ -22,21 +28,29 @@ export default async function handler(request, response) {
       response.status(500).json({ error: "Missing BLOB_READ_WRITE_TOKEN" });
       return;
     }
+    if (!rateLimit(request, { key: "blob-upload", limit: 30, windowMs: 60_000 })) {
+      response.status(429).json({ error: "Too many requests" });
+      return;
+    }
 
     const body = await readUploadBody(request);
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],
-        addRandomSuffix: true
-      }),
+      onBeforeGenerateToken: async (...args) => {
+        if (!verifyAdminToken(getUploadToken(...args))) throw new Error("Unauthorized");
+        return {
+          allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],
+          addRandomSuffix: true
+        };
+      },
       onUploadCompleted: async ({ blob }) => {
         console.log("shirt image upload completed", blob.url);
       }
     });
     response.status(200).json(jsonResponse);
   } catch (error) {
-    response.status(400).json({ error: error?.message || "Upload failed" });
+    console.error("Upload failed", error);
+    response.status(error?.message === "Unauthorized" ? 401 : 400).json({ error: error?.message === "Unauthorized" ? "Unauthorized" : "Upload failed" });
   }
 }

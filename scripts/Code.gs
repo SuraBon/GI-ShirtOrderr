@@ -1,4 +1,5 @@
 const SHEET_NAME = "Orders";
+const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว"];
 const HEADERS = [
   "รหัสคำสั่งเบิก",
   "สถานะ",
@@ -16,8 +17,9 @@ const HEADERS = [
   "จำนวน"
 ];
 
-function doGet() {
+function doGet(e) {
   try {
+    requireAdmin_(getRequestToken_(e, "adminToken"));
     const sheet = getOrdersSheet_();
     return json_({ success: true, data: readBatches_(sheet) });
   } catch (error) {
@@ -34,11 +36,13 @@ function doPost(e) {
     const sheet = getOrdersSheet_();
 
     if (payload.action === "updateStatus") {
+      requireAdmin_(payload.adminToken);
       const updatedRows = updateBatchStatus_(sheet, payload);
       return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: updatedRows });
     }
 
     if (payload.action === "deleteBatch") {
+      requireAdmin_(payload.adminToken);
       const deletedRows = deleteBatch_(sheet, payload.batchId);
       return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: deletedRows });
     }
@@ -73,6 +77,7 @@ function validateBatch_(batch) {
 function updateBatchStatus_(sheet, payload) {
   if (!payload.batchId) throw new Error("Missing batchId");
   if (!payload.status) throw new Error("Missing status");
+  if (ORDER_STATUSES.indexOf(String(payload.status)) === -1) throw new Error("Invalid status");
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
@@ -91,6 +96,16 @@ function updateBatchStatus_(sheet, payload) {
 
   if (!updatedRows) throw new Error("Batch not found");
   return updatedRows;
+}
+
+function getRequestToken_(e, key) {
+  return e && e.parameter && e.parameter[key] ? String(e.parameter[key]) : "";
+}
+
+function requireAdmin_(token) {
+  const expected = PropertiesService.getScriptProperties().getProperty("ADMIN_TOKEN");
+  if (!expected) throw new Error("Missing ADMIN_TOKEN");
+  if (String(token || "") !== String(expected)) throw new Error("Unauthorized");
 }
 
 function deleteBatch_(sheet, batchId) {

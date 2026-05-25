@@ -1,7 +1,7 @@
 {
-  "name": "ShirtClaim",
-  "short_name": "ShirtClaim",
-  "description": "ระบบเบิกเสื้อพนักงาน",
+  "name": "ระบบเบิกเสื้อพนักงาน",
+  "short_name": "เบิกเสื้อ",
+  "description": "ระบบเบิกเสื้อพนักงาน Gold Integrate",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

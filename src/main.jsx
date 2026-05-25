@@ -36,7 +36,7 @@ import "./index.css";
 const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || "YOUR_SCRIPT_URL_HERE";
 const DASHBOARD_PATH = "#/dashboard";
 const ORDER_PATH = "/";
-const DASHBOARD_PASSCODE = import.meta.env.VITE_DASHBOARD_PASSCODE || "";
+const DASHBOARD_SESSION_KEY = "gi-dashboard-admin-token";
 const ORDER_STORAGE_KEY = "gi-shirt-order-batches";
 const ORDER_DRAFT_KEY = "gi-shirt-order-draft";
 const CLOTHING_CONFIG_KEY = "gi-shirt-clothing-config";
@@ -208,16 +208,52 @@ async function loadSharedClothingConfig() {
 
 async function publishSharedClothingConfig(config) {
   const normalized = normalizeClothingConfig(config);
+  const token = getAdminToken();
   const response = await fetch("/api/blob/config", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
     body: JSON.stringify({ config: normalized })
   });
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new Error(data?.error || "Shared clothing config sync failed");
+    const error = new Error(data?.error || "Shared clothing config sync failed");
+    error.status = response.status;
+    throw error;
   }
   return normalized;
+}
+
+function getAdminToken() {
+  return sessionStorage.getItem(DASHBOARD_SESSION_KEY) || "";
+}
+
+function setAdminToken(token) {
+  if (token) sessionStorage.setItem(DASHBOARD_SESSION_KEY, token);
+  else sessionStorage.removeItem(DASHBOARD_SESSION_KEY);
+}
+
+function isAuthFailure(error) {
+  return error?.status === 401 || error?.message === "Unauthorized";
+}
+
+async function authFetch(url, options = {}) {
+  const token = getAdminToken();
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (response.status === 401) {
+    const error = new Error("Unauthorized");
+    error.status = 401;
+    throw error;
+  }
+  return response;
 }
 
 function getClothingTypes() {
@@ -1026,7 +1062,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
           <textarea
             value={namesText}
             onChange={(event) => setNamesText(event.target.value)}
-            placeholder={"สมชาย ใจดี\nสมหญิง ใจงาม\nสมศักดิ์ ตัวอย่าง"}
+            placeholder={"ชื่อพนักงานคนที่ 1\nชื่อพนักงานคนที่ 2\nชื่อพนักงานคนที่ 3"}
             className="min-h-44 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
           />
         </Field>
@@ -1517,14 +1553,19 @@ function ReviewMetric({ label, value }) {
 }
 
 function DashboardApp({ demoMode, onOpenOrder }) {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem("dashboard-unlocked") === "true");
+  const [adminToken, setDashboardToken] = useState(getAdminToken);
 
-  function handleUnlock() {
-    sessionStorage.setItem("dashboard-unlocked", "true");
-    setUnlocked(true);
+  function handleUnlock(token) {
+    setAdminToken(token);
+    setDashboardToken(token);
   }
 
-  if (!unlocked) {
+  function handleAuthExpired() {
+    setAdminToken("");
+    setDashboardToken("");
+  }
+
+  if (!adminToken) {
     return <DashboardLogin onUnlock={handleUnlock} onOpenOrder={onOpenOrder} />;
   }
 
@@ -1532,7 +1573,7 @@ function DashboardApp({ demoMode, onOpenOrder }) {
     <>
       <DashboardHeader onOpenOrder={onOpenOrder} />
       <main className="relative z-10 mx-auto flex w-full max-w-[1240px] flex-col gap-3 px-3 pb-10 pt-3 sm:px-5 lg:gap-4 lg:pt-5">
-        <Dashboard demoMode={demoMode} />
+        <Dashboard demoMode={demoMode} onAuthExpired={handleAuthExpired} />
       </main>
     </>
   );
@@ -1541,16 +1582,28 @@ function DashboardApp({ demoMode, onOpenOrder }) {
 function DashboardLogin({ onUnlock, onOpenOrder }) {
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
-    if (passcode === DASHBOARD_PASSCODE) {
+    setIsChecking(true);
+    setError("");
+    try {
+      const response = await fetch("/api/auth/dashboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passcode })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.token) throw new Error(data?.error || "Invalid passcode");
       setError("");
-      onUnlock();
-      toast.success("เข้าสู่ Dashboard แล้ว");
-      return;
+      onUnlock(data.token);
+      toast.success("เข้าสู่แดชบอร์ดแล้ว");
+    } catch {
+      setError("รหัสไม่ถูกต้อง หรือระบบยืนยันสิทธิ์ไม่พร้อม");
+    } finally {
+      setIsChecking(false);
     }
-    setError("รหัสไม่ถูกต้อง");
   }
 
   return (
@@ -1562,15 +1615,15 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
             <LayoutDashboard />
           </span>
         </div>
-        <h2 className="text-3xl font-black tracking-tight text-[#071638]">เข้าสู่ Dashboard</h2>
+        <h2 className="text-3xl font-black tracking-tight text-[#071638]">เข้าสู่แดชบอร์ด</h2>
         <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">กรอกรหัสเพื่อดูข้อมูลสรุปคำสั่งเบิกเสื้อ</p>
         <form onSubmit={submit} className="mt-6 grid gap-4">
-          <Field label="รหัส Dashboard">
+          <Field label="รหัสเข้าแดชบอร์ด">
             <TextInput value={passcode} onChange={setPasscode} placeholder="กรอกรหัส" inputMode="numeric" type="password" />
           </Field>
           {error && <p className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-sm font-bold text-[#B91C1C]">{error}</p>}
-          <button type="submit" className="reactbits-shine flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#002B5B] font-black text-white">
-            <UserCheck /> เข้าดู Dashboard
+          <button type="submit" disabled={isChecking} className="reactbits-shine flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#002B5B] font-black text-white disabled:opacity-60">
+            {isChecking ? <Loader2 className="animate-spin" /> : <UserCheck />} {isChecking ? "กำลังตรวจสอบ" : "เข้าสู่แดชบอร์ด"}
           </button>
         </form>
         <button onClick={onOpenOrder} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#C8D6EA] bg-white font-black text-[#002B5B]">
@@ -1585,8 +1638,8 @@ function Logo() {
   return (
     <div className="flex min-w-0 items-center">
       <div className="min-w-0">
-        <h1 className="text-lg font-black leading-none tracking-tight text-[#071638] sm:text-xl">ShirtClaim</h1>
-        <p className="mt-0.5 hidden text-[11px] font-bold leading-none text-[#64748B] sm:block">ระบบเบิกเสื้อ</p>
+        <h1 className="text-lg font-black leading-none tracking-tight text-[#071638] sm:text-xl">ระบบเบิกเสื้อพนักงาน</h1>
+        <p className="mt-0.5 hidden text-[11px] font-bold leading-none text-[#64748B] sm:block">Gold Integrate</p>
       </div>
     </div>
   );
@@ -1602,7 +1655,7 @@ function OrderHeader({ branch, onSizeOpen, onOpenDashboard }) {
             <Ruler /> ข้อมูลเสื้อ
           </button>
           <button onClick={onOpenDashboard} className="flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-[#C8D6EA] bg-white px-2.5 text-xs font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:px-3 sm:text-sm">
-            <LayoutDashboard /> Dashboard
+            <LayoutDashboard /> แดชบอร์ด
           </button>
         </div>
       </div>
@@ -1620,7 +1673,7 @@ function DashboardHeader({ onOpenOrder }) {
             <Shirt /> เปิดหน้าสั่งเบิกเสื้อ
           </button>
           <span className="hidden min-h-9 items-center gap-1 rounded-xl bg-[#002B5B] px-3 text-sm font-bold text-white shadow-sm sm:flex">
-            <LayoutDashboard /> Dashboard
+            <LayoutDashboard /> แดชบอร์ด
           </span>
         </div>
       </div>
@@ -1878,7 +1931,23 @@ function SizeReference({ open, setOpen }) {
   );
 }
 
-function ClothingManager({ config, setConfig }) {
+function validateImageFile(file) {
+  if (!IMAGE_UPLOAD_TYPES.includes(file.type)) return "รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP";
+  if (file.size > IMAGE_UPLOAD_MAX_BYTES) return "ขนาดไฟล์ต้องไม่เกิน 10MB";
+  return "";
+}
+
+async function uploadImageToBlob(file) {
+  const token = getAdminToken();
+  if (!token) throw new Error("Unauthorized");
+  return upload(file.name, file, {
+    access: "public",
+    handleUploadUrl: "/api/blob/upload",
+    clientPayload: JSON.stringify({ token })
+  });
+}
+
+function ClothingManager({ config, setConfig, onAuthExpired }) {
   const [uploadingId, setUploadingId] = useState("");
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || "");
   const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
@@ -1898,6 +1967,12 @@ function ClothingManager({ config, setConfig }) {
     window.clearTimeout(syncTimerRef.current);
     syncTimerRef.current = window.setTimeout(() => {
       publishSharedClothingConfig(normalizedConfig).catch((error) => {
+        if (isAuthFailure(error)) {
+          setAdminToken("");
+          onAuthExpired?.();
+        toast.error("สิทธิ์เข้าแดชบอร์ดหมดอายุ", { description: "กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง" });
+          return;
+        }
         toast.error("บันทึกการตั้งค่าเสื้อไม่สำเร็จ", { description: error?.message || "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
       });
     }, 700);
@@ -2070,6 +2145,12 @@ function ClothingManager({ config, setConfig }) {
       patchItem(id, { imageUrl: result.url });
       toast.success("อัปโหลดรูปเสื้อแล้ว", { id: loadingToastId });
     } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken("");
+        onAuthExpired?.();
+        toast.error("สิทธิ์เข้าแดชบอร์ดหมดอายุ", { id: loadingToastId, description: "กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง" });
+        return;
+      }
       toast.error("อัปโหลดรูปเสื้อไม่สำเร็จ", { id: loadingToastId, description: error?.message || "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
     } finally {
       setUploadingId("");
@@ -2245,7 +2326,7 @@ function ClothingManager({ config, setConfig }) {
   );
 }
 
-function Dashboard({ demoMode }) {
+function Dashboard({ demoMode, onAuthExpired }) {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -2267,7 +2348,7 @@ function Dashboard({ demoMode }) {
     try {
       const storedBatches = readStoredBatches();
       if (!demoMode) {
-        const response = await fetch(APPS_SCRIPT_URL);
+        const response = await authFetch("/api/dashboard/orders", { cache: "no-store" });
         const result = await response.json();
         if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
         const data = Array.isArray(result) ? result : result?.data;
@@ -2278,11 +2359,17 @@ function Dashboard({ demoMode }) {
         await new Promise((resolve) => setTimeout(resolve, 400));
         setBatches(storedBatches);
       }
-      if (loadingToastId) toast.success("โหลดข้อมูล Dashboard แล้ว", { id: loadingToastId });
-    } catch {
+      if (loadingToastId) toast.success("โหลดข้อมูลแดชบอร์ดแล้ว", { id: loadingToastId });
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken("");
+        onAuthExpired?.();
+        toast.error("สิทธิ์เข้าแดชบอร์ดหมดอายุ", { id: loadingToastId || undefined, description: "กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง" });
+        return;
+      }
       const storedBatches = readStoredBatches();
       setBatches(storedBatches);
-      toast.error("โหลดข้อมูล Dashboard ไม่สำเร็จ", { id: loadingToastId || undefined, description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
+      toast.error("โหลดข้อมูลแดชบอร์ดไม่สำเร็จ", { id: loadingToastId || undefined, description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -2329,7 +2416,11 @@ function Dashboard({ demoMode }) {
 
   async function syncDashboardAction(payload) {
     if (demoMode || !isGasConfigured()) return;
-    const response = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+    const response = await authFetch("/api/dashboard/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
     const result = await response.json().catch(() => null);
     if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
   }
@@ -2340,7 +2431,14 @@ function Dashboard({ demoMode }) {
     const loadingToastId = toast.loading("กำลังอัปเดตสถานะ...", { description: "ระบบกำลังบันทึกการเปลี่ยนแปลง กรุณารอสักครู่" });
     try {
       await syncDashboardAction({ action: "updateStatus", batchId, status, statusUpdatedAt });
-    } catch {
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken("");
+        onAuthExpired?.();
+        toast.error("สิทธิ์เข้าแดชบอร์ดหมดอายุ", { id: loadingToastId, description: "กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง" });
+        setStatusLoadingId("");
+        return;
+      }
       toast.error("อัปเดตสถานะไม่สำเร็จ", { id: loadingToastId, description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
       setStatusLoadingId("");
       return;
@@ -2361,7 +2459,14 @@ function Dashboard({ demoMode }) {
     const loadingToastId = toast.loading("กำลังลบคำสั่งเบิกเสื้อ...", { description: "ระบบกำลังดำเนินการ กรุณารอสักครู่" });
     try {
       await syncDashboardAction({ action: "deleteBatch", batchId });
-    } catch {
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken("");
+        onAuthExpired?.();
+        toast.error("สิทธิ์เข้าแดชบอร์ดหมดอายุ", { id: loadingToastId, description: "กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง" });
+        setDeleteLoadingId("");
+        return;
+      }
       toast.error("ลบคำสั่งเบิกเสื้อไม่สำเร็จ", { id: loadingToastId, description: "กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ" });
       setDeleteLoadingId("");
       return;
@@ -2384,7 +2489,7 @@ function Dashboard({ demoMode }) {
   }
 
   function exportCsv() {
-    const header = ["BatchID", "สถานะ", "อัปเดตสถานะ", "วันที่", "ชื่อบริษัท", "สาขา", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์ติดต่อ", "ชื่อพนักงาน", "เพศ", "ประเภท", "สี", "ไซส์", "จำนวน"];
+    const header = ["รหัสคำสั่ง", "สถานะ", "อัปเดตสถานะ", "วันที่", "ชื่อบริษัท", "สาขา", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์ติดต่อ", "ชื่อพนักงาน", "เพศ", "ประเภท", "สี", "ไซส์", "จำนวน"];
     const batchById = new Map(filteredBatches.map((batch) => [batch.batchId, batch]));
     const csv = [header, ...rows.map((row) => {
       const batch = batchById.get(row.batchId);
@@ -2406,16 +2511,16 @@ function Dashboard({ demoMode }) {
       <section className="rounded-xl border border-[#D8E3F5] bg-white/96 px-3 py-3 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-extrabold tracking-tight text-[#071638] sm:text-xl">Dashboard</h2>
+            <h2 className="text-lg font-extrabold tracking-tight text-[#071638] sm:text-xl">แดชบอร์ดคำสั่งเบิกเสื้อ</h2>
             <p className="mt-0.5 text-xs font-semibold text-[#64748B] sm:text-sm">ติดตามคำสั่งเบิกเสื้อและยอดรวม</p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <button onClick={() => loadData({ silent: true })} disabled={refreshing} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
               {refreshing ? <Loader2 className="size-4 animate-spin" /> : null}
-              {refreshing ? "กำลังโหลด" : "Refresh"}
+              {refreshing ? "กำลังโหลด" : "โหลดข้อมูลใหม่"}
             </button>
             <button onClick={exportCsv} disabled={refreshing || !rows.length} className="flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
-              <Download /> Export CSV
+              <Download /> ส่งออก CSV
             </button>
           </div>
         </div>
@@ -2473,7 +2578,7 @@ function Dashboard({ demoMode }) {
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[12rem_12rem_1fr_auto] lg:items-end">
                 <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={["ทุกสาขา", ...BRANCHES]} /></Field>
                 <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={["ทุกสถานะ", ...ORDER_STATUSES]} /></Field>
-                <Field label="ค้นหา"><TextInput value={query} onChange={setQuery} placeholder="ค้นหา BatchID บริษัท ผู้ติดต่อ เบอร์ หรือชื่อพนักงาน" /></Field>
+                <Field label="ค้นหา"><TextInput value={query} onChange={setQuery} placeholder="ค้นหารหัสคำสั่ง บริษัท ผู้ติดต่อ เบอร์ หรือชื่อพนักงาน" /></Field>
                 <button onClick={clearFilters} className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white px-4 font-bold text-[#002B5B] shadow-sm">
                   ล้างตัวกรอง
                 </button>
@@ -2513,7 +2618,7 @@ function Dashboard({ demoMode }) {
                 </div>
               </div>
             </Card>
-            <ClothingManager config={clothingConfig} setConfig={setClothingConfig} />
+            <ClothingManager config={clothingConfig} setConfig={setClothingConfig} onAuthExpired={onAuthExpired} />
           </div>
         </Tabs.Content>
       </Tabs.Root>
@@ -2580,7 +2685,7 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
 
   const columns = [
     { label: "วันที่", className: "min-w-[11rem]" },
-    { label: "BatchID", className: "min-w-[11rem]" },
+    { label: "รหัสคำสั่ง", className: "min-w-[11rem]" },
     { label: "ชื่อพนักงาน", className: "min-w-[12rem]" },
     { label: "เพศ", className: "min-w-[5rem]" },
     { label: "สาขา", className: "min-w-[10rem]" },
@@ -2607,7 +2712,7 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
             <input
               value={listQuery}
               onChange={(event) => setListQuery(event.target.value)}
-              placeholder="ค้นหาชื่อ สาขา บริษัท เสื้อ สี ไซส์ หรือ BatchID"
+              placeholder="ค้นหาชื่อ สาขา บริษัท เสื้อ สี ไซส์ หรือรหัสคำสั่ง"
               className="h-11 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-3 text-sm font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10"
             />
           </div>
