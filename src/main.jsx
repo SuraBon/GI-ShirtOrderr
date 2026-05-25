@@ -2533,19 +2533,19 @@ function Dashboard({ demoMode, onAuthExpired }) {
       </div>
 
       <Tabs.Root defaultValue="overview" className="grid gap-3">
-        <Tabs.List className="grid grid-cols-2 gap-1 rounded-xl border border-[#D8DEEA] bg-white p-1 shadow-sm sm:grid-cols-4">
-          <Tabs.Trigger value="overview" className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
+        <Tabs.List className="dashboard-tabs grid grid-cols-2 gap-1 rounded-xl border border-[#D8DEEA] bg-white p-1 shadow-sm sm:grid-cols-4">
+          <Tabs.Trigger value="overview" className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
             <LayoutDashboard className="size-4 shrink-0" /> <span className="truncate">ภาพรวม</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="list" className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
+          <Tabs.Trigger value="list" className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
             <Users className="size-4 shrink-0" /> <span className="truncate">รายการเบิก</span>
             <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{rows.length}</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="orders" className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
+          <Tabs.Trigger value="orders" className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
             <ClipboardList className="size-4 shrink-0" /> <span className="truncate">คำสั่งเบิก</span>
             <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{filteredBatches.length}</span>
           </Tabs.Trigger>
-          <Tabs.Trigger value="settings" className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
+          <Tabs.Trigger value="settings" className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
             <Settings className="size-4 shrink-0" /> <span className="truncate">ตั้งค่าเสื้อ</span>
           </Tabs.Trigger>
         </Tabs.List>

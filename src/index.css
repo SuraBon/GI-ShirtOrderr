@@ -667,9 +667,15 @@ body {
 
 [data-rich-colors="true"][data-sonner-toast][data-type="success"],
 [data-sonner-toast][data-type="success"] {
-  background: #f0fdf4 !important;
-  border-color: #a7f3d0 !important;
-  color: #166534 !important;
+  background:
+    linear-gradient(180deg, rgba(248, 251, 255, .98), rgba(238, 245, 255, .98)) !important;
+  border-color: #bfd0ea !important;
+  color: #0d3568 !important;
+  box-shadow: 0 16px 44px rgba(13, 53, 104, .16) !important;
+}
+
+[data-sonner-toast][data-type="success"] [data-icon] {
+  color: #0d3568 !important;
 }
 
 [data-sonner-toast][data-type="loading"] {
@@ -806,6 +812,37 @@ body {
 
 .empty-state > span:last-child {
   display: block;
+}
+
+.dashboard-tabs {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(248, 250, 252, .96)) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 8px 22px rgba(15, 23, 42, .05) !important;
+}
+
+.dashboard-tab {
+  border: 1px solid transparent;
+  color: #64748b !important;
+  box-shadow: none !important;
+}
+
+.dashboard-tab:hover {
+  background: #f4f7fc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.dashboard-tab[data-state="active"] {
+  background: #0d152a !important;
+  border-color: #0d152a !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(13, 21, 42, .14) !important;
+}
+
+.dashboard-tab[data-state="active"] :where(span.rounded-full) {
+  background: rgba(255, 255, 255, .18) !important;
+  color: #ffffff !important;
 }
 
 .app-shadcn-theme {
