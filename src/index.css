@@ -10,7 +10,7 @@
 
 html {
   width: 100%;
-  background: #f5f7fb;
+  background: #f7f7fb;
 }
 
 body {
@@ -19,8 +19,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
-  color: #071638;
-  background: #f5f7fb;
+  color: #171827;
+  background: #f7f7fb;
   font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.55;
@@ -206,25 +206,35 @@ select option {
 
 :root,
 .app-shadcn-theme {
-  --sc-bg: #f6f9fa;
+  --sc-bg: #f7f7fb;
   --sc-surface: #ffffff;
-  --sc-surface-muted: #eef4f5;
-  --sc-surface-soft: #e9fbfd;
-  --sc-border: #d7e5e7;
-  --sc-border-strong: #91b8bd;
-  --sc-text: #30333a;
-  --sc-muted: #6a7078;
-  --sc-primary: #35b8c5;
-  --sc-primary-strong: #238893;
-  --sc-primary-soft: #e9fbfd;
-  --sc-accent-blue: #1f65b7;
-  --sc-accent-green: #0aa56c;
-  --sc-danger: #b91c1c;
+  --sc-surface-muted: #fbfbff;
+  --sc-surface-raised: #ffffff;
+  --sc-surface-soft: #f1f5ff;
+  --sc-border: #e2e5f0;
+  --sc-border-strong: #c7cdef;
+  --sc-text: #171827;
+  --sc-muted: #62677b;
+  --sc-muted-strong: #414762;
+  --sc-primary: #4338ca;
+  --sc-primary-strong: #312e81;
+  --sc-primary-soft: #eef2ff;
+  --sc-accent-blue: #0891b2;
+  --sc-accent-blue-soft: #ecfeff;
+  --sc-accent-red: #e11d48;
+  --sc-accent-red-soft: #fff1f2;
+  --sc-accent-orange: #f97316;
+  --sc-accent-orange-soft: #fff7ed;
+  --sc-accent-green: #16a34a;
+  --sc-accent-green-soft: #ecfdf5;
+  --sc-danger: #dc2626;
   --sc-danger-soft: #fef2f2;
-  --sc-warning: #a16207;
-  --sc-warning-soft: #fef3c7;
-  --sc-success: #166534;
+  --sc-warning: #b45309;
+  --sc-warning-soft: #fffbeb;
+  --sc-success: #15803d;
   --sc-success-soft: #dcfce7;
+  --sc-card-shadow: 0 1px 2px rgba(67, 56, 202, 0.05), 0 12px 34px rgba(8, 145, 178, 0.08);
+  --sc-control-shadow: 0 1px 2px rgba(67, 56, 202, 0.05);
   background: var(--sc-bg) !important;
   color: var(--sc-text) !important;
   font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
@@ -249,9 +259,14 @@ select option {
 }
 
 .app-shadcn-theme header {
-  background: rgba(255, 255, 255, 0.96) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
   border-color: var(--sc-border) !important;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 12px rgba(67, 56, 202, 0.06) !important;
+  backdrop-filter: blur(12px);
+}
+
+.app-shadcn-theme header h1 {
+  color: var(--sc-primary) !important;
 }
 
 .app-shadcn-theme main > section,
@@ -260,8 +275,15 @@ select option {
 .app-shadcn-theme [data-quick-employee-card] {
   background: var(--sc-surface) !important;
   border-color: var(--sc-border) !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
+  border-radius: 18px !important;
+  box-shadow: var(--sc-card-shadow) !important;
+}
+
+.app-shadcn-theme :where(div, article)[class*="rounded"][class*="border"][class*="bg-white"]:not(button):not(label),
+.app-shadcn-theme :where(div, article)[class*="rounded"][class*="border"][class*="bg-white\\/"]:not(button):not(label) {
+  background: var(--sc-surface) !important;
+  border-color: var(--sc-border) !important;
+  box-shadow: var(--sc-card-shadow) !important;
 }
 
 .app-shadcn-theme .shadcn-card::before,
@@ -272,7 +294,7 @@ select option {
 .app-shadcn-theme .shadcn-card:hover {
   transform: none !important;
   border-color: var(--sc-border-strong) !important;
-  box-shadow: none !important;
+  box-shadow: 0 1px 3px rgba(67, 56, 202, 0.08), 0 16px 38px rgba(8, 145, 178, 0.1) !important;
 }
 
 .app-shadcn-theme .reactbits-fade-up {
@@ -284,11 +306,11 @@ select option {
 .app-shadcn-theme textarea {
   min-height: 40px;
   border-color: var(--sc-border) !important;
-  border-radius: 8px !important;
-  background: var(--sc-surface) !important;
+  border-radius: 14px !important;
+  background: var(--sc-surface-muted) !important;
   color: var(--sc-text) !important;
   font-weight: 600;
-  box-shadow: none !important;
+  box-shadow: var(--sc-control-shadow) !important;
 }
 
 .app-shadcn-theme input::placeholder,
@@ -304,14 +326,13 @@ select option {
 .app-shadcn-theme input:focus,
 .app-shadcn-theme select:focus,
 .app-shadcn-theme textarea:focus {
-  border-color: var(--sc-primary) !important;
-  box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.12) !important;
+  border-color: var(--sc-accent-blue) !important;
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.16) !important;
 }
 
 .app-shadcn-theme button,
 .app-shadcn-theme label {
-  border-radius: 8px !important;
-  box-shadow: none !important;
+  border-radius: 14px !important;
 }
 
 .app-shadcn-theme button {
@@ -334,13 +355,18 @@ select option {
   color: #ffffff !important;
 }
 
+.app-shadcn-theme [role="tab"][data-state="active"] {
+  background: var(--sc-primary) !important;
+  color: #ffffff !important;
+}
+
 .app-shadcn-theme .bg-\[\#EAF2FF\],
 .app-shadcn-theme .bg-\[\#E5EFFD\],
 .app-shadcn-theme .bg-\[\#E8F0FF\],
 .app-shadcn-theme .bg-\[\#EEF4FF\] {
-  background: var(--sc-primary-soft) !important;
-  border-color: #d4d4d8 !important;
-  color: var(--sc-primary-strong) !important;
+  background: var(--sc-accent-blue-soft) !important;
+  border-color: #bae6fd !important;
+  color: var(--sc-accent-blue) !important;
 }
 
 .app-shadcn-theme button[class*="bg-[#FFFBEB]"] {
@@ -373,6 +399,10 @@ select option {
 
 .app-shadcn-theme .bg-\[\#F8FBFF\],
 .app-shadcn-theme .bg-\[\#F8FAFC\],
+.app-shadcn-theme .bg-\[\#F7FAFF\],
+.app-shadcn-theme .bg-\[\#F4F7FC\],
+.app-shadcn-theme .bg-\[\#F4F4F5\],
+.app-shadcn-theme .bg-\[\#FAFAFA\],
 .app-shadcn-theme .bg-\[\#EEF4FF\],
 .app-shadcn-theme .bg-\[\#E5EFFD\],
 .app-shadcn-theme .bg-\[\#F5F7FB\] {
@@ -387,10 +417,14 @@ select option {
 .app-shadcn-theme .border-\[\#BFD0EA\],
 .app-shadcn-theme .border-\[\#C8D6EA\],
 .app-shadcn-theme .border-\[\#8FA4C7\] {
-  border-color: var(--sc-border-strong) !important;
+  border-color: #bae6fd !important;
 }
 
 .app-shadcn-theme .border-\[\#D8DEEA\],
+.app-shadcn-theme .border-\[\#CBD5E1\],
+.app-shadcn-theme .border-\[\#E2E8F0\],
+.app-shadcn-theme .border-\[\#E4E4E7\],
+.app-shadcn-theme .border-\[\#EEF2F7\],
 .app-shadcn-theme .border-\[\#DCE5F4\],
 .app-shadcn-theme .border-\[\#D8E3F5\],
 .app-shadcn-theme .border-\[\#E7EAF0\] {
@@ -403,17 +437,26 @@ select option {
 }
 
 .app-shadcn-theme .accent-\[\#002B5B\] {
-  accent-color: var(--sc-primary) !important;
+  accent-color: var(--sc-accent-blue) !important;
 }
 
 .app-shadcn-theme .text-\[\#64748B\],
+.app-shadcn-theme .text-\[\#52525B\],
+.app-shadcn-theme .text-\[\#71717A\],
 .app-shadcn-theme .text-\[\#44536A\] {
   color: var(--sc-muted) !important;
 }
 
+.app-shadcn-theme .text-\[\#002B5B\] svg,
+.app-shadcn-theme .bg-\[\#E5EFFD\] svg,
+.app-shadcn-theme .bg-\[\#E8F0FF\] svg,
+.app-shadcn-theme .bg-\[\#EEF4FF\] svg {
+  color: var(--sc-accent-blue) !important;
+}
+
 .app-shadcn-theme table thead {
   background: var(--sc-surface-muted) !important;
-  color: var(--sc-muted) !important;
+  color: var(--sc-muted-strong) !important;
 }
 
 .app-shadcn-theme table tr,
@@ -467,7 +510,7 @@ select option {
 }
 
 body {
-  background: #f6f9fa;
+  background: #f7f7fb;
 }
 
 [role="dialog"] {
@@ -475,6 +518,7 @@ body {
   background: #ffffff !important;
   color: var(--sc-text) !important;
   border: 1px solid var(--sc-border) !important;
+  border-radius: 18px !important;
   box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18) !important;
 }
 
@@ -487,8 +531,8 @@ body {
 [role="dialog"] input:focus,
 [role="dialog"] textarea:focus,
 [role="dialog"] button[aria-haspopup="listbox"]:focus {
-  border-color: var(--sc-primary) !important;
-  box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.12) !important;
+  border-color: var(--sc-accent-blue) !important;
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.16) !important;
 }
 
 [role="listbox"] {
@@ -506,8 +550,8 @@ body {
 }
 
 [role="listbox"] [role="option"]:hover {
-  background: var(--sc-primary-soft) !important;
-  color: var(--sc-primary-strong) !important;
+  background: var(--sc-accent-blue-soft) !important;
+  color: var(--sc-accent-blue) !important;
 }
 
 [role="listbox"] [role="option"][aria-selected="true"]:hover {

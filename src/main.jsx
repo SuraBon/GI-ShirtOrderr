@@ -2015,10 +2015,7 @@ function ReactBitsAurora() {
 
 function Logo() {
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#35B8C5] text-white shadow-sm">
-        <Shirt className="size-5" />
-      </div>
+    <div className="flex min-w-0 items-center">
       <div className="min-w-0">
         <h1 className="text-lg font-black leading-none tracking-tight text-[#071638] sm:text-xl">ShirtClaim</h1>
         <p className="mt-0.5 hidden text-[11px] font-bold leading-none text-[#64748B] sm:block">ระบบเบิกเสื้อ</p>
