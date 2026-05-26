@@ -2349,6 +2349,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("ทั้งหมด");
+  const [summaryGenderFilter, setSummaryGenderFilter] = useState("ทุกเพศ");
   const [monthFilter, setMonthFilter] = useState(() => formatMonthLabel(new Date()));
   const [exportBranchFilter, setExportBranchFilter] = useState("ทุกสาขา");
   const [exportStartMonth, setExportStartMonth] = useState(() => formatMonthInputValue(new Date()));
@@ -2422,9 +2423,15 @@ function Dashboard({ demoMode, onAuthExpired }) {
   }), [batches, branchFilter, statusFilter, query]);
 
   const rows = useMemo(() => flattenBatches(filteredBatches), [filteredBatches]);
-  const typeFilterOptions = useMemo(() => buildTypeTotals(rows).map((row) => row.type), [rows]);
+  const summaryGenderOptions = useMemo(() => ["ทุกเพศ", ...uniqueSorted(rows.map((row) => row.gender).filter(Boolean))], [rows]);
+  const genderVisibleRows = useMemo(() => (
+    summaryGenderFilter === "ทุกเพศ" ? rows : rows.filter((row) => row.gender === summaryGenderFilter)
+  ), [rows, summaryGenderFilter]);
+  const typeFilterOptions = useMemo(() => buildTypeTotals(genderVisibleRows).map((row) => row.type), [genderVisibleRows]);
   const monthFilterOptions = useMemo(() => buildMonthFilterOptions(rows), [rows]);
-  const visibleRows = useMemo(() => typeFilter === "ทั้งหมด" ? rows : rows.filter((row) => row.type === typeFilter), [rows, typeFilter]);
+  const visibleRows = useMemo(() => (
+    typeFilter === "ทั้งหมด" ? genderVisibleRows : genderVisibleRows.filter((row) => row.type === typeFilter)
+  ), [genderVisibleRows, typeFilter]);
   const monthRows = useMemo(() => (
     monthFilter === "ทุกเดือน"
       ? visibleRows
@@ -2462,6 +2469,12 @@ function Dashboard({ demoMode, onAuthExpired }) {
       setTypeFilter("ทั้งหมด");
     }
   }, [typeFilter, typeFilterOptions]);
+
+  useEffect(() => {
+    if (summaryGenderFilter !== "ทุกเพศ" && !summaryGenderOptions.includes(summaryGenderFilter)) {
+      setSummaryGenderFilter("ทุกเพศ");
+    }
+  }, [summaryGenderFilter, summaryGenderOptions]);
 
   useEffect(() => {
     if (!monthFilterOptions.includes(monthFilter)) {
@@ -2645,12 +2658,12 @@ function Dashboard({ demoMode, onAuthExpired }) {
               </div>
             </div>
           </Card>
-          <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} />
+          <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} genderValue={summaryGenderFilter} onGenderChange={setSummaryGenderFilter} genderOptions={summaryGenderOptions} />
           <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} sizeTotals={sizeTotals} filteredRows={monthRows} monthFilter={monthFilter} />
         </Tabs.Content>
 
         <Tabs.Content value="list">
-          <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} />
+          <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} genderValue={summaryGenderFilter} onGenderChange={setSummaryGenderFilter} genderOptions={summaryGenderOptions} />
           <EmployeeWithdrawalList rows={visibleRows} totalRows={rows.length} />
         </Tabs.Content>
 
@@ -2714,33 +2727,71 @@ function Dashboard({ demoMode, onAuthExpired }) {
   );
 }
 
-function TypeFilterChips({ value, onChange, options }) {
+function TypeFilterChips({ value, onChange, options, genderValue = "", onGenderChange, genderOptions = [] }) {
+  const [filterQuery, setFilterQuery] = useState("");
   if (!options.length) return null;
   const choices = ["ทั้งหมด", ...options];
+  const normalizedQuery = filterQuery.trim().toLowerCase();
+  const visibleChoices = normalizedQuery
+    ? choices.filter((type) => type.toLowerCase().includes(normalizedQuery))
+    : choices;
+  const showGenderFilter = Boolean(genderValue && onGenderChange && genderOptions.length);
   return (
-    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white px-3 py-2">
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <p className="text-sm font-extrabold text-[#18181B]">กรองแบบเสื้อ</p>
-        <p className="hidden text-xs font-semibold text-[#71717A] sm:block">เลือกดูเฉพาะเสื้อแต่ละแบบ</p>
-      </div>
-      <div className="employee-scroll-region flex min-w-0 gap-2 overflow-x-auto pb-1 sm:pb-0">
-        {choices.map((type) => {
-          const active = value === type;
-          return (
-            <button
-              key={type}
-              onClick={() => onChange(type)}
-              className={cn(
-                "min-h-9 shrink-0 rounded-lg border px-3 text-sm font-bold transition",
-                active ? "border-[#18181B] bg-[#18181B] text-white" : "border-[#D4D4D8] bg-white text-[#52525B] hover:border-[#A1A1AA]"
-              )}
-            >
-              {type}
-            </button>
-          );
-        })}
-      </div>
+    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white px-3 py-3">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(12rem,.9fr)_minmax(0,1.6fr)] lg:items-start">
+        <div className="min-w-0">
+          <p className="text-sm font-extrabold text-[#18181B]">กรองแบบเสื้อ</p>
+          <p className="text-xs font-semibold text-[#71717A]">ค้นหาและเลือกดูเฉพาะแบบที่ต้องการ</p>
+          <div className={cn("mt-3 grid gap-2", showGenderFilter ? "sm:grid-cols-[10rem_minmax(0,1fr)] lg:grid-cols-1" : "")}>
+            {showGenderFilter ? (
+              <Field label="เพศ">
+                <Select value={genderValue} onChange={onGenderChange} values={genderOptions} />
+              </Field>
+            ) : null}
+            <div className="relative min-w-0">
+              <span className="mb-1.5 block text-xs font-bold text-[#44536A]">ค้นหาแบบเสื้อ</span>
+              <Search className="pointer-events-none absolute left-3 top-[2.25rem] size-4 text-[#71717A]" />
+              <input
+                value={filterQuery}
+                onChange={(event) => setFilterQuery(event.target.value)}
+                placeholder="พิมพ์ชื่อแบบเสื้อ"
+                className="h-11 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-3 text-sm font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-xs font-bold text-[#64748B]">{visibleChoices.length}/{choices.length} ตัวเลือก</span>
+            {value !== "ทั้งหมด" ? (
+              <button onClick={() => onChange("ทั้งหมด")} className="text-xs font-black text-[#002B5B] underline-offset-4 hover:underline">
+                ล้างแบบเสื้อ
+              </button>
+            ) : null}
+          </div>
+          <div className="employee-scroll-region grid max-h-36 min-w-0 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4">
+            {visibleChoices.map((type) => {
+              const active = value === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => onChange(type)}
+                  className={cn(
+                    "min-h-10 min-w-0 rounded-lg border px-3 text-sm font-bold transition",
+                    active ? "border-[#18181B] bg-[#18181B] text-white" : "border-[#D4D4D8] bg-white text-[#52525B] hover:border-[#A1A1AA] hover:bg-[#FAFAFA]"
+                  )}
+                >
+                  <span className="block truncate">{type}</span>
+                </button>
+              );
+            })}
+            {!visibleChoices.length ? (
+              <div className="col-span-full rounded-lg border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-3 py-4 text-center text-sm font-bold text-[#64748B]">
+                ไม่พบแบบเสื้อที่ค้นหา
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
   );
