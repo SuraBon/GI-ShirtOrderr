@@ -1717,6 +1717,17 @@ const TextInput = React.forwardRef(function TextInput({ value, onChange, placeho
   );
 });
 
+function MonthInput({ value, onChange }) {
+  return (
+    <input
+      type="month"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-11 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 text-sm font-bold text-[#071638] shadow-sm outline-none transition focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
+    />
+  );
+}
+
 function CustomSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false }) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState(null);
@@ -2339,6 +2350,13 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("ทั้งหมด");
   const [monthFilter, setMonthFilter] = useState(() => formatMonthLabel(new Date()));
+  const [exportBranchFilter, setExportBranchFilter] = useState("ทุกสาขา");
+  const [exportStartMonth, setExportStartMonth] = useState(() => formatMonthInputValue(new Date()));
+  const [exportEndMonth, setExportEndMonth] = useState(() => formatMonthInputValue(new Date()));
+  const [exportGenderFilter, setExportGenderFilter] = useState("ทุกเพศ");
+  const [exportTypeFilter, setExportTypeFilter] = useState("ทุกแบบ");
+  const [exportSizeFilter, setExportSizeFilter] = useState("ทุกไซส์");
+  const [exportStatusFilter, setExportStatusFilter] = useState("ทุกสถานะ");
   const [selectedBatch, setSelectedBatch] = useState(null);
 
   async function loadData({ silent = false } = {}) {
@@ -2417,6 +2435,27 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const summaryRows = useMemo(() => buildTotalSummary(monthRows), [monthRows]);
   const typeTotals = useMemo(() => buildTypeTotals(monthRows), [monthRows]);
   const sizeTotals = useMemo(() => buildSizeTotals(monthRows), [monthRows]);
+  const allRows = useMemo(() => flattenBatches(batches), [batches]);
+  const exportBranchOptions = useMemo(() => ["ทุกสาขา", ...uniqueSorted([...BRANCHES, ...batches.map((batch) => batch.branch).filter(Boolean)])], [batches]);
+  const exportGenderOptions = useMemo(() => ["ทุกเพศ", ...uniqueSorted(allRows.map((row) => row.gender).filter(Boolean))], [allRows]);
+  const exportTypeOptions = useMemo(() => ["ทุกแบบ", ...uniqueSorted(allRows.map((row) => row.type).filter(Boolean))], [allRows]);
+  const exportSizeOptions = useMemo(() => ["ทุกไซส์", ...uniqueSorted(allRows.map((row) => row.size).filter(Boolean), compareSizes)], [allRows]);
+  const exportStatusOptions = useMemo(() => ["ทุกสถานะ", ...uniqueSorted(allRows.map((row) => row.status || ORDER_STATUS_PENDING).filter(Boolean))], [allRows]);
+  const exportRows = useMemo(() => {
+    const startKey = getMonthKeyFromInput(exportStartMonth);
+    const endKey = getMonthKeyFromInput(exportEndMonth);
+    return allRows.filter((row) => {
+      const rowKey = getMonthKey(row.submittedAt);
+      const inBranch = exportBranchFilter === "ทุกสาขา" || row.branch === exportBranchFilter;
+      const inGender = exportGenderFilter === "ทุกเพศ" || row.gender === exportGenderFilter;
+      const inType = exportTypeFilter === "ทุกแบบ" || row.type === exportTypeFilter;
+      const inSize = exportSizeFilter === "ทุกไซส์" || row.size === exportSizeFilter;
+      const inStatus = exportStatusFilter === "ทุกสถานะ" || (row.status || ORDER_STATUS_PENDING) === exportStatusFilter;
+      const inStart = !startKey || rowKey >= startKey;
+      const inEnd = !endKey || rowKey <= endKey;
+      return inBranch && inGender && inType && inSize && inStatus && inStart && inEnd;
+    });
+  }, [allRows, exportBranchFilter, exportGenderFilter, exportTypeFilter, exportSizeFilter, exportStatusFilter, exportStartMonth, exportEndMonth]);
 
   useEffect(() => {
     if (typeFilter !== "ทั้งหมด" && !typeFilterOptions.includes(typeFilter)) {
@@ -2506,17 +2545,27 @@ function Dashboard({ demoMode, onAuthExpired }) {
   }
 
   function exportCsv() {
+    const startKey = getMonthKeyFromInput(exportStartMonth);
+    const endKey = getMonthKeyFromInput(exportEndMonth);
+    if (startKey && endKey && startKey > endKey) {
+      toast.error("ช่วงเดือนส่งออกไม่ถูกต้อง", { description: "เลือกเดือนเริ่มต้นให้อยู่ก่อนหรือเท่ากับเดือนสิ้นสุด" });
+      return;
+    }
+    if (!exportRows.length) {
+      toast.error("ไม่มีข้อมูลสำหรับส่งออก", { description: "ลองเปลี่ยนสาขาหรือช่วงเดือนที่ต้องการส่งออก" });
+      return;
+    }
     const header = ["รหัสคำสั่ง", "สถานะ", "อัปเดตสถานะ", "วันที่", "ชื่อบริษัท", "สาขา", "ผู้ขอเบิก/ผู้ติดต่อ", "เบอร์ติดต่อ", "ชื่อพนักงาน", "เพศ", "ประเภท", "สี", "ไซส์", "จำนวน"];
-    const batchById = new Map(filteredBatches.map((batch) => [batch.batchId, batch]));
-    const csv = [header, ...rows.map((row) => {
+    const batchById = new Map(batches.map((batch) => [batch.batchId, batch]));
+    const csv = [header, ...exportRows.map((row) => {
       const batch = batchById.get(row.batchId);
       return [row.batchId, batch?.status || ORDER_STATUS_PENDING, batch?.statusUpdatedAt || "", row.submittedAt, row.companyName, row.branch, row.supervisorName, row.supervisorPhone, row.name, row.gender, row.type, row.color || "", row.size, row.qty];
-    })].map((line) => line.join(",")).join("\n");
+    })].map((line) => line.map(csvCell).join(",")).join("\n");
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "uniform-order-batches.csv";
+    link.download = buildCsvFilename(exportBranchFilter, exportStartMonth, exportEndMonth);
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -2531,13 +2580,24 @@ function Dashboard({ demoMode, onAuthExpired }) {
             <h2 className="text-lg font-extrabold tracking-tight text-[#071638] sm:text-xl">แดชบอร์ดเบิกเสื้อ</h2>
             <p className="mt-0.5 text-xs font-semibold text-[#64748B] sm:text-sm">ดูยอดรวม แยกรายคน และจัดการคำสั่งเบิก</p>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex">
+          <div className="grid gap-2 sm:flex">
             <button onClick={() => loadData({ silent: true })} disabled={refreshing} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
               {refreshing ? <Loader2 className="size-4 animate-spin" /> : null}
               {refreshing ? "กำลังโหลด" : "โหลดข้อมูลใหม่"}
             </button>
-            <button onClick={exportCsv} disabled={refreshing || !rows.length} className="flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
-              <Download /> ส่งออก CSV
+          </div>
+        </div>
+        <div className="mt-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.1fr_9rem_9rem_8rem_9rem_8rem_9rem_auto] xl:items-end">
+            <Field label="สาขาที่ส่งออก"><Select value={exportBranchFilter} onChange={setExportBranchFilter} values={exportBranchOptions} /></Field>
+            <Field label="ตั้งแต่เดือน"><MonthInput value={exportStartMonth} onChange={setExportStartMonth} /></Field>
+            <Field label="ถึงเดือน"><MonthInput value={exportEndMonth} onChange={setExportEndMonth} /></Field>
+            <Field label="เพศ"><Select value={exportGenderFilter} onChange={setExportGenderFilter} values={exportGenderOptions} /></Field>
+            <Field label="แบบเสื้อ"><Select value={exportTypeFilter} onChange={setExportTypeFilter} values={exportTypeOptions} /></Field>
+            <Field label="ไซส์"><Select value={exportSizeFilter} onChange={setExportSizeFilter} values={exportSizeOptions} /></Field>
+            <Field label="สถานะ"><Select value={exportStatusFilter} onChange={setExportStatusFilter} values={exportStatusOptions} /></Field>
+            <button onClick={exportCsv} disabled={refreshing || !exportRows.length} className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
+              <Download className="size-4" /> ส่งออก CSV ({exportRows.length})
             </button>
           </div>
         </div>
@@ -2936,8 +2996,9 @@ function MiniMetric({ label, value }) {
 }
 
 function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, monthFilter }) {
-  const maxQty = Math.max(1, ...typeTotals.map((row) => row.qty));
   const totalPieces = filteredRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  const chartColors = ["#002B5B", "#2F6FB0", "#7CA7D8", "#94A3B8", "#0F172A"];
+  const donutGradient = buildDonutGradient(typeTotals, chartColors);
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(22rem,.8fr)_minmax(0,1.2fr)]">
       <Card className="p-3 sm:p-4">
@@ -2945,19 +3006,36 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
           <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามประเภทเสื้อ</h2>
           <span className="shrink-0 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-1 text-sm font-black text-[#18181B]">{totalPieces} ชิ้น</span>
         </div>
-        <div className="mt-3 grid gap-2">
-          {typeTotals.length ? typeTotals.map((row) => (
-            <div key={row.type}>
-              <div className="mb-1.5 flex items-center justify-between gap-3 text-sm font-bold">
-                <span>{row.type}</span>
-                <span className="whitespace-nowrap">{row.qty} ชิ้น</span>
-              </div>
-              <div className="h-2.5 rounded-full bg-[#E5ECF7]">
-                <div className="h-2.5 rounded-full bg-[#18181B]" style={{ width: `${Math.max(8, (row.qty / maxQty) * 100)}%` }} />
+        {typeTotals.length ? (
+          <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(11rem,.8fr)_minmax(0,1fr)] sm:items-center">
+            <div className="grid min-h-52 min-w-0 place-items-center">
+              <div
+                className="relative grid size-44 place-items-center rounded-full shadow-inner"
+                style={{ background: donutGradient }}
+                aria-label={`ยอดรวมตามประเภทเสื้อ ${totalPieces} ชิ้น`}
+              >
+                <div className="grid size-24 place-items-center rounded-full bg-white text-center shadow-sm">
+                  <div>
+                    <p className="text-xs font-bold text-[#64748B]">รวม</p>
+                    <p className="text-xl font-black leading-none text-[#071638]">{totalPieces}</p>
+                    <p className="mt-1 text-[11px] font-bold text-[#64748B]">ชิ้น</p>
+                  </div>
+                </div>
               </div>
             </div>
-          )) : <EmptyDashboardState text="ยังไม่มียอดรวม" compact />}
-        </div>
+            <div className="grid gap-2">
+              {typeTotals.map((row, index) => (
+                <div key={row.type} className="flex items-center justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
+                    <span className="truncate text-sm font-extrabold text-[#071638]">{row.type}</span>
+                  </span>
+                  <span className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-sm font-black text-[#002B5B]">{row.qty} ชิ้น</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : <EmptyDashboardState text="ยังไม่มียอดรวม" compact />}
       </Card>
 
       <Card className="p-3 sm:p-4">
@@ -2973,7 +3051,8 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
 
         <div className="mt-3 flex flex-wrap gap-2">
           {sizeTotals.length ? sizeTotals.map((row) => (
-            <span key={row.size} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] px-3 text-sm font-bold text-[#071638]">
+            <span key={`${row.gender}-${row.size}`} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] px-3 text-sm font-bold text-[#071638]">
+              <span className="font-black text-[#002B5B]">{row.gender || "-"}</span>
               <span className="text-[#64748B]">ไซส์</span>
               <span className="font-black">{row.size}</span>
               <span className="rounded-full bg-[#E5EFFD] px-2 py-0.5 text-xs font-black text-[#002B5B]">{row.qty} ชิ้น</span>
@@ -2990,22 +3069,22 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
           )) : <EmptyDashboardState text="ยังไม่มีข้อมูล" compact />}
         </div>
         <div className="mt-3 hidden overflow-hidden rounded-xl border border-[#E2E8F0] sm:block">
-          <table className="w-full text-left text-sm">
+          <table className="w-full table-fixed text-center text-sm">
             <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
               <tr>
-                <th className="px-4 py-2.5">ประเภท</th>
-                <th className="px-4 py-2.5">สี</th>
-                <th className="px-4 py-2.5">ไซส์</th>
-                <th className="px-4 py-2.5 text-right">จำนวน</th>
+                <th className="px-4 py-2.5 text-center align-middle">ประเภท</th>
+                <th className="px-4 py-2.5 text-center align-middle">สี</th>
+                <th className="px-4 py-2.5 text-center align-middle">ไซส์</th>
+                <th className="px-4 py-2.5 text-center align-middle">จำนวน</th>
               </tr>
             </thead>
             <tbody>
               {summaryRows.length ? summaryRows.map((row) => (
                 <tr key={`${row.type}-${row.color}-${row.size}`} className="border-t border-[#E2E8F0]">
-                  <td className="px-4 py-3 font-bold">{row.type}</td>
-                  <td className="px-4 py-3">{row.color || "-"}</td>
-                  <td className="px-4 py-3">{row.size}</td>
-                  <td className="px-4 py-3 text-right font-extrabold">{row.qty}</td>
+                  <td className="break-words px-4 py-3 text-center align-middle font-bold">{row.type}</td>
+                  <td className="break-words px-4 py-3 text-center align-middle">{row.color || "-"}</td>
+                  <td className="px-4 py-3 text-center align-middle font-bold">{row.size}</td>
+                  <td className="px-4 py-3 text-center align-middle font-extrabold">{row.qty}</td>
                 </tr>
               )) : (
                 <tr><td colSpan={4} className="px-4 py-8 text-center font-bold text-[#64748B]">ยังไม่มีข้อมูล</td></tr>
@@ -3143,12 +3222,29 @@ function buildTypeTotals(rows) {
 function buildSizeTotals(rows) {
   const map = new Map();
   rows.forEach((row) => {
+    const gender = row.gender || "-";
     const size = row.size || "-";
-    map.set(size, (map.get(size) || 0) + Number(row.qty || 0));
+    const key = `${gender}__${size}`;
+    const current = map.get(key) || { gender, size, qty: 0 };
+    current.qty += Number(row.qty || 0);
+    map.set(key, current);
   });
-  return [...map.entries()]
-    .map(([size, qty]) => ({ size, qty }))
-    .sort((a, b) => compareSizes(a.size, b.size));
+  return [...map.values()]
+    .sort((a, b) => String(a.gender).localeCompare(String(b.gender), "th") || compareSizes(a.size, b.size));
+}
+
+function buildDonutGradient(rows, colors) {
+  const total = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  if (!total) return "#E5ECF7";
+  let current = 0;
+  const segments = rows.map((row, index) => {
+    const start = current;
+    const end = current + (Number(row.qty || 0) / total) * 100;
+    current = end;
+    const color = colors[index % colors.length];
+    return `${color} ${start}% ${end}%`;
+  });
+  return `conic-gradient(${segments.join(", ")})`;
 }
 
 function uniqueSorted(values, sorter) {
@@ -3172,6 +3268,36 @@ function formatMonthLabel(value) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(date);
+}
+
+function formatMonthInputValue(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return 0;
+  return date.getFullYear() * 100 + date.getMonth() + 1;
+}
+
+function getMonthKeyFromInput(value) {
+  if (!value) return 0;
+  const [year, month] = String(value).split("-").map(Number);
+  if (!year || !month) return 0;
+  return year * 100 + month;
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function buildCsvFilename(branch, startMonth, endMonth) {
+  const cleanBranch = branch === "ทุกสาขา" ? "all-branches" : branch.replace(/[\\/:*?"<>|]/g, "-");
+  const range = startMonth && endMonth ? `${startMonth}_to_${endMonth}` : "all-months";
+  return `uniform-orders_${cleanBranch}_${range}.csv`;
 }
 
 function buildMonthFilterOptions(rows) {
