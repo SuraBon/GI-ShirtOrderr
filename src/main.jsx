@@ -6,6 +6,7 @@ import * as Tabs from "@radix-ui/react-tabs";
 import { upload } from "@vercel/blob/client";
 import { Toaster, toast } from "sonner";
 import {
+  CalendarDays,
   Check,
   ChevronDown,
   ChevronUp,
@@ -2337,6 +2338,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("ทั้งหมด");
+  const [monthFilter, setMonthFilter] = useState(() => formatMonthLabel(new Date()));
   const [selectedBatch, setSelectedBatch] = useState(null);
 
   async function loadData({ silent = false } = {}) {
@@ -2403,16 +2405,30 @@ function Dashboard({ demoMode, onAuthExpired }) {
 
   const rows = useMemo(() => flattenBatches(filteredBatches), [filteredBatches]);
   const typeFilterOptions = useMemo(() => buildTypeTotals(rows).map((row) => row.type), [rows]);
+  const monthFilterOptions = useMemo(() => buildMonthFilterOptions(rows), [rows]);
   const visibleRows = useMemo(() => typeFilter === "ทั้งหมด" ? rows : rows.filter((row) => row.type === typeFilter), [rows, typeFilter]);
+  const monthRows = useMemo(() => (
+    monthFilter === "ทุกเดือน"
+      ? visibleRows
+      : visibleRows.filter((row) => formatMonthLabel(row.submittedAt) === monthFilter)
+  ), [visibleRows, monthFilter]);
   const metrics = useMemo(() => buildDashboardMetrics(filteredBatches), [filteredBatches]);
-  const summaryRows = useMemo(() => buildTotalSummary(visibleRows), [visibleRows]);
-  const typeTotals = useMemo(() => buildTypeTotals(visibleRows), [visibleRows]);
+  const monthTotalPieces = useMemo(() => monthRows.reduce((sum, row) => sum + Number(row.qty || 0), 0), [monthRows]);
+  const summaryRows = useMemo(() => buildTotalSummary(monthRows), [monthRows]);
+  const typeTotals = useMemo(() => buildTypeTotals(monthRows), [monthRows]);
+  const sizeTotals = useMemo(() => buildSizeTotals(monthRows), [monthRows]);
 
   useEffect(() => {
     if (typeFilter !== "ทั้งหมด" && !typeFilterOptions.includes(typeFilter)) {
       setTypeFilter("ทั้งหมด");
     }
   }, [typeFilter, typeFilterOptions]);
+
+  useEffect(() => {
+    if (!monthFilterOptions.includes(monthFilter)) {
+      setMonthFilter(monthFilterOptions[0] || "ทุกเดือน");
+    }
+  }, [monthFilter, monthFilterOptions]);
 
   async function syncDashboardAction(payload) {
     if (demoMode || !isGasConfigured()) return;
@@ -2486,6 +2502,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
     setBranchFilter("ทุกสาขา");
     setStatusFilter("ทุกสถานะ");
     setQuery("");
+    setMonthFilter(formatMonthLabel(new Date()));
   }
 
   function exportCsv() {
@@ -2511,8 +2528,8 @@ function Dashboard({ demoMode, onAuthExpired }) {
       <section className="rounded-xl border border-[#D8E3F5] bg-white/96 px-3 py-3 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-extrabold tracking-tight text-[#071638] sm:text-xl">แดชบอร์ดคำสั่งเบิกเสื้อ</h2>
-            <p className="mt-0.5 text-xs font-semibold text-[#64748B] sm:text-sm">ติดตามคำสั่งเบิกเสื้อและยอดรวม</p>
+            <h2 className="text-lg font-extrabold tracking-tight text-[#071638] sm:text-xl">แดชบอร์ดเบิกเสื้อ</h2>
+            <p className="mt-0.5 text-xs font-semibold text-[#64748B] sm:text-sm">ดูยอดรวม แยกรายคน และจัดการคำสั่งเบิก</p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <button onClick={() => loadData({ silent: true })} disabled={refreshing} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
@@ -2535,14 +2552,14 @@ function Dashboard({ demoMode, onAuthExpired }) {
       <Tabs.Root defaultValue="overview" className="grid gap-3">
         <Tabs.List className="dashboard-tabs grid grid-cols-2 gap-1 rounded-xl border border-[#D8DEEA] bg-white p-1 shadow-sm sm:grid-cols-4">
           <Tabs.Trigger value="overview" className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
-            <LayoutDashboard className="size-4 shrink-0" /> <span className="truncate">ภาพรวม</span>
+            <LayoutDashboard className="size-4 shrink-0" /> <span className="truncate">สรุปยอด</span>
           </Tabs.Trigger>
           <Tabs.Trigger value="list" className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
-            <Users className="size-4 shrink-0" /> <span className="truncate">รายการเบิก</span>
+            <Users className="size-4 shrink-0" /> <span className="truncate">แยกรายคน</span>
             <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{rows.length}</span>
           </Tabs.Trigger>
           <Tabs.Trigger value="orders" className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
-            <ClipboardList className="size-4 shrink-0" /> <span className="truncate">คำสั่งเบิก</span>
+            <ClipboardList className="size-4 shrink-0" /> <span className="truncate">คำสั่งทั้งหมด</span>
             <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">{filteredBatches.length}</span>
           </Tabs.Trigger>
           <Tabs.Trigger value="settings" className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm">
@@ -2553,18 +2570,23 @@ function Dashboard({ demoMode, onAuthExpired }) {
         <Tabs.Content value="overview" className="grid gap-3">
           <Card className="p-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-base font-extrabold text-[#071638]">ภาพรวม</h2>
-                <p className="mt-0.5 text-xs font-semibold text-[#64748B]">สรุปยอดตามตัวกรองปัจจุบัน</p>
+              <div className="min-w-0">
+                <h2 className="text-base font-extrabold text-[#071638]">สรุปยอดเบิกเสื้อ</h2>
+                <p className="mt-0.5 text-xs font-semibold text-[#64748B]">เลือกเดือนเพื่อดูว่าแต่ละไซส์เบิกไปเท่าไหร่</p>
               </div>
-              <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-right">
-                <p className="text-xs font-bold text-[#71717A]">รวมทั้งหมด</p>
-                <p className="text-xl font-black text-[#18181B]">{metrics.totalPieces} ชิ้น</p>
+              <div className="grid min-w-0 gap-2 sm:grid-cols-[14rem_auto] sm:items-end">
+                <Field label="เดือนที่ต้องการดู">
+                  <Select value={monthFilter} onChange={setMonthFilter} values={monthFilterOptions} />
+                </Field>
+                <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-right">
+                  <p className="text-xs font-bold text-[#71717A]">รวมตามเดือนที่เลือก</p>
+                  <p className="text-xl font-black text-[#18181B]">{monthTotalPieces} ชิ้น</p>
+                </div>
               </div>
             </div>
           </Card>
           <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} />
-          <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} filteredRows={visibleRows} />
+          <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} sizeTotals={sizeTotals} filteredRows={monthRows} monthFilter={monthFilter} />
         </Tabs.Content>
 
         <Tabs.Content value="list">
@@ -2575,6 +2597,10 @@ function Dashboard({ demoMode, onAuthExpired }) {
         <Tabs.Content value="orders">
           <div className="grid gap-3">
             <Card className="p-3">
+              <div className="mb-3">
+                <h2 className="text-base font-extrabold text-[#071638]">คำสั่งทั้งหมด</h2>
+                <p className="mt-0.5 text-xs font-semibold text-[#64748B]">ดูรายละเอียด แก้สถานะ และลบคำสั่งเป็นชุด</p>
+              </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[12rem_12rem_1fr_auto] lg:items-end">
                 <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={["ทุกสาขา", ...BRANCHES]} /></Field>
                 <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={["ทุกสถานะ", ...ORDER_STATUSES]} /></Field>
@@ -2662,10 +2688,21 @@ function TypeFilterChips({ value, onChange, options }) {
 
 function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
   const [listQuery, setListQuery] = useState("");
+  const [genderFilter, setGenderFilter] = useState("ทุกเพศ");
+  const [branchFilter, setBranchFilter] = useState("ทุกสาขา");
+  const [sizeFilter, setSizeFilter] = useState("ทุกไซส์");
+  const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const normalizedQuery = listQuery.trim().toLowerCase();
+  const genderOptions = useMemo(() => ["ทุกเพศ", ...uniqueSorted(rows.map((row) => row.gender).filter(Boolean))], [rows]);
+  const branchOptions = useMemo(() => ["ทุกสาขา", ...uniqueSorted(rows.map((row) => row.branch).filter(Boolean))], [rows]);
+  const sizeOptions = useMemo(() => ["ทุกไซส์", ...uniqueSorted(rows.map((row) => row.size).filter(Boolean), compareSizes)], [rows]);
+  const statusOptions = useMemo(() => ["ทุกสถานะ", ...uniqueSorted(rows.map((row) => row.status || ORDER_STATUS_PENDING).filter(Boolean))], [rows]);
   const filteredRows = useMemo(() => rows.filter((row) => {
-    if (!normalizedQuery) return true;
-    return [
+    const inGender = genderFilter === "ทุกเพศ" || row.gender === genderFilter;
+    const inBranch = branchFilter === "ทุกสาขา" || row.branch === branchFilter;
+    const inSize = sizeFilter === "ทุกไซส์" || row.size === sizeFilter;
+    const inStatus = statusFilter === "ทุกสถานะ" || (row.status || ORDER_STATUS_PENDING) === statusFilter;
+    const searchText = [
       row.batchId,
       row.name,
       row.gender,
@@ -2678,37 +2715,46 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
       row.size,
       row.qty,
       row.status
-    ].join(" ").toLowerCase().includes(normalizedQuery);
-  }), [rows, normalizedQuery]);
+    ].join(" ").toLowerCase();
+    const inQuery = !normalizedQuery || searchText.includes(normalizedQuery);
+    return inGender && inBranch && inSize && inStatus && inQuery;
+  }), [rows, normalizedQuery, genderFilter, branchFilter, sizeFilter, statusFilter]);
+  const totalPieces = filteredRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+
+  function clearListFilters() {
+    setListQuery("");
+    setGenderFilter("ทุกเพศ");
+    setBranchFilter("ทุกสาขา");
+    setSizeFilter("ทุกไซส์");
+    setStatusFilter("ทุกสถานะ");
+  }
 
   if (!rows.length) return <EmptyDashboardState text="ยังไม่มีรายการเบิกตามเงื่อนไขที่เลือก" />;
 
   const columns = [
-    { label: "วันที่", className: "min-w-[11rem]" },
-    { label: "รหัสคำสั่ง", className: "min-w-[11rem]" },
-    { label: "ชื่อพนักงาน", className: "min-w-[12rem]" },
+    { label: "วันที่", className: "min-w-[10rem]" },
+    { label: "พนักงาน", className: "min-w-[12rem]" },
     { label: "เพศ", className: "min-w-[5rem]" },
     { label: "สาขา", className: "min-w-[10rem]" },
-    { label: "บริษัท", className: "min-w-[13rem]" },
-    { label: "ผู้ขอเบิก/ผู้ติดต่อ", className: "min-w-[11rem]" },
-    { label: "เบอร์", className: "min-w-[9rem]" },
     { label: "ประเภท", className: "min-w-[9rem]" },
     { label: "สี", className: "min-w-[7rem]" },
     { label: "ไซส์", className: "min-w-[5rem]" },
-    { label: "จำนวน", className: "min-w-[5rem] text-right" },
-    { label: "สถานะ", className: "min-w-[7rem]" }
+    { label: "จำนวน", className: "min-w-[5rem]" },
+    { label: "สถานะ", className: "min-w-[7rem]" },
+    { label: "รหัสคำสั่ง", className: "min-w-[10rem]" }
   ];
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="flex min-w-0 flex-col gap-3 border-b border-[#E7EAF0] px-3 py-3 sm:px-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="grid gap-3 border-b border-[#E7EAF0] px-3 py-3 sm:px-4">
         <div className="min-w-0">
-          <h2 className="text-lg font-extrabold text-[#071638]">รายการเบิกทั้งหมด</h2>
-          <p className="mt-1 hidden text-sm font-semibold text-[#64748B] sm:block">แสดงข้อมูลพนักงานและรายการเสื้อจากคำสั่งเบิกที่ผ่านตัวกรอง</p>
+          <h2 className="text-lg font-extrabold text-[#071638]">รายการแยกรายคน</h2>
+          <p className="mt-1 hidden text-sm font-semibold text-[#64748B] sm:block">ค้นหาและกรองข้อมูลพนักงานจากเพศ สาขา ไซส์ และสถานะในหน้าเดียว</p>
         </div>
-        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(14rem,26rem)_auto] sm:items-center">
+        <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(14rem,1.5fr)_10rem_12rem_10rem_10rem_auto] xl:items-end">
           <div className="relative min-w-0">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717A]" />
+            <span className="mb-1.5 block text-xs font-bold text-[#44536A]">ค้นหา</span>
+            <Search className="pointer-events-none absolute left-3 top-[2.25rem] size-4 text-[#71717A]" />
             <input
               value={listQuery}
               onChange={(event) => setListQuery(event.target.value)}
@@ -2716,9 +2762,21 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
               className="h-11 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-3 text-sm font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10"
             />
           </div>
+          <Field label="เพศ"><Select value={genderFilter} onChange={setGenderFilter} values={genderOptions} /></Field>
+          <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={branchOptions} /></Field>
+          <Field label="ไซส์"><Select value={sizeFilter} onChange={setSizeFilter} values={sizeOptions} /></Field>
+          <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={statusOptions} /></Field>
+          <button onClick={clearListFilters} className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white px-4 text-sm font-bold text-[#002B5B] shadow-sm">
+            ล้าง
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-center text-sm font-black text-[#18181B]">
             {filteredRows.length}/{totalRows} รายการ
           </div>
+          <span className="rounded-lg bg-[#EEF4FF] px-3 py-2 text-sm font-black text-[#002B5B]">
+            รวม {totalPieces} ชิ้น
+          </span>
         </div>
       </div>
       <div className="grid gap-2 p-3 md:hidden">
@@ -2727,43 +2785,40 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
         ))}
         {!filteredRows.length && (
           <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">
-            ไม่พบรายการตามคำค้นหา
+            ไม่พบรายการตามตัวกรอง
           </div>
         )}
       </div>
       <div className="employee-scroll-region hidden overflow-auto md:block">
-        <table className="w-full min-w-[1500px] text-left text-sm">
+        <table className="w-full min-w-[980px] table-fixed text-center text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
               {columns.map((column) => (
-                <th key={column.label} className={cn("border-b border-[#D8DEEA] px-4 py-3.5", column.className)}>{column.label}</th>
+                <th key={column.label} className={cn("border-b border-[#D8DEEA] px-3 py-3.5 text-center align-middle", column.className)}>{column.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filteredRows.map((row) => (
-              <tr key={row.id} className="border-b border-[#E7EAF0] align-top hover:bg-[#F8FAFC]">
-                <td className="whitespace-nowrap px-4 py-4 font-semibold leading-6 text-[#44536A]">
+              <tr key={row.id} className="border-b border-[#E7EAF0] align-middle hover:bg-[#F8FAFC]">
+                <td className="px-3 py-4 text-center font-semibold leading-6 text-[#44536A]">
                   {new Date(row.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
                 </td>
-                <td className="break-words px-4 py-4 font-bold leading-6 text-[#64748B]">{row.batchId}</td>
-                <td className="break-words px-4 py-4 font-extrabold leading-6 text-[#071638]">{row.name || "-"}</td>
-                <td className="whitespace-nowrap px-4 py-4 leading-6">{row.gender || "-"}</td>
-                <td className="break-words px-4 py-4 font-bold leading-6 text-[#002B5B]">{row.branch || "-"}</td>
-                <td className="break-words px-4 py-4 leading-6">{row.companyName || "-"}</td>
-                <td className="break-words px-4 py-4 font-bold leading-6">{row.supervisorName || "-"}</td>
-                <td className="whitespace-nowrap px-4 py-4 leading-6">{formatPhone(row.supervisorPhone) || "-"}</td>
-                <td className="break-words px-4 py-4 font-bold leading-6">{row.type || "-"}</td>
-                <td className="break-words px-4 py-4 leading-6">{row.color || "-"}</td>
-                <td className="whitespace-nowrap px-4 py-4 font-bold leading-6">{row.size || "-"}</td>
-                <td className="whitespace-nowrap px-4 py-4 text-right font-extrabold leading-6">{row.qty}</td>
-                <td className="whitespace-nowrap px-4 py-4"><StatusBadge status={row.status || ORDER_STATUS_PENDING} /></td>
+                <td className="break-words px-3 py-4 text-center font-extrabold leading-6 text-[#071638]">{row.name || "-"}</td>
+                <td className="px-3 py-4 text-center leading-6">{row.gender || "-"}</td>
+                <td className="break-words px-3 py-4 text-center font-bold leading-6 text-[#002B5B]">{row.branch || "-"}</td>
+                <td className="break-words px-3 py-4 text-center font-bold leading-6">{row.type || "-"}</td>
+                <td className="break-words px-3 py-4 text-center leading-6">{row.color || "-"}</td>
+                <td className="px-3 py-4 text-center font-bold leading-6">{row.size || "-"}</td>
+                <td className="px-3 py-4 text-center font-extrabold leading-6">{row.qty}</td>
+                <td className="px-3 py-4 text-center"><StatusBadge status={row.status || ORDER_STATUS_PENDING} /></td>
+                <td className="break-words px-3 py-4 text-center font-bold leading-6 text-[#64748B]">{row.batchId}</td>
               </tr>
             ))}
             {!filteredRows.length && (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-10 text-center font-bold text-[#64748B]">
-                  ไม่พบรายการตามคำค้นหา
+                  ไม่พบรายการตามตัวกรอง
                 </td>
               </tr>
             )}
@@ -2788,9 +2843,7 @@ function WithdrawalMobileCard({ row }) {
         <MobileInfo label="วันที่" value={new Date(row.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })} />
         <MobileInfo label="เพศ" value={row.gender || "-"} />
         <MobileInfo label="สาขา" value={row.branch || "-"} />
-        <MobileInfo label="บริษัท" value={row.companyName || "-"} />
-        <MobileInfo label="ผู้ขอเบิก" value={row.supervisorName || "-"} />
-        <MobileInfo label="เบอร์" value={formatPhone(row.supervisorPhone) || "-"} />
+        <MobileInfo label="รหัสคำสั่ง" value={row.batchId || "-"} />
       </div>
       <div className="mt-3 rounded-lg bg-[#F4F7FC] p-3">
         <p className="break-words text-sm font-extrabold text-[#071638]">{row.type || "-"}</p>
@@ -2882,7 +2935,7 @@ function MiniMetric({ label, value }) {
   );
 }
 
-function TotalSummaryView({ summaryRows, typeTotals, filteredRows }) {
+function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, monthFilter }) {
   const maxQty = Math.max(1, ...typeTotals.map((row) => row.qty));
   const totalPieces = filteredRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
   return (
@@ -2908,7 +2961,29 @@ function TotalSummaryView({ summaryRows, typeTotals, filteredRows }) {
       </Card>
 
       <Card className="p-3 sm:p-4">
-        <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามไซส์</h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-base font-extrabold text-[#071638]">ไซส์ที่เบิก: {monthFilter}</h2>
+            <p className="mt-0.5 text-xs font-semibold text-[#64748B]">รวมจำนวนตามไซส์ ก่อนลงรายละเอียดแบบเสื้อและสี</p>
+          </div>
+          <span className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] px-3 text-sm font-black text-[#002B5B]">
+            <CalendarDays className="size-4" /> {totalPieces} ชิ้น
+          </span>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {sizeTotals.length ? sizeTotals.map((row) => (
+            <span key={row.size} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] px-3 text-sm font-bold text-[#071638]">
+              <span className="text-[#64748B]">ไซส์</span>
+              <span className="font-black">{row.size}</span>
+              <span className="rounded-full bg-[#E5EFFD] px-2 py-0.5 text-xs font-black text-[#002B5B]">{row.qty} ชิ้น</span>
+            </span>
+          )) : <EmptyDashboardState text="ยังไม่มีข้อมูลไซส์ในเดือนนี้" compact />}
+        </div>
+
+        <div className="mt-4 border-t border-[#E7EAF0] pt-3">
+          <h3 className="text-sm font-extrabold text-[#071638]">รายละเอียดตามแบบเสื้อ สี และไซส์</h3>
+        </div>
         <div className="mt-3 grid gap-2 sm:hidden">
           {summaryRows.length ? summaryRows.map((row) => (
             <SummaryMobileRow key={`${row.type}-${row.color}-${row.size}`} row={row} />
@@ -2944,14 +3019,9 @@ function TotalSummaryView({ summaryRows, typeTotals, filteredRows }) {
 }
 
 function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "" }) {
-  const rows = batch ? flattenBatches([batch]) : [];
-  const [showEmployeeList, setShowEmployeeList] = useState(false);
   const isUpdatingStatus = Boolean(batch && statusLoadingId === batch.batchId);
   const isDeleting = Boolean(batch && deleteLoadingId === batch.batchId);
   const isBusy = isUpdatingStatus || isDeleting;
-  useEffect(() => {
-    if (!batch) setShowEmployeeList(false);
-  }, [batch]);
   function confirmDelete() {
     if (batch && !isBusy && window.confirm(`ลบคำสั่งเบิกเสื้อ ${batch.batchId}?`)) onDelete(batch.batchId);
   }
@@ -2990,9 +3060,6 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
                 <p className="mb-4 rounded-xl bg-[#EEF4FF] px-4 py-3 text-sm font-bold text-[#002B5B]">
                   อัปเดตสถานะล่าสุด: {new Date(batch.statusUpdatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
                 </p>
-                <button onClick={() => setShowEmployeeList(true)} className="mb-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-4 text-sm font-black text-[#002B5B]">
-                  <Users className="size-4" /> ดูรายชื่อพนักงานทั้งหมด ({batch.orders.length} คน)
-                </button>
                 <div className="grid gap-3">
                   {batch.orders.map((order) => (
                     <div key={`${batch.batchId}-${order.name}`} className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
@@ -3046,46 +3113,6 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
             </>
           )}
         </Dialog.Content>
-        <BatchEmployeeListDialog batch={batch} open={showEmployeeList} setOpen={setShowEmployeeList} />
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
-function BatchEmployeeListDialog({ batch, open, setOpen }) {
-  return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="gi-overlay fixed inset-0 z-[60] bg-[#0F172A]/35 backdrop-blur-sm" />
-        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-2 bottom-2 top-2 z-[61] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[82vh] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
-          <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[#E7EAF0] px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
-            <div className="min-w-0">
-              <Dialog.Title className="text-lg font-extrabold text-[#071638]">รายชื่อพนักงานทั้งหมด</Dialog.Title>
-              <p className="mt-1 break-words text-sm font-bold text-[#64748B]">{batch?.supervisorName || "-"} เป็นผู้ขอเบิก · {batch?.branch || "-"}</p>
-            </div>
-            <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
-          </div>
-          <div className="employee-scroll-region min-h-0 flex-1 overflow-auto p-3 sm:p-4">
-            <div className="grid gap-3">
-              {batch?.orders.map((order, index) => {
-                const pieces = order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
-                const details = order.items.map((item) => `${item.type}${item.color ? ` ${item.color}` : ""} ${item.size} x${item.qty}`).join(" · ");
-                return (
-                  <div key={`${batch.batchId}-${order.name}-${index}`} className="rounded-xl border border-[#E2E8F0] bg-white p-3 sm:p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-extrabold text-[#071638]">{index + 1}. {order.name || "-"}</p>
-                        <p className="mt-1 text-xs font-bold text-[#64748B]">{order.gender || "-"}</p>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-[#EEF4FF] px-3 py-1 text-sm font-black text-[#002B5B]">{pieces} ชิ้น</span>
-                    </div>
-                    <p className="mt-3 break-words text-sm font-semibold leading-6 text-[#44536A]">{details || "-"}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );
@@ -3113,6 +3140,59 @@ function buildTypeTotals(rows) {
   })).filter((row) => row.qty > 0);
 }
 
+function buildSizeTotals(rows) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const size = row.size || "-";
+    map.set(size, (map.get(size) || 0) + Number(row.qty || 0));
+  });
+  return [...map.entries()]
+    .map(([size, qty]) => ({ size, qty }))
+    .sort((a, b) => compareSizes(a.size, b.size));
+}
+
+function uniqueSorted(values, sorter) {
+  const unique = [...new Set(values.filter(Boolean))];
+  return sorter ? unique.sort(sorter) : unique.sort((a, b) => String(a).localeCompare(String(b), "th", { numeric: true }));
+}
+
+function compareSizes(a, b) {
+  const order = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+  const aIndex = order.indexOf(String(a).toUpperCase());
+  const bIndex = order.indexOf(String(b).toUpperCase());
+  if (aIndex !== -1 || bIndex !== -1) {
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  }
+  return String(a).localeCompare(String(b), "th", { numeric: true });
+}
+
+function formatMonthLabel(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(date);
+}
+
+function buildMonthFilterOptions(rows) {
+  const monthMap = new Map();
+  rows.forEach((row) => {
+    const date = new Date(row.submittedAt);
+    if (Number.isNaN(date.getTime())) return;
+    const sortKey = date.getFullYear() * 100 + date.getMonth();
+    monthMap.set(formatMonthLabel(date), sortKey);
+  });
+  const currentMonth = formatMonthLabel(new Date());
+  if (currentMonth && !monthMap.has(currentMonth)) {
+    const now = new Date();
+    monthMap.set(currentMonth, now.getFullYear() * 100 + now.getMonth());
+  }
+  return [...monthMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label]) => label)
+    .concat("ทุกเดือน");
+}
+
 function buildTotalSummary(rows) {
   const map = new Map();
   rows.forEach((row) => {
@@ -3137,9 +3217,15 @@ function buildDashboardMetrics(batches) {
 function Stat({ icon: Icon, value, label }) {
   return (
     <Card className="min-w-0 p-3 sm:p-4">
-      <div className="grid size-8 place-items-center rounded-xl bg-[#EEF4FF] text-[#002B5B] sm:size-9"><Icon className="size-4 sm:size-5" /></div>
-      <p className="mt-2 truncate text-xl font-extrabold text-[#071638] sm:mt-3 sm:text-2xl">{value}</p>
-      <p className="mt-1 truncate text-[11px] font-bold text-[#64748B] sm:text-xs">{label}</p>
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#EEF4FF] text-[#002B5B] sm:size-10">
+          <Icon className="size-4 sm:size-5" />
+        </div>
+        <div className="flex min-w-0 items-baseline gap-2">
+          <p className="shrink-0 text-xl font-extrabold leading-none text-[#071638] sm:text-2xl">{value}</p>
+          <p className="min-w-0 truncate text-xs font-bold text-[#64748B] sm:text-sm">{label}</p>
+        </div>
+      </div>
     </Card>
   );
 }
