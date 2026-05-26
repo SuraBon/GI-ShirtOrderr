@@ -2729,7 +2729,6 @@ function Dashboard({ demoMode, onAuthExpired }) {
 
 function TypeFilterChips({ value, onChange, options, genderValue = "", onGenderChange, genderOptions = [] }) {
   const [filterQuery, setFilterQuery] = useState("");
-  if (!options.length) return null;
   const choices = ["ทั้งหมด", ...options];
   const normalizedQuery = filterQuery.trim().toLowerCase();
   const visibleChoices = normalizedQuery
@@ -2770,7 +2769,7 @@ function TypeFilterChips({ value, onChange, options, genderValue = "", onGenderC
             ) : null}
           </div>
           <div className="employee-scroll-region grid max-h-36 min-w-0 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4">
-            {visibleChoices.map((type) => {
+            {options.length ? visibleChoices.map((type) => {
               const active = value === type;
               return (
                 <button
@@ -2784,8 +2783,12 @@ function TypeFilterChips({ value, onChange, options, genderValue = "", onGenderC
                   <span className="block truncate">{type}</span>
                 </button>
               );
-            })}
-            {!visibleChoices.length ? (
+            }) : (
+              <div className="col-span-full rounded-lg border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-3 py-4 text-center text-sm font-bold text-[#64748B]">
+                ยังไม่มีแบบเสื้อในเงื่อนไขนี้
+              </div>
+            )}
+            {options.length > 0 && !visibleChoices.length ? (
               <div className="col-span-full rounded-lg border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-3 py-4 text-center text-sm font-bold text-[#64748B]">
                 ไม่พบแบบเสื้อที่ค้นหา
               </div>
@@ -3264,7 +3267,7 @@ function getBatchPieces(batch) {
 }
 
 function buildTypeTotals(rows) {
-  return getClothingTypes().map((type) => ({
+  return uniqueSorted([...getClothingTypes(), ...rows.map((row) => row.type).filter(Boolean)]).map((type) => ({
     type,
     qty: rows.filter((row) => row.type === type).reduce((sum, row) => sum + Number(row.qty || 0), 0)
   })).filter((row) => row.qty > 0);
