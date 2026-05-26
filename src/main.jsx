@@ -305,7 +305,7 @@ function patchSizeWithDefaultQty(item, size) {
   };
 }
 
-function ItemColorSelect({ employee, item, dispatch, compact = false }) {
+function ItemColorSelect({ employee, item, dispatch, compact = false, invalid = false }) {
   const colors = getColorOptions(item.type);
   if (colors.length <= 1) return null;
   return (
@@ -316,6 +316,7 @@ function ItemColorSelect({ employee, item, dispatch, compact = false }) {
       values={colors}
       onChange={(color) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { color } })}
       compact={compact}
+      invalid={invalid}
     />
   );
 }
@@ -324,11 +325,19 @@ function formatOrderItemLabel(item) {
   return [item.type, item.color ? `สี${item.color}` : "", item.size, `x${item.qty || 0}`].filter(Boolean).join(" ");
 }
 
-function EmployeeItemSummary({ employee, onEdit }) {
+function EmployeeItemSummary({ employee, onEdit, invalid = false }) {
   const visibleItems = employee.items.slice(0, 3);
   if (!employee.items.length) {
     return (
-      <button onClick={onEdit} className="min-h-10 w-full rounded-lg border border-dashed border-[#A9B9D1] bg-white px-3 text-sm font-bold text-[#002B5B] hover:bg-[#F4F8FF]">
+      <button
+        onClick={onEdit}
+        className={cn(
+          "min-h-10 w-full rounded-lg border border-dashed px-3 text-sm font-bold transition",
+          invalid
+            ? "border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C] hover:bg-[#FEE2E2]"
+            : "border-[#A9B9D1] bg-white text-[#002B5B] hover:bg-[#F4F8FF]"
+        )}
+      >
         <span className="inline-flex items-center justify-center gap-1.5"><Plus className="size-4" /> เพิ่มรายการเสื้อ</span>
       </button>
     );
@@ -907,6 +916,8 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
             showIncompleteOnly={showIncompleteOnly}
             setShowIncompleteOnly={setShowIncompleteOnly}
             onQuickOrder={() => setQuickOpen(true)}
+            query={query}
+            setQuery={setQuery}
           />
         </div>
         <QuickEmployeeTable
@@ -939,6 +950,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         dispatch={dispatch}
         onClose={() => setMobileEmployeeId("")}
         onNext={(employeeId) => setMobileEmployeeId(employeeId)}
+        invalidEmployeeId={invalidEmployeeId}
       />
       <QuickOrderDialog open={quickOpen} setOpen={setQuickOpen} state={state} dispatch={dispatch} />
       <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
@@ -1131,37 +1143,75 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
   );
 }
 
-function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setShowIncompleteOnly, onQuickOrder }) {
+function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setShowIncompleteOnly, onQuickOrder, query = "", setQuery }) {
   const canRemoveBlank = employees.length > 1 && employees.some((employee) => !hasEmployeeData(employee));
   const completedEmployees = employees.filter(isEmployeeComplete).length;
 
   return (
-    <section className="flex flex-col rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4">
+    <section className="flex flex-col rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-base font-extrabold text-[#071638]">รายการพนักงาน</h1>
           <p className="mt-1 text-sm font-semibold text-[#64748B]">ครบ {completedEmployees}/{employees.length} คน</p>
         </div>
-        <label className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#44536A]">
+        <label className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#44536A] shadow-sm cursor-pointer select-none">
           <input type="checkbox" checked={showIncompleteOnly} onChange={(event) => setShowIncompleteOnly(event.target.checked)} className="size-4 accent-[#002B5B]" />
           ยังไม่ครบ
         </label>
       </div>
 
+      <div className="relative mt-3 min-w-0">
+        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#71717A]" />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="ค้นหาชื่อพนักงาน/ไซส์/แบบเสื้อ..."
+          className="h-10 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-8 text-xs font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-2 focus:ring-[#002B5B]/10"
+        />
+        {query ? (
+          <button
+            onClick={() => setQuery("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-[#071638]"
+            title="ล้างข้อความค้นหา"
+          >
+            <X className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <button onClick={onQuickOrder} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-2.5 text-xs font-bold text-white sm:min-h-11 sm:text-sm">
+        <button onClick={onQuickOrder} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-2.5 text-xs font-bold text-white sm:min-h-11 sm:text-sm shadow-sm transition hover:bg-[#013A78]">
           <UserPlus /> เพิ่มหลายคน
         </button>
-        <button onClick={() => dispatch({ type: "add" })} className="min-h-10 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#002B5B] sm:min-h-11 sm:px-3 sm:text-sm">
+        <button onClick={() => dispatch({ type: "add" })} className="min-h-10 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#002B5B] sm:min-h-11 sm:px-3 sm:text-sm shadow-sm transition hover:bg-[#F8FAFC]">
           <span className="inline-flex items-center justify-center gap-1.5"><Plus className="size-4" /> เพิ่ม 1 คน</span>
         </button>
-        <button onClick={() => dispatch({ type: "copyFirstSetupToAll" })} disabled={!employees[0]?.items.length} className="min-h-10 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-2.5 text-xs font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm">
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="h-px flex-1 bg-[#E7EAF0]" />
+        <span className="text-[10px] font-bold text-[#94A3B8]">จัดการ</span>
+        <div className="h-px flex-1 bg-[#E7EAF0]" />
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button onClick={() => dispatch({ type: "copyFirstSetupToAll" })} disabled={!employees[0]?.items.length} className="min-h-10 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-2.5 text-xs font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm shadow-sm transition hover:bg-[#D5E6FF]">
           <span className="inline-flex items-center justify-center gap-1.5"><Copy className="size-4" /> คัดลอกแถวแรก</span>
         </button>
-        <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm">
+        <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm shadow-sm transition hover:bg-[#FFF3CD]">
           <span className="inline-flex items-center justify-center gap-1.5"><Eraser className="size-4" /> ลบแถวว่าง</span>
         </button>
       </div>
+
+      <button
+        onClick={() => {
+          if (window.confirm("คุณต้องการล้างข้อมูลผู้ติดต่อและรายชื่อพนักงานทั้งหมดใช่หรือไม่?")) {
+            dispatch({ type: "reset" });
+            setQuery("");
+          }
+        }}
+        className="mt-2 flex min-h-8 w-full items-center justify-center gap-1.5 text-[11px] font-bold text-[#94A3B8] transition hover:text-[#B91C1C]"
+      >
+        <Trash2 className="size-3.5" /> ล้างรายการทั้งหมด
+      </button>
     </section>
   );
 }
@@ -1201,17 +1251,18 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
               const index = employees.findIndex((item) => item.id === employee.id);
               const complete = isEmployeeComplete(employee);
               const missingFields = getEmployeeMissingFields(employee);
+              const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
               return (
                 <tr key={employee.id} data-quick-employee-row={employee.id} className={cn("border-b border-[#E7EAF0] align-top transition hover:bg-[#F8FAFC]", invalidEmployeeId === employee.id && "employee-attention bg-[#FFF7F7] outline outline-2 outline-[#EF4444] outline-offset-[-2px]")}>
                   <td className="w-14 px-3 py-3 text-center font-extrabold text-[#64748B]">{index + 1}</td>
                   <td className="w-[17rem] px-3 py-3">
-                    <GridInput value={employee.name} placeholder="ชื่อ-นามสกุล" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
+                    <GridInput value={employee.name} placeholder="ชื่อ-นามสกุล" invalid={showErrors && !employee.name.trim()} onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} />
                   </td>
                   <td className="w-40 px-3 py-3">
-                    <GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} />
+                    <GridSelect value={employee.gender} values={GENDERS} placeholder="เลือกเพศ" invalid={showErrors && !employee.gender} onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender: value } })} />
                   </td>
                   <td className="px-3 py-3">
-                    <EmployeeItemSummary employee={employee} onEdit={() => setEditingEmployeeId(employee.id)} />
+                    <EmployeeItemSummary employee={employee} invalid={showErrors && !employee.items.length} onEdit={() => setEditingEmployeeId(employee.id)} />
                   </td>
                   <td className="w-44 px-3 py-3 text-center">
                     <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-extrabold", complete ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>{complete ? "ครบ" : "ยังไม่ครบ"}</span>
@@ -1242,28 +1293,30 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
   );
 }
 
-function QuickGarmentCell({ employee, type, dispatch }) {
+function QuickGarmentCell({ employee, type, dispatch, invalidEmployeeId }) {
   const item = employee.items.find((entry) => entry.type === type);
   if (!item) {
-  return (
-    <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="min-h-10 w-full rounded-lg border border-dashed border-[#A9B9D1] bg-white text-sm font-bold text-[#002B5B] hover:bg-[#F4F8FF]">
+    return (
+      <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="min-h-10 w-full rounded-lg border border-dashed border-[#A9B9D1] bg-white text-sm font-bold text-[#002B5B] hover:bg-[#F4F8FF]">
         <span className="inline-flex items-center justify-center gap-1.5"><Plus className="size-4" /> เพิ่ม</span>
       </button>
     );
   }
 
+  const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
+
   return (
     <div className="grid gap-2">
       <div className="grid grid-cols-[1fr_4.5rem_2.25rem] gap-2">
-        <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "ไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} />
-        <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
+        <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "ไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} invalid={showErrors && !item.size} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} />
+        <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" invalid={showErrors && Number(item.qty || 0) <= 0} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
         <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} aria-label="ลบรายการชุด" title="ลบรายการชุด" className="grid min-h-10 place-items-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]">
           <X />
         </button>
       </div>
-      <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
+      <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact invalid={showErrors && needsColorSelection(item.type) && !resolveItemColor(item.type, item.color || "")} />
       {item.size === OTHER_SIZE && (
-        <GridInput value={item.customSize} placeholder="ระบุไซส์เพิ่มเติม" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} />
+        <GridInput value={item.customSize} placeholder="ระบุไซส์เพิ่มเติม" invalid={showErrors && item.size === OTHER_SIZE && !item.customSize.trim()} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} />
       )}
     </div>
   );
@@ -1376,11 +1429,12 @@ function QuickMobileList({ employees, query, showIncompleteOnly, invalidEmployee
   );
 }
 
-function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
+function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, invalidEmployeeId }) {
   const canDelete = canDeleteEmployee(employees);
   const index = employee ? employees.findIndex((item) => item.id === employee.id) : -1;
   const nextEmployee = index >= 0 ? employees[index + 1] : null;
   const clothingTypes = getClothingTypes();
+  const showErrors = employee ? (hasEmployeeData(employee) || invalidEmployeeId === employee.id) : false;
 
   return (
     <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
@@ -1395,12 +1449,23 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
               </div>
               <div className="employee-scroll-region grid gap-3 overflow-y-auto bg-[#F5F7FB] p-3">
                 <Field label="ชื่อ-นามสกุล">
-                  <TextInput value={employee.name} onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
+                  <TextInput value={employee.name} invalid={showErrors && !employee.name.trim()} onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
                 </Field>
                 <Field label="เพศ">
                   <div className="grid grid-cols-2 gap-2">
                     {GENDERS.map((gender) => (
-                      <button key={gender} onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })} className={cn("min-h-11 rounded-lg border text-sm font-bold", employee.gender === gender ? "border-[#002B5B] bg-[#002B5B] text-white" : "border-[#CBD5E1] bg-white text-[#071638]")}>
+                      <button
+                        key={gender}
+                        onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })}
+                        className={cn(
+                          "min-h-11 rounded-lg border text-sm font-bold transition",
+                          employee.gender === gender
+                            ? "border-[#002B5B] bg-[#002B5B] text-white"
+                            : (showErrors && !employee.gender
+                                ? "border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C]"
+                                : "border-[#CBD5E1] bg-white text-[#071638]")
+                        )}
+                      >
                         {gender}
                       </button>
                     ))}
@@ -1408,7 +1473,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
                 </Field>
                 <div className="grid gap-2">
                   {clothingTypes.map((type) => (
-                    <div key={type} className="rounded-lg border border-[#D8DEEA] bg-white p-3">
+                    <div key={type} className={cn("rounded-lg border bg-white p-3", showErrors && !employee.items.length ? "border-[#EF4444] bg-[#FFF7F7]" : "border-[#D8DEEA]")}>
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <p className="font-extrabold text-[#071638]">{type}</p>
                         <label className="flex items-center gap-2 text-sm font-bold text-[#002B5B]">
@@ -1416,7 +1481,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
                           เบิก
                         </label>
                       </div>
-                      {employee.items.some((item) => item.type === type) && <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} />}
+                      {employee.items.some((item) => item.type === type) && <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} />}
                     </div>
                   ))}
                 </div>
@@ -1447,14 +1512,38 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext }) {
 
 function QuickSummaryBar({ totalPieces, completedEmployees, totalEmployees, hasIncompleteEmployee, isSubmitting, onJumpIncomplete, onSubmit }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#D8DEEA] bg-white/96 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
-      <div className="mx-auto grid max-w-[1280px] gap-2 sm:max-w-[32rem] sm:gap-3">
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={onJumpIncomplete} disabled={!hasIncompleteEmployee} className="min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-4 sm:text-sm">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#D8DEEA] bg-white/96 px-3 py-3.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="mx-auto flex max-w-[1280px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2 sm:px-4">
+        <div className="flex items-center justify-between gap-4 sm:justify-start">
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-[#64748B]">ความคืบหน้า</p>
+            <p className="text-[15px] font-black text-[#071638] sm:text-base">
+              ครบ <span className="text-[#166534]">{completedEmployees}</span>/{totalEmployees} คน
+            </p>
+          </div>
+          <div className="h-8 w-px bg-[#E2E8F0] hidden sm:block" />
+          <div>
+            <p className="text-xs font-bold text-[#64748B]">ยอดรวมเบิกเสื้อ</p>
+            <p className="text-lg font-black text-[#002B5B]">
+              {totalPieces} <span className="text-xs font-bold text-[#64748B]">ชิ้น</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+          <button
+            onClick={onJumpIncomplete}
+            disabled={!hasIncompleteEmployee}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-3 text-xs font-black text-[#92400E] transition hover:bg-[#FFF9E6] disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
+          >
             ไปแถวที่ยังไม่ครบ
           </button>
-          <button onClick={onSubmit} disabled={isSubmitting} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-3 text-sm font-bold text-white disabled:opacity-60 sm:min-h-11 sm:gap-2 sm:px-5 sm:text-base">
-            {isSubmitting ? <Loader2 className="animate-spin" /> : <Send />} ส่งเบิก
+          <button
+            onClick={onSubmit}
+            disabled={isSubmitting}
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#013A78] disabled:opacity-60"
+          >
+            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} ส่งเบิก
           </button>
         </div>
       </div>
@@ -1699,7 +1788,7 @@ function Field({ label, children }) {
   );
 }
 
-const TextInput = React.forwardRef(function TextInput({ value, onChange, placeholder, inputMode, type = "text", pattern, autoCapitalize, disabled = false, maxLength }, ref) {
+const TextInput = React.forwardRef(function TextInput({ value, onChange, placeholder, inputMode, type = "text", pattern, autoCapitalize, disabled = false, maxLength, invalid = false }, ref) {
   return (
     <input
       ref={ref}
@@ -1712,7 +1801,12 @@ const TextInput = React.forwardRef(function TextInput({ value, onChange, placeho
       placeholder={placeholder}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
-      className="h-11 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:px-3.5 sm:text-[15px]"
+      className={cn(
+        "h-11 w-full rounded-xl border bg-white px-3 text-sm text-[#071638] shadow-sm outline-none transition placeholder:text-[#94A3B8] disabled:cursor-not-allowed disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] sm:px-3.5 sm:text-[15px]",
+        invalid
+          ? "border-[#EF4444] focus:border-[#EF4444] focus:ring-4 focus:ring-[#FEE2E2]"
+          : "border-[#CBD5E1] focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]"
+      )}
     />
   );
 });
@@ -1728,7 +1822,7 @@ function MonthInput({ value, onChange }) {
   );
 }
 
-function CustomSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false }) {
+function CustomSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false, invalid = false }) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState(null);
   const rootRef = useRef(null);
@@ -1788,7 +1882,10 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          "flex w-full items-center justify-between gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 text-left text-sm font-bold text-[#09090B] outline-none transition focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA]",
+          "flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 text-left text-sm font-bold text-[#09090B] outline-none transition disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA]",
+          invalid
+            ? "border-[#EF4444] focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/15"
+            : "border-[#CBD5E1] focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10",
           compact ? "h-11" : "h-11 sm:px-3.5 sm:text-[15px]"
         )}
       >
@@ -1836,12 +1933,29 @@ function Select(props) {
   return <CustomSelect {...props} />;
 }
 
-function GridInput({ value, onChange, placeholder, type = "text", inputMode, pattern, autoCapitalize }) {
-  return <input type={type} value={value} placeholder={placeholder} inputMode={inputMode} pattern={pattern} autoCapitalize={autoCapitalize} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-[#D8DEEA] bg-white px-3 text-[#071638] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" />;
+function GridInput({ value, onChange, placeholder, type = "text", inputMode, pattern, autoCapitalize, invalid = false, className }) {
+  return (
+    <input
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      inputMode={inputMode}
+      pattern={pattern}
+      autoCapitalize={autoCapitalize}
+      onChange={(event) => onChange(event.target.value)}
+      className={cn(
+        "h-11 w-full rounded-xl border bg-white px-3 text-[#071638] outline-none transition focus:ring-4",
+        invalid
+          ? "border-[#EF4444] focus:border-[#EF4444] focus:ring-[#FEE2E2]"
+          : "border-[#D8DEEA] focus:border-[#002B5B] focus:ring-[#DCE8FF]",
+        className
+      )}
+    />
+  );
 }
 
-function GridSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false }) {
-  return <CustomSelect value={value} values={values} onChange={onChange} placeholder={placeholder} disabled={disabled} compact={compact} />;
+function GridSelect({ value, values, onChange, placeholder = "เลือกไซส์", disabled = false, compact = false, invalid = false }) {
+  return <CustomSelect value={value} values={values} onChange={onChange} placeholder={placeholder} disabled={disabled} compact={compact} invalid={invalid} />;
 }
 
 function SizeReference({ open, setOpen }) {
@@ -2359,6 +2473,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const [exportSizeFilter, setExportSizeFilter] = useState("ทุกไซส์");
   const [exportStatusFilter, setExportStatusFilter] = useState("ทุกสถานะ");
   const [selectedBatch, setSelectedBatch] = useState(null);
+  const [exportExpanded, setExportExpanded] = useState(false);
 
   async function loadData({ silent = false } = {}) {
     if (refreshing) return;
@@ -2593,13 +2708,18 @@ function Dashboard({ demoMode, onAuthExpired }) {
             <h2 className="text-lg font-extrabold tracking-tight text-[#071638] sm:text-xl">แดชบอร์ดเบิกเสื้อ</h2>
             <p className="mt-0.5 text-xs font-semibold text-[#64748B] sm:text-sm">ดูยอดรวม แยกรายคน และจัดการคำสั่งเบิก</p>
           </div>
-          <div className="grid gap-2 sm:flex">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setExportExpanded((v) => !v)} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]">
+              <Download className="size-4" /> ส่งออก CSV
+              <ChevronDown className={cn("size-3.5 transition", exportExpanded && "rotate-180")} />
+            </button>
             <button onClick={() => loadData({ silent: true })} disabled={refreshing} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
               {refreshing ? <Loader2 className="size-4 animate-spin" /> : null}
               {refreshing ? "กำลังโหลด" : "โหลดข้อมูลใหม่"}
             </button>
           </div>
         </div>
+        {exportExpanded && (
         <div className="mt-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.1fr_9rem_9rem_8rem_9rem_8rem_9rem_auto] xl:items-end">
             <Field label="สาขาที่ส่งออก"><Select value={exportBranchFilter} onChange={setExportBranchFilter} values={exportBranchOptions} /></Field>
@@ -2609,11 +2729,12 @@ function Dashboard({ demoMode, onAuthExpired }) {
             <Field label="แบบเสื้อ"><Select value={exportTypeFilter} onChange={setExportTypeFilter} values={exportTypeOptions} /></Field>
             <Field label="ไซส์"><Select value={exportSizeFilter} onChange={setExportSizeFilter} values={exportSizeOptions} /></Field>
             <Field label="สถานะ"><Select value={exportStatusFilter} onChange={setExportStatusFilter} values={exportStatusOptions} /></Field>
-            <button onClick={exportCsv} disabled={refreshing || !exportRows.length} className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
+            <button onClick={exportCsv} disabled={refreshing || !exportRows.length} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
               <Download className="size-4" /> ส่งออก CSV ({exportRows.length})
             </button>
           </div>
         </div>
+        )}
       </section>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -2641,24 +2762,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
         </Tabs.List>
 
         <Tabs.Content value="overview" className="grid gap-3">
-          <Card className="p-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <h2 className="text-base font-extrabold text-[#071638]">สรุปยอดเบิกเสื้อ</h2>
-                <p className="mt-0.5 text-xs font-semibold text-[#64748B]">เลือกเดือนเพื่อดูว่าแต่ละไซส์เบิกไปเท่าไหร่</p>
-              </div>
-              <div className="grid min-w-0 gap-2 sm:grid-cols-[14rem_auto] sm:items-end">
-                <Field label="เดือนที่ต้องการดู">
-                  <Select value={monthFilter} onChange={setMonthFilter} values={monthFilterOptions} />
-                </Field>
-                <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-right">
-                  <p className="text-xs font-bold text-[#71717A]">รวมตามเดือนที่เลือก</p>
-                  <p className="text-xl font-black text-[#18181B]">{monthTotalPieces} ชิ้น</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-          <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} genderValue={summaryGenderFilter} onGenderChange={setSummaryGenderFilter} genderOptions={summaryGenderOptions} />
+          <TypeFilterChips value={typeFilter} onChange={setTypeFilter} options={typeFilterOptions} genderValue={summaryGenderFilter} onGenderChange={setSummaryGenderFilter} genderOptions={summaryGenderOptions} monthFilter={monthFilter} onMonthFilterChange={setMonthFilter} monthOptions={monthFilterOptions} totalPieces={monthTotalPieces} />
           <TotalSummaryView summaryRows={summaryRows} typeTotals={typeTotals} sizeTotals={sizeTotals} filteredRows={monthRows} monthFilter={monthFilter} />
         </Tabs.Content>
 
@@ -2683,6 +2787,18 @@ function Dashboard({ demoMode, onAuthExpired }) {
                 </button>
               </div>
             </Card>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-black text-[#18181B]">
+                {filteredBatches.length} คำสั่ง
+              </div>
+              <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-black text-[#18181B]">
+                {filteredBatches.reduce((sum, b) => b.orders.length + sum, 0)} พนักงาน
+              </div>
+              <span className="rounded-lg bg-[#EEF4FF] px-3 py-2 text-sm font-black text-[#002B5B]">
+                รวม {filteredBatches.reduce((sum, b) => sum + flattenBatches([b]).reduce((s, r) => s + Number(r.qty || 0), 0), 0)} ชิ้น
+              </span>
+            </div>
 
             {filteredBatches.length ? (
               <div className="grid gap-3 lg:grid-cols-2">
@@ -2727,73 +2843,43 @@ function Dashboard({ demoMode, onAuthExpired }) {
   );
 }
 
-function TypeFilterChips({ value, onChange, options, genderValue = "", onGenderChange, genderOptions = [] }) {
-  const [filterQuery, setFilterQuery] = useState("");
+function TypeFilterChips({ value, onChange, options, genderValue = "", onGenderChange, genderOptions = [], monthFilter, onMonthFilterChange, monthOptions = [], totalPieces }) {
   const choices = ["ทั้งหมด", ...options];
-  const normalizedQuery = filterQuery.trim().toLowerCase();
-  const visibleChoices = normalizedQuery
-    ? choices.filter((type) => type.toLowerCase().includes(normalizedQuery))
-    : choices;
   const showGenderFilter = Boolean(genderValue && onGenderChange && genderOptions.length);
+  const showMonthFilter = Boolean(monthFilter && onMonthFilterChange && monthOptions.length);
   return (
-    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white px-3 py-3">
-      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(12rem,.9fr)_minmax(0,1.6fr)] lg:items-start">
+    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white p-3 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-extrabold text-[#18181B]">กรองแบบเสื้อ</p>
-          <p className="text-xs font-semibold text-[#71717A]">ค้นหาและเลือกดูเฉพาะแบบที่ต้องการ</p>
-          <div className={cn("mt-3 grid gap-2", showGenderFilter ? "sm:grid-cols-[10rem_minmax(0,1fr)] lg:grid-cols-1" : "")}>
-            {showGenderFilter ? (
-              <Field label="เพศ">
-                <Select value={genderValue} onChange={onGenderChange} values={genderOptions} />
-              </Field>
-            ) : null}
-            <div className="relative min-w-0">
-              <span className="mb-1.5 block text-xs font-bold text-[#44536A]">ค้นหาแบบเสื้อ</span>
-              <Search className="pointer-events-none absolute left-3 top-[2.25rem] size-4 text-[#71717A]" />
-              <input
-                value={filterQuery}
-                onChange={(event) => setFilterQuery(event.target.value)}
-                placeholder="พิมพ์ชื่อแบบเสื้อ"
-                className="h-11 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-3 text-sm font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10"
-              />
-            </div>
-          </div>
+          <h2 className="text-base font-extrabold text-[#071638]">กรองข้อมูล</h2>
+          <p className="mt-0.5 text-xs font-semibold text-[#64748B]">เลือกเดือน เพศ และแบบเสื้อที่ต้องการดู</p>
         </div>
-        <div className="min-w-0">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-xs font-bold text-[#64748B]">{visibleChoices.length}/{choices.length} ตัวเลือก</span>
-            {value !== "ทั้งหมด" ? (
-              <button onClick={() => onChange("ทั้งหมด")} className="text-xs font-black text-[#002B5B] underline-offset-4 hover:underline">
-                ล้างแบบเสื้อ
-              </button>
-            ) : null}
+        {typeof totalPieces === "number" && (
+          <div className="shrink-0 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-right">
+            <p className="text-xs font-bold text-[#71717A]">ยอดรวม</p>
+            <p className="text-xl font-black text-[#18181B]">{totalPieces} <span className="text-xs font-bold text-[#71717A]">ชิ้น</span></p>
           </div>
-          <div className="employee-scroll-region grid max-h-36 min-w-0 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4">
-            {options.length ? visibleChoices.map((type) => {
-              const active = value === type;
-              return (
-                <button
-                  key={type}
-                  onClick={() => onChange(type)}
-                  className={cn(
-                    "min-h-10 min-w-0 rounded-lg border px-3 text-sm font-bold transition",
-                    active ? "border-[#18181B] bg-[#18181B] text-white" : "border-[#D4D4D8] bg-white text-[#52525B] hover:border-[#A1A1AA] hover:bg-[#FAFAFA]"
-                  )}
-                >
-                  <span className="block truncate">{type}</span>
-                </button>
-              );
-            }) : (
-              <div className="col-span-full rounded-lg border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-3 py-4 text-center text-sm font-bold text-[#64748B]">
-                ยังไม่มีแบบเสื้อในเงื่อนไขนี้
-              </div>
-            )}
-            {options.length > 0 && !visibleChoices.length ? (
-              <div className="col-span-full rounded-lg border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-3 py-4 text-center text-sm font-bold text-[#64748B]">
-                ไม่พบแบบเสื้อที่ค้นหา
-              </div>
-            ) : null}
+        )}
+      </div>
+      <div className="mt-3 grid gap-2 sm:flex sm:items-end sm:flex-wrap">
+        {showMonthFilter && (
+          <div className="w-full sm:w-44">
+            <Field label="เดือน">
+              <Select value={monthFilter} onChange={onMonthFilterChange} values={monthOptions} />
+            </Field>
           </div>
+        )}
+        {showGenderFilter && (
+          <div className="w-full sm:w-36">
+            <Field label="เพศ">
+              <Select value={genderValue} onChange={onGenderChange} values={genderOptions} />
+            </Field>
+          </div>
+        )}
+        <div className="w-full sm:w-44">
+          <Field label="แบบเสื้อ">
+            <Select value={value} onChange={onChange} values={choices} />
+          </Field>
         </div>
       </div>
     </div>
@@ -2806,6 +2892,8 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
   const [branchFilter, setBranchFilter] = useState("ทุกสาขา");
   const [sizeFilter, setSizeFilter] = useState("ทุกไซส์");
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const activeAdvancedCount = [branchFilter !== "ทุกสาขา", sizeFilter !== "ทุกไซส์", statusFilter !== "ทุกสถานะ"].filter(Boolean).length;
   const normalizedQuery = listQuery.trim().toLowerCase();
   const genderOptions = useMemo(() => ["ทุกเพศ", ...uniqueSorted(rows.map((row) => row.gender).filter(Boolean))], [rows]);
   const branchOptions = useMemo(() => ["ทุกสาขา", ...uniqueSorted(rows.map((row) => row.branch).filter(Boolean))], [rows]);
@@ -2865,7 +2953,7 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
           <h2 className="text-lg font-extrabold text-[#071638]">รายการแยกรายคน</h2>
           <p className="mt-1 hidden text-sm font-semibold text-[#64748B] sm:block">ค้นหาและกรองข้อมูลพนักงานจากเพศ สาขา ไซส์ และสถานะในหน้าเดียว</p>
         </div>
-        <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(14rem,1.5fr)_10rem_12rem_10rem_10rem_auto] xl:items-end">
+        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(14rem,1.5fr)_10rem_auto] sm:items-end">
           <div className="relative min-w-0">
             <span className="mb-1.5 block text-xs font-bold text-[#44536A]">ค้นหา</span>
             <Search className="pointer-events-none absolute left-3 top-[2.25rem] size-4 text-[#71717A]" />
@@ -2877,13 +2965,22 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
             />
           </div>
           <Field label="เพศ"><Select value={genderFilter} onChange={setGenderFilter} values={genderOptions} /></Field>
-          <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={branchOptions} /></Field>
-          <Field label="ไซส์"><Select value={sizeFilter} onChange={setSizeFilter} values={sizeOptions} /></Field>
-          <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={statusOptions} /></Field>
-          <button onClick={clearListFilters} className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white px-4 text-sm font-bold text-[#002B5B] shadow-sm">
-            ล้าง
+          <button onClick={() => setShowAdvancedFilters((v) => !v)} className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-sm font-bold text-[#002B5B] shadow-sm">
+            ตัวกรองเพิ่มเติม
+            {activeAdvancedCount > 0 && <span className="rounded-full bg-[#002B5B] px-1.5 py-0.5 text-[10px] font-black text-white">{activeAdvancedCount}</span>}
+            <ChevronDown className={cn("size-3.5 transition", showAdvancedFilters && "rotate-180")} />
           </button>
         </div>
+        {showAdvancedFilters && (
+          <div className="grid min-w-0 gap-2 sm:grid-cols-[12rem_10rem_10rem_auto] sm:items-end">
+            <Field label="สาขา"><Select value={branchFilter} onChange={setBranchFilter} values={branchOptions} /></Field>
+            <Field label="ไซส์"><Select value={sizeFilter} onChange={setSizeFilter} values={sizeOptions} /></Field>
+            <Field label="สถานะ"><Select value={statusFilter} onChange={setStatusFilter} values={statusOptions} /></Field>
+            <button onClick={clearListFilters} className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white px-4 text-sm font-bold text-[#002B5B] shadow-sm">
+              ล้างทั้งหมด
+            </button>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-center text-sm font-black text-[#18181B]">
             {filteredRows.length}/{totalRows} รายการ
@@ -3103,15 +3200,27 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
           </span>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          {sizeTotals.length ? sizeTotals.map((row) => (
-            <span key={`${row.gender}-${row.size}`} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] px-3 text-sm font-bold text-[#071638]">
-              <span className="font-black text-[#002B5B]">{row.gender || "-"}</span>
-              <span className="text-[#64748B]">ไซส์</span>
-              <span className="font-black">{row.size}</span>
-              <span className="rounded-full bg-[#E5EFFD] px-2 py-0.5 text-xs font-black text-[#002B5B]">{row.qty} ชิ้น</span>
-            </span>
-          )) : <EmptyDashboardState text="ยังไม่มีข้อมูลไซส์ในเดือนนี้" compact />}
+        <div className="mt-3 overflow-hidden rounded-xl border border-[#E2E8F0]">
+          {sizeTotals.length ? (
+            <table className="w-full table-fixed text-center text-sm">
+              <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
+                <tr>
+                  <th className="px-4 py-2.5 text-center">เพศ</th>
+                  <th className="px-4 py-2.5 text-center">ไซส์</th>
+                  <th className="px-4 py-2.5 text-center">จำนวน</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sizeTotals.map((row) => (
+                  <tr key={`${row.gender}-${row.size}`} className="border-t border-[#E2E8F0]">
+                    <td className="px-4 py-3 font-black text-[#002B5B]">{row.gender || "-"}</td>
+                    <td className="px-4 py-3 font-bold">{row.size}</td>
+                    <td className="px-4 py-3 font-extrabold">{row.qty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <EmptyDashboardState text="ยังไม่มีข้อมูลไซส์ในเดือนนี้" compact />}
         </div>
 
         <div className="mt-4 border-t border-[#E7EAF0] pt-3">
