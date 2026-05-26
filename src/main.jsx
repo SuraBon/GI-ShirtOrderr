@@ -7,6 +7,7 @@ import { upload } from "@vercel/blob/client";
 import { Toaster, toast } from "sonner";
 import {
   CalendarDays,
+  BarChart3,
   Check,
   ChevronDown,
   ChevronUp,
@@ -18,6 +19,7 @@ import {
   Loader2,
   PackageCheck,
   Pencil,
+  PieChart,
   Plus,
   Ruler,
   Search,
@@ -1008,6 +1010,7 @@ function QuickOrderSetupPanel({ state, dispatch }) {
 }
 
 function QuickOrderDialog({ open, setOpen, state, dispatch }) {
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const [namesText, setNamesText] = useState("");
   const [gender, setGender] = useState(GENDERS[0]);
   const [defaultSizeValue, setDefaultSizeValue] = useState("M");
@@ -1042,16 +1045,25 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
       return;
     }
     const hasExistingData = state.employees.some(hasEmployeeData);
-    if (hasExistingData && !window.confirm("แทนที่รายการพนักงานเดิมด้วยรายชื่อชุดใหม่?")) return;
+    if (hasExistingData) {
+      setReplaceConfirmOpen(true);
+      return;
+    }
+    applyQuickOrderNow();
+  }
+
+  function applyQuickOrderNow() {
     dispatch({ type: "applyQuickOrder", names, quickOrder: { gender, defaultSizeValue, customItems } });
     setNamesText("");
+    setReplaceConfirmOpen(false);
     setOpen(false);
     toast.success(`เพิ่มรายชื่อพนักงาน ${names.length} คนแล้ว`);
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Portal>
+    <>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
         <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45" />
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-50 max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
@@ -1140,10 +1152,21 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+      <ConfirmDialog
+        open={replaceConfirmOpen}
+        title="แทนที่รายการเดิม"
+        description="แทนที่รายการพนักงานเดิมด้วยรายชื่อชุดใหม่?"
+        confirmLabel="แทนที่"
+        cancelLabel="ยกเลิก"
+        onCancel={() => setReplaceConfirmOpen(false)}
+        onConfirm={applyQuickOrderNow}
+      />
+    </>
   );
 }
 
 function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setShowIncompleteOnly, onQuickOrder, query = "", setQuery }) {
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const canRemoveBlank = employees.length > 1 && employees.some((employee) => !hasEmployeeData(employee));
   const completedEmployees = employees.filter(isEmployeeComplete).length;
 
@@ -1202,16 +1225,25 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
       </div>
 
       <button
-        onClick={() => {
-          if (window.confirm("คุณต้องการล้างข้อมูลผู้ติดต่อและรายชื่อพนักงานทั้งหมดใช่หรือไม่?")) {
-            dispatch({ type: "reset" });
-            setQuery("");
-          }
-        }}
+        onClick={() => setResetConfirmOpen(true)}
         className="mt-2 flex min-h-8 w-full items-center justify-center gap-1.5 text-[11px] font-bold text-[#94A3B8] transition hover:text-[#B91C1C]"
       >
         <Trash2 className="size-3.5" /> ล้างรายการทั้งหมด
       </button>
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="ล้างรายการทั้งหมด"
+        description="คุณต้องการล้างข้อมูลผู้ติดต่อและรายชื่อพนักงานทั้งหมดใช่หรือไม่?"
+        confirmLabel="ล้างทั้งหมด"
+        cancelLabel="ยกเลิก"
+        destructive
+        onCancel={() => setResetConfirmOpen(false)}
+        onConfirm={() => {
+          dispatch({ type: "reset" });
+          setQuery("");
+          setResetConfirmOpen(false);
+        }}
+      />
     </section>
   );
 }
@@ -1779,6 +1811,39 @@ function Card({ children, className, ...props }) {
   );
 }
 
+function ConfirmDialog({ open, title, description, confirmLabel = "ยืนยัน", cancelLabel = "ยกเลิก", loading = false, destructive = false, onCancel, onConfirm }) {
+  return (
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && !loading && onCancel?.()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-[70] bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Content aria-describedby={undefined} className="fixed left-1/2 top-1/2 z-[71] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-2xl">
+          <Dialog.Title className="text-lg font-extrabold text-[#071638]">{title}</Dialog.Title>
+          {description ? <p className="mt-2 break-words text-sm font-semibold leading-6 text-[#44536A]">{description}</p> : null}
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:flex sm:justify-end">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={loading}
+              className="min-h-11 rounded-xl border border-[#CBD5E1] bg-white px-5 text-sm font-black text-[#071638] shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {cancelLabel}
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={loading}
+              className={cn("flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60", destructive ? "bg-[#B91C1C]" : "bg-[#002B5B]")}
+            >
+              {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+              {loading ? "กำลังลบ..." : confirmLabel}
+            </button>
+          </div>
+        </Dialog.Content>
+        </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 function Field({ label, children }) {
   return (
     <label className="flex flex-col gap-1.5 sm:gap-2">
@@ -2077,8 +2142,10 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
   const [uploadingId, setUploadingId] = useState("");
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || "");
   const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
+  const [deleteClothingId, setDeleteClothingId] = useState("");
   const syncTimerRef = useRef(null);
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
+  const deleteClothingItem = config.find((item) => item.id === deleteClothingId) || null;
   const selectedSizeRows = selectedItem?.genderSizeRows?.[selectedGender] || selectedItem?.sizeRows || [];
 
   useEffect(() => {
@@ -2217,8 +2284,13 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
       toast.error("ลบแบบเสื้อไม่ได้", { description: "ต้องมีประเภทเสื้ออย่างน้อย 1 รายการ" });
       return;
     }
-    if (!window.confirm("ลบประเภทเสื้อนี้? รายการเก่าที่เคยสั่งจะยังอยู่ในประวัติ")) return;
-    commit(config.filter((item) => item.id !== id));
+    setDeleteClothingId(id);
+  }
+
+  function confirmDeleteClothing() {
+    if (!deleteClothingId) return;
+    commit(config.filter((item) => item.id !== deleteClothingId));
+    setDeleteClothingId("");
   }
 
   function addSize(id) {
@@ -2284,6 +2356,7 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
   }
 
   return (
+    <>
     <Card className="clothing-manager-card p-0">
       <div className="flex flex-col gap-3 border-b border-[#E7EAF0] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -2449,6 +2522,17 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
         )}
       </div>
     </Card>
+    <ConfirmDialog
+      open={Boolean(deleteClothingItem)}
+      title="ลบประเภทเสื้อ"
+      description={deleteClothingItem ? `ลบประเภทเสื้อ ${deleteClothingItem.type}? รายการเก่าที่เคยสั่งจะยังอยู่ในประวัติ` : ""}
+      confirmLabel="ลบประเภทเสื้อ"
+      cancelLabel="ยกเลิก"
+      destructive
+      onCancel={() => setDeleteClothingId("")}
+      onConfirm={confirmDeleteClothing}
+    />
+    </>
   );
 }
 
@@ -2473,6 +2557,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const [exportSizeFilter, setExportSizeFilter] = useState("ทุกไซส์");
   const [exportStatusFilter, setExportStatusFilter] = useState("ทุกสถานะ");
   const [selectedBatch, setSelectedBatch] = useState(null);
+  const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState("");
   const [exportExpanded, setExportExpanded] = useState(false);
 
   async function loadData({ silent = false } = {}) {
@@ -2578,6 +2663,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
       return inBranch && inGender && inType && inSize && inStatus && inStart && inEnd;
     });
   }, [allRows, exportBranchFilter, exportGenderFilter, exportTypeFilter, exportSizeFilter, exportStatusFilter, exportStartMonth, exportEndMonth]);
+  const deleteConfirmBatch = useMemo(() => batches.find((batch) => batch.batchId === deleteConfirmBatchId) || null, [batches, deleteConfirmBatchId]);
 
   useEffect(() => {
     if (typeFilter !== "ทั้งหมด" && !typeFilterOptions.includes(typeFilter)) {
@@ -2663,6 +2749,16 @@ function Dashboard({ demoMode, onAuthExpired }) {
     setSelectedBatch(null);
     setDeleteLoadingId("");
     toast.success("ลบคำสั่งเบิกเสื้อแล้ว", { id: loadingToastId });
+  }
+
+  function requestDeleteBatch(batchId) {
+    if (!deleteLoadingId) setDeleteConfirmBatchId(batchId);
+  }
+
+  async function confirmDeleteBatch() {
+    if (!deleteConfirmBatchId || deleteLoadingId) return;
+    await deleteBatch(deleteConfirmBatchId);
+    setDeleteConfirmBatchId("");
   }
 
   function clearFilters() {
@@ -2808,7 +2904,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
                     batch={batch}
                     onOpen={() => setSelectedBatch(batch)}
                     onStatusChange={updateBatchStatus}
-                    onDelete={deleteBatch}
+                    onDelete={requestDeleteBatch}
                     statusLoadingId={statusLoadingId}
                     deleteLoadingId={deleteLoadingId}
                   />
@@ -2838,7 +2934,18 @@ function Dashboard({ demoMode, onAuthExpired }) {
         </Tabs.Content>
       </Tabs.Root>
 
-      <BatchDetailDialog batch={selectedBatch} onClose={() => setSelectedBatch(null)} onStatusChange={updateBatchStatus} onDelete={deleteBatch} statusLoadingId={statusLoadingId} deleteLoadingId={deleteLoadingId} />
+      <BatchDetailDialog batch={selectedBatch} onClose={() => setSelectedBatch(null)} onStatusChange={updateBatchStatus} onDelete={requestDeleteBatch} statusLoadingId={statusLoadingId} deleteLoadingId={deleteLoadingId} />
+      <ConfirmDialog
+        open={Boolean(deleteConfirmBatch)}
+        title="ยืนยันลบคำสั่งเบิกเสื้อ"
+        description={deleteConfirmBatch ? `ลบคำสั่งเบิกเสื้อ ${deleteConfirmBatch.batchId}?` : ""}
+        confirmLabel="ลบคำสั่ง"
+        cancelLabel="ยกเลิก"
+        loading={Boolean(deleteConfirmBatch && deleteLoadingId === deleteConfirmBatch.batchId)}
+        destructive
+        onCancel={() => !deleteLoadingId && setDeleteConfirmBatchId("")}
+        onConfirm={confirmDeleteBatch}
+      />
     </>
   );
 }
@@ -2848,8 +2955,8 @@ function TypeFilterChips({ value, onChange, options, genderValue = "", onGenderC
   const showGenderFilter = Boolean(genderValue && onGenderChange && genderOptions.length);
   const showMonthFilter = Boolean(monthFilter && onMonthFilterChange && monthOptions.length);
   return (
-    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white p-3 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white p-3 shadow-sm lg:flex lg:items-end lg:justify-between lg:gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:min-w-[15rem] lg:shrink-0 lg:items-end">
         <div className="min-w-0">
           <h2 className="text-base font-extrabold text-[#071638]">กรองข้อมูล</h2>
           <p className="mt-0.5 text-xs font-semibold text-[#64748B]">เลือกเดือน เพศ และแบบเสื้อที่ต้องการดู</p>
@@ -2861,22 +2968,22 @@ function TypeFilterChips({ value, onChange, options, genderValue = "", onGenderC
           </div>
         )}
       </div>
-      <div className="mt-3 grid gap-2 sm:flex sm:items-end sm:flex-wrap">
+      <div className="mt-3 grid gap-2 sm:flex sm:items-end sm:flex-wrap lg:mt-0 lg:flex-nowrap lg:justify-end">
         {showMonthFilter && (
-          <div className="w-full sm:w-44">
+          <div className="w-full sm:w-44 lg:w-48">
             <Field label="เดือน">
               <Select value={monthFilter} onChange={onMonthFilterChange} values={monthOptions} />
             </Field>
           </div>
         )}
         {showGenderFilter && (
-          <div className="w-full sm:w-36">
+          <div className="w-full sm:w-36 lg:w-36">
             <Field label="เพศ">
               <Select value={genderValue} onChange={onGenderChange} values={genderOptions} />
             </Field>
           </div>
         )}
-        <div className="w-full sm:w-44">
+        <div className="w-full sm:w-44 lg:w-48">
           <Field label="แบบเสื้อ">
             <Select value={value} onChange={onChange} values={choices} />
           </Field>
@@ -3084,7 +3191,7 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoa
   const isDeleting = deleteLoadingId === batch.batchId;
   const isBusy = isUpdatingStatus || isDeleting;
   function confirmDelete() {
-    if (!isBusy && window.confirm(`ลบคำสั่งเบิกเสื้อ ${batch.batchId}?`)) onDelete(batch.batchId);
+    if (!isBusy) onDelete(batch.batchId);
   }
 
   return (
@@ -3147,45 +3254,84 @@ function MiniMetric({ label, value }) {
 }
 
 function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, monthFilter }) {
+  const [typeChart, setTypeChart] = useState("donut");
   const totalPieces = filteredRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
   const chartColors = ["#002B5B", "#2F6FB0", "#7CA7D8", "#94A3B8", "#0F172A"];
   const donutGradient = buildDonutGradient(typeTotals, chartColors);
+  const maxTypeQty = Math.max(1, ...typeTotals.map((row) => Number(row.qty || 0)));
+  const chartOptions = [
+    { value: "donut", label: "วงกลม", icon: PieChart },
+    { value: "bar", label: "แท่ง", icon: BarChart3 },
+    { value: "list", label: "รายการ", icon: ClipboardList }
+  ];
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(22rem,.8fr)_minmax(0,1.2fr)]">
+    <div className="grid gap-3 lg:grid-cols-[minmax(22rem,.8fr)_minmax(0,1.2fr)] lg:items-start">
       <Card className="p-3 sm:p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามประเภทเสื้อ</h2>
-          <span className="shrink-0 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-1 text-sm font-black text-[#18181B]">{totalPieces} ชิ้น</span>
-        </div>
-        {typeTotals.length ? (
-          <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(11rem,.8fr)_minmax(0,1fr)] sm:items-center">
-            <div className="grid min-h-52 min-w-0 place-items-center">
-              <div
-                className="relative grid size-44 place-items-center rounded-full shadow-inner"
-                style={{ background: donutGradient }}
-                aria-label={`ยอดรวมตามประเภทเสื้อ ${totalPieces} ชิ้น`}
-              >
-                <div className="grid size-24 place-items-center rounded-full bg-white text-center shadow-sm">
-                  <div>
-                    <p className="text-xs font-bold text-[#64748B]">รวม</p>
-                    <p className="text-xl font-black leading-none text-[#071638]">{totalPieces}</p>
-                    <p className="mt-1 text-[11px] font-bold text-[#64748B]">ชิ้น</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              {typeTotals.map((row, index) => (
-                <div key={row.type} className="flex items-center justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
-                    <span className="truncate text-sm font-extrabold text-[#071638]">{row.type}</span>
-                  </span>
-                  <span className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-sm font-black text-[#002B5B]">{row.qty} ชิ้น</span>
-                </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามประเภทเสื้อ</h2>
+            <div className="mt-2 inline-grid grid-cols-3 overflow-hidden rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] p-1">
+              {chartOptions.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTypeChart(value)}
+                  aria-pressed={typeChart === value}
+                  className={cn("flex min-h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-black text-[#64748B] transition", typeChart === value && "bg-[#002B5B] text-white shadow-sm")}
+                >
+                  <Icon className="size-3.5" />
+                  <span>{label}</span>
+                </button>
               ))}
             </div>
           </div>
+          <span className="shrink-0 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-1 text-sm font-black text-[#18181B]">{totalPieces} ชิ้น</span>
+        </div>
+        {typeTotals.length ? (
+          <>
+            {typeChart === "donut" && (
+              <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(11rem,.8fr)_minmax(0,1fr)] sm:items-center">
+                <div className="grid min-h-52 min-w-0 place-items-center">
+                  <div
+                    className="relative grid size-44 place-items-center rounded-full shadow-inner"
+                    style={{ background: donutGradient }}
+                    aria-label={`ยอดรวมตามประเภทเสื้อ ${totalPieces} ชิ้น`}
+                  >
+                    <div className="grid size-24 place-items-center rounded-full bg-white text-center shadow-sm">
+                      <div>
+                        <p className="text-xs font-bold text-[#64748B]">รวม</p>
+                        <p className="text-xl font-black leading-none text-[#071638]">{totalPieces}</p>
+                        <p className="mt-1 text-[11px] font-bold text-[#64748B]">ชิ้น</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <TypeTotalLegend rows={typeTotals} colors={chartColors} />
+              </div>
+            )}
+            {typeChart === "bar" && (
+              <div className="mt-4 grid gap-3">
+                {typeTotals.map((row, index) => (
+                  <div key={row.type} className="grid gap-2">
+                    <div className="flex items-center justify-between gap-3 text-sm font-extrabold">
+                      <span className="flex min-w-0 items-center gap-2 text-[#071638]">
+                        <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
+                        <span className="truncate">{row.type}</span>
+                      </span>
+                      <span className="shrink-0 text-[#002B5B]">{row.qty} ชิ้น</span>
+                    </div>
+                    <div className="h-4 overflow-hidden rounded-full bg-[#E5ECF7]">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${Math.max(7, (row.qty / maxTypeQty) * 100)}%`, backgroundColor: chartColors[index % chartColors.length] }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {typeChart === "list" && <TypeTotalLegend rows={typeTotals} colors={chartColors} className="mt-4" />}
+          </>
         ) : <EmptyDashboardState text="ยังไม่มียอดรวม" compact />}
       </Card>
 
@@ -3260,12 +3406,28 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
   );
 }
 
+function TypeTotalLegend({ rows, colors, className }) {
+  return (
+    <div className={cn("grid gap-2", className)}>
+      {rows.map((row, index) => (
+        <div key={row.type} className="flex items-center justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+            <span className="truncate text-sm font-extrabold text-[#071638]">{row.type}</span>
+          </span>
+          <span className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-sm font-black text-[#002B5B]">{row.qty} ชิ้น</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "" }) {
   const isUpdatingStatus = Boolean(batch && statusLoadingId === batch.batchId);
   const isDeleting = Boolean(batch && deleteLoadingId === batch.batchId);
   const isBusy = isUpdatingStatus || isDeleting;
   function confirmDelete() {
-    if (batch && !isBusy && window.confirm(`ลบคำสั่งเบิกเสื้อ ${batch.batchId}?`)) onDelete(batch.batchId);
+    if (batch && !isBusy) onDelete(batch.batchId);
   }
 
   return (
