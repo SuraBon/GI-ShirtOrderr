@@ -299,6 +299,27 @@ function getSizeOptions(type, gender) {
   return [...getSizeRows(type, gender).map(([size]) => size), OTHER_SIZE];
 }
 
+function getSizeOptionsWithLabels(type, gender) {
+  if (!gender) return [];
+  const rows = getSizeRows(type, gender);
+  const clothing = findClothingConfig(type);
+  const sizeRows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
+  const options = rows.map(([size, label]) => {
+    const stockRow = sizeRows.find((r) => r.size === size);
+    const qty = stockRow ? Number(stockRow.qty ?? 0) : 0;
+    let descriptiveLabel = label;
+    if (stockRow) {
+      if (qty > 0) {
+        descriptiveLabel = `${size} (${label ? label + " · " : ""}คงเหลือ ${qty} ตัว)`;
+      } else {
+        descriptiveLabel = `${size} (${label ? label + " · " : ""}หมด - ค้างส่งเพื่อผลิตเพิ่ม)`;
+      }
+    }
+    return [size, descriptiveLabel];
+  });
+  return [...options, [OTHER_SIZE, OTHER_SIZE]];
+}
+
 function defaultSize(type, gender) {
   return getSizeOptions(type, gender)[1] || "M";
 }
@@ -1363,7 +1384,7 @@ function QuickGarmentCell({ employee, type, dispatch, invalidEmployeeId }) {
   return (
     <div className="grid gap-2">
       <div className="grid grid-cols-[1fr_4.5rem_2.25rem] gap-2">
-        <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "ไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} invalid={showErrors && !item.size} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} />
+        <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "ไซส์" : "เลือกเพศก่อน"} values={employee.gender ? [["", "เลือกไซส์"], ...getSizeOptionsWithLabels(item.type, employee.gender)] : [["", "เลือกเพศก่อน"]]} invalid={showErrors && !item.size} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} />
         <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" invalid={showErrors && Number(item.qty || 0) <= 0} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
         <button onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} aria-label="ลบรายการชุด" title="ลบรายการชุด" className="grid min-h-10 place-items-center rounded-lg border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]">
           <X />
@@ -1429,7 +1450,7 @@ function GarmentEditorDialog({ employee, dispatch, onClose }) {
 
                         {item && (
                           <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem] sm:items-start">
-                            <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} values={employee.gender ? ["", ...getSizeOptions(item.type, employee.gender)] : [""]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} compact />
+                            <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} values={employee.gender ? [["", "เลือกไซส์"], ...getSizeOptionsWithLabels(item.type, employee.gender)] : [["", "เลือกเพศก่อน"]]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} compact />
                             {needsColorSelection(item.type) ? (
                               <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
                             ) : (
@@ -1916,7 +1937,21 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
   const menuRef = useRef(null);
-  const selectedLabel = value || placeholder;
+
+  const normalizedValues = useMemo(() => {
+    return values.map((item) => {
+      if (item && typeof item === "object") {
+        if (Array.isArray(item)) {
+          return { value: item[0], label: item[1] || item[0] };
+        }
+        return { value: item.value, label: item.label || item.value };
+      }
+      return { value: item, label: item };
+    });
+  }, [values]);
+
+  const selectedItem = normalizedValues.find((item) => item.value === value);
+  const selectedLabel = selectedItem ? selectedItem.label : (value || placeholder);
 
   function updateMenuPosition() {
     const rect = buttonRef.current?.getBoundingClientRect();
@@ -1989,21 +2024,21 @@ function CustomSelect({ value, values, onChange, placeholder = "เลือก�
         >
           <div className="employee-scroll-region overflow-y-auto" style={{ maxHeight: menuStyle.maxHeight }}>
             <div role="listbox" className="grid gap-0.5">
-              {values.map((item, index) => {
-                const selected = item === value;
+              {normalizedValues.map((item, index) => {
+                const selected = item.value === value;
                 return (
                   <button
-                    key={`${item}-${index}`}
+                    key={`${item.value}-${index}`}
                     type="button"
                     role="option"
                     aria-selected={selected}
-                    onClick={() => selectValue(item)}
+                    onClick={() => selectValue(item.value)}
                     className={cn(
                       "flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-3 text-left text-sm font-semibold text-[#18181B] transition hover:bg-[#F4F4F5]",
                       selected && "bg-[#18181B] text-white hover:bg-[#18181B]"
                     )}
                   >
-                    <span className="min-w-0 truncate">{item || placeholder}</span>
+                    <span className="min-w-0 truncate">{item.label || placeholder}</span>
                     {selected && <Check className="size-4 shrink-0" />}
                   </button>
                 );
