@@ -380,7 +380,7 @@ function syncStockSheet_(spreadsheet, config) {
           const size = sizeRow.size || "";
           const qty = Number(sizeRow.qty || 0);
           colors.forEach((color) => {
-            const formulaWithdrawn = '=SUMIFS(Orders!N:N, Orders!K:K, A' + rowIndex + ', Orders!J:J, B' + rowIndex + ', Orders!L:L, C' + rowIndex + ', Orders!M:M, D' + rowIndex + ', Orders!B:B, "จัดส่งแล้ว")';
+            const formulaWithdrawn = '=SUMIFS(' + SHEET_NAME + '!N:N, ' + SHEET_NAME + '!K:K, A' + rowIndex + ', ' + SHEET_NAME + '!J:J, B' + rowIndex + ', ' + SHEET_NAME + '!L:L, C' + rowIndex + ', ' + SHEET_NAME + '!M:M, D' + rowIndex + ', ' + SHEET_NAME + '!B:B, "จัดส่งแล้ว")';
             const formulaTotal = '=F' + rowIndex + '+G' + rowIndex;
             stockRows.push([
               type,
