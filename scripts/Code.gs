@@ -355,19 +355,39 @@ function syncStockSheet_(spreadsheet, config) {
   if (!sheet) {
     sheet = spreadsheet.insertSheet("Stock");
   } else {
+    // Unprotect the sheet if it was protected so we can clear/overwrite it
+    try {
+      const protections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+      if (protections.length > 0) {
+        protections[0].remove();
+      }
+    } catch (e) {
+      console.warn("Could not remove sheet protection:", e);
+    }
     sheet.clear();
   }
 
-  const headerRange = sheet.getRange(1, 1, 1, STOCK_HEADERS.length);
+  // Row 1: Warning Banner
+  sheet.getRange("A1:G1").merge();
+  const warningCell = sheet.getRange("A1");
+  warningCell.setValue("⚠️ คำเตือน: ระบบอัปเดตข้อมูลแผ่นงานนี้โดยอัตโนมัติจากแดชบอร์ด ห้ามแก้ไขตัวเลขคงเหลือในตารางนี้โดยตรง (การแก้ไขจะสูญหาย)");
+  warningCell.setFontWeight("bold");
+  warningCell.setFontColor("#B91C1C");
+  warningCell.setBackground("#FEF2F2");
+  warningCell.setHorizontalAlignment("center");
+  sheet.setRowHeight(1, 28);
+
+  // Row 2: Headers
+  const headerRange = sheet.getRange(2, 1, 1, STOCK_HEADERS.length);
   headerRange.setValues([STOCK_HEADERS]);
   headerRange.setFontWeight("bold");
   headerRange.setBackground("#E8F0FE");
   headerRange.setHorizontalAlignment("center");
-  sheet.setFrozenRows(1);
+  sheet.setFrozenRows(2);
 
   if (config && config.length) {
     const stockRows = [];
-    let rowIndex = 2;
+    let rowIndex = 3; // Starts at Row 3
     config.forEach((item) => {
       const type = item.type || "";
       const colors = (Array.isArray(item.colors) && item.colors.length)
@@ -398,8 +418,24 @@ function syncStockSheet_(spreadsheet, config) {
     });
 
     if (stockRows.length > 0) {
-      sheet.getRange(2, 1, stockRows.length, STOCK_HEADERS.length).setValues(stockRows);
+      sheet.getRange(3, 1, stockRows.length, STOCK_HEADERS.length).setValues(stockRows);
       sheet.autoResizeColumns(1, STOCK_HEADERS.length);
     }
+  }
+
+  // Apply sheet protection to lock the sheet from manual overrides by other users
+  try {
+    const protection = sheet.protect().setDescription('Stock Sheet Protected by Dashboard System');
+    const me = Session.getActiveUser();
+    protection.addEditor(me);
+    const editors = protection.getEditors();
+    if (editors.length > 0) {
+      protection.removeEditors(editors);
+    }
+    if (protection.canDomainEdit()) {
+      protection.setDomainEdit(false);
+    }
+  } catch (e) {
+    console.warn("Could not apply sheet protection:", e);
   }
 }

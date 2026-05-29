@@ -9,6 +9,9 @@ import {
   CalendarDays,
   BarChart3,
   Check,
+  CheckSquare,
+  Clock,
+  AlertCircle,
   ChevronDown,
   ChevronUp,
   ClipboardList,
@@ -2616,6 +2619,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const [statusLoadingId, setStatusLoadingId] = useState("");
   const [deleteLoadingId, setDeleteLoadingId] = useState("");
   const [clothingConfig, setClothingConfig] = useState(readClothingConfig);
+  const [selectedBatchIds, setSelectedBatchIds] = useState(new Set());
   const [branchFilter, setBranchFilter] = useState("ทุกสาขา");
   const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const [query, setQuery] = useState("");
@@ -2669,6 +2673,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setSelectedBatchIds(new Set());
     }
   }
 
@@ -2776,6 +2781,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
       const gender = order.gender || GENDERS[0];
       order.items.forEach((item) => {
         if (item.status === ORDER_STATUS_DELIVERED) return; // already shipped
+        if (item.size === OTHER_SIZE) return; // bypass stock check for custom sizes
         const type = item.type;
         const clothing = config.find((c) => c.type === type);
         const sizeKey = item.size;
@@ -2801,7 +2807,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
     return config.map((clothing) => {
       const ordersForType = batch.orders.flatMap((order) =>
         order.items
-          .filter((item) => item.type === clothing.type)
+          .filter((item) => item.type === clothing.type && item.size !== OTHER_SIZE)
           .map((item) => ({
             gender: order.gender || GENDERS[0],
             size: item.size,
@@ -2846,6 +2852,93 @@ function Dashboard({ demoMode, onAuthExpired }) {
 
       return changed ? { ...clothing, genderSizeRows } : clothing;
     });
+  }
+
+  async function handleBulkStatusChange(targetStatus) {
+    const idsToChange = Array.from(selectedBatchIds);
+    if (!idsToChange.length) return;
+
+    const batchesToChange = batches.filter((b) => idsToChange.includes(b.batchId));
+    
+    if (targetStatus === ORDER_STATUS_DELIVERED) {
+      const allIssues = [];
+      const successfulBatchIds = [];
+      const failedBatchIds = [];
+      
+      batchesToChange.forEach((batch) => {
+        const issues = findStockIssuesForStatusChange(clothingConfig, batch, targetStatus);
+        if (issues.length > 0) {
+          allIssues.push({ batchId: batch.batchId, branch: batch.branch, companyName: batch.companyName, errors: issues });
+          failedBatchIds.push(batch.batchId);
+        } else {
+          successfulBatchIds.push(batch.batchId);
+        }
+      });
+      
+      if (allIssues.length > 0) {
+        if (successfulBatchIds.length === 0) {
+          toast.error("ไม่สามารถจัดส่งใบสั่งซื้อได้เนื่องจากสต๊อกไม่พอ", {
+            description: `พบปัญหาในทุกคำสั่งที่เลือก (${allIssues.length} คำสั่ง) กรุณาเพิ่มคลังสินค้าก่อน`
+          });
+          return;
+        }
+        
+        const confirmMsg = `พบปัญหาสต๊อกไม่พอกับจำนวนที่ต้องการใน ${allIssues.length} ใบสั่งซื้อ (เช่น ${allIssues[0].companyName} - ${allIssues[0].errors[0]}) ต้องการจัดส่งเฉพาะคำสั่งที่คลังสินค้าพร้อมจำนวน ${successfulBatchIds.length} รายการ หรือไม่?`;
+        if (!window.confirm(confirmMsg)) {
+          return;
+        }
+        
+        await executeBulkStatusChange(successfulBatchIds, targetStatus);
+      } else {
+        await executeBulkStatusChange(idsToChange, targetStatus);
+      }
+    } else {
+      await executeBulkStatusChange(idsToChange, targetStatus);
+    }
+  }
+
+  async function executeBulkStatusChange(ids, status) {
+    const statusUpdatedAt = new Date().toISOString();
+    const loadingToastId = toast.loading(`กำลังอัปเดตสถานะกลุ่ม (${ids.length} รายการ)...`, {
+      description: "ระบบกำลังบันทึกข้อมูลและปรับสต๊อกสินค้า..."
+    });
+
+    let successCount = 0;
+    let nextConfig = clothingConfig;
+    
+    try {
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const batch = batches.find((b) => b.batchId === id);
+        if (!batch) continue;
+        
+        await syncDashboardAction({ action: "updateStatus", batchId: id, status, statusUpdatedAt });
+        nextConfig = adjustStockForStatusChange(nextConfig, batch, status);
+        successCount++;
+      }
+      
+      setClothingConfig(nextConfig);
+      saveClothingConfig(nextConfig);
+      if (!demoMode && isGasConfigured()) {
+        await publishSharedClothingConfig(nextConfig);
+      }
+      
+      await loadData({ silent: true });
+      setSelectedBatchIds(new Set());
+      toast.success(`อัปเดตสถานะสำเร็จ ${successCount} รายการ`, { id: loadingToastId });
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken("");
+        onAuthExpired?.();
+        toast.error("สิทธิ์เข้าแดชบอร์ดหมดอายุ", { id: loadingToastId, description: "กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง" });
+        return;
+      }
+      toast.error(`ดำเนินการสำเร็จบางส่วน (${successCount} รายการ) เกิดข้อผิดพลาด`, { 
+        id: loadingToastId, 
+        description: error?.message || "การเชื่อมต่อขัดข้อง กรุณาลองใหม่อีกครั้ง" 
+      });
+      await loadData({ silent: true });
+    }
   }
 
   async function updateBatchStatus(batchId, status) {
@@ -3146,16 +3239,41 @@ function Dashboard({ demoMode, onAuthExpired }) {
               </div>
             </Card>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-black text-[#18181B]">
-                {filteredBatches.length} คำสั่ง
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-black text-[#18181B]">
+                  {filteredBatches.length} คำสั่ง
+                </div>
+                <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-black text-[#18181B]">
+                  {filteredBatches.reduce((sum, b) => b.orders.length + sum, 0)} พนักงาน
+                </div>
+                <span className="rounded-lg bg-[#EEF4FF] px-3 py-2 text-sm font-black text-[#002B5B]">
+                  รวม {filteredBatches.reduce((sum, b) => sum + flattenBatches([b]).reduce((s, r) => s + Number(r.qty || 0), 0), 0)} ชิ้น
+                </span>
               </div>
-              <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-black text-[#18181B]">
-                {filteredBatches.reduce((sum, b) => b.orders.length + sum, 0)} พนักงาน
-              </div>
-              <span className="rounded-lg bg-[#EEF4FF] px-3 py-2 text-sm font-black text-[#002B5B]">
-                รวม {filteredBatches.reduce((sum, b) => sum + flattenBatches([b]).reduce((s, r) => s + Number(r.qty || 0), 0), 0)} ชิ้น
-              </span>
+              {filteredBatches.length > 0 && (
+                <button
+                  onClick={() => {
+                    const allSelected = filteredBatches.every((b) => selectedBatchIds.has(b.batchId));
+                    if (allSelected) {
+                      setSelectedBatchIds((prev) => {
+                        const next = new Set(prev);
+                        filteredBatches.forEach((b) => next.delete(b.batchId));
+                        return next;
+                      });
+                    } else {
+                      setSelectedBatchIds((prev) => {
+                        const next = new Set(prev);
+                        filteredBatches.forEach((b) => next.add(b.batchId));
+                        return next;
+                      });
+                    }
+                  }}
+                  className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-black text-[#002B5B] hover:bg-[#F8FAFC] transition w-full sm:w-auto"
+                >
+                  {filteredBatches.every((b) => selectedBatchIds.has(b.batchId)) ? "✓ ยกเลิกการเลือกทั้งหมด" : "☑ เลือกทั้งหมดตามตัวกรอง"}
+                </button>
+              )}
             </div>
 
             {filteredBatches.length ? (
@@ -3169,6 +3287,18 @@ function Dashboard({ demoMode, onAuthExpired }) {
                     onDelete={requestDeleteBatch}
                     statusLoadingId={statusLoadingId}
                     deleteLoadingId={deleteLoadingId}
+                    isSelected={selectedBatchIds.has(batch.batchId)}
+                    onToggleSelect={() => {
+                      setSelectedBatchIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(batch.batchId)) {
+                          next.delete(batch.batchId);
+                        } else {
+                          next.add(batch.batchId);
+                        }
+                        return next;
+                      });
+                    }}
                   />
                 ))}
               </div>
@@ -3195,6 +3325,51 @@ function Dashboard({ demoMode, onAuthExpired }) {
           </div>
         </Tabs.Content>
       </Tabs.Root>
+
+      {selectedBatchIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-[980px] -translate-x-1/2 flex-col gap-3 rounded-2xl border border-[#CBD5E1] bg-white p-4 shadow-2xl md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-5 duration-200">
+          <div className="flex items-center gap-3">
+            <span className="grid size-8 place-items-center rounded-lg bg-[#EEF4FF] text-sm font-extrabold text-[#002B5B]">
+              {selectedBatchIds.size}
+            </span>
+            <div>
+              <p className="text-sm font-extrabold text-[#071638]">เลือกรายการคำขอเบิกแล้ว</p>
+              <p className="text-xs font-semibold text-[#64748B]">จำนวน {
+                Array.from(selectedBatchIds).reduce((sum, id) => {
+                  const b = batches.find(x => x.batchId === id);
+                  return sum + (b ? getBatchPieces(b) : 0);
+                }, 0)
+              } ชิ้น</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handleBulkStatusChange(ORDER_STATUS_DELIVERED)}
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#10B981] px-4 text-xs font-extrabold text-white transition hover:bg-[#059669] w-full sm:w-auto"
+            >
+              <CheckSquare className="size-4" /> จัดส่งสินค้าทั้งหมด
+            </button>
+            <button
+              onClick={() => handleBulkStatusChange(ORDER_STATUS_BACKORDER)}
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#F97316] px-4 text-xs font-extrabold text-white transition hover:bg-[#EA580C] w-full sm:w-auto"
+            >
+              <Clock className="size-4" /> ปรับเป็นรอของ
+            </button>
+            <button
+              onClick={() => handleBulkStatusChange(ORDER_STATUS_PENDING)}
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#EF4444] px-4 text-xs font-extrabold text-white transition hover:bg-[#DC2626] w-full sm:w-auto"
+            >
+              <AlertCircle className="size-4" /> ปรับเป็นรอจัดส่ง
+            </button>
+            <button
+              onClick={() => setSelectedBatchIds(new Set())}
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[#CBD5E1] bg-white px-4 text-xs font-extrabold text-[#64748B] transition hover:bg-[#F8FAFC] w-full sm:w-auto"
+            >
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+      )}
 
       <BatchDetailDialog 
         batch={selectedBatch} 
@@ -3470,7 +3645,7 @@ function getBatchShipmentProgress(batch) {
   return { shipped, total, percent };
 }
 
-function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "" }) {
+function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "", isSelected = false, onToggleSelect = null }) {
   const totalPieces = getBatchPieces(batch);
   const totalEmployees = batch.orders.length;
   const isUpdatingStatus = statusLoadingId === batch.batchId;
@@ -3481,15 +3656,25 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoa
   }
 
   return (
-    <div data-dashboard-order={batch.status === ORDER_STATUS_DELIVERED ? "delivered" : "pending"} className="dashboard-order-card rounded-xl border border-[#D8DEEA] bg-white/96 p-3 text-left shadow-sm transition hover:border-[#9EB7DD]">
+    <div data-dashboard-order={batch.status === ORDER_STATUS_DELIVERED ? "delivered" : "pending"} className={cn("dashboard-order-card rounded-xl border p-3 text-left shadow-sm transition hover:border-[#9EB7DD]", isSelected ? "border-[#002B5B] bg-[#F4F8FF]" : "border-[#D8DEEA] bg-white/96")}>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[12px] font-bold text-[#64748B]">{batch.batchId}</p>
-          <h3 className="mt-0.5 truncate text-base font-extrabold text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</h3>
-          <p className="mt-0.5 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
-          <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
-            {new Date(batch.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
-          </p>
+        <div className="flex items-start gap-3 min-w-0">
+          {onToggleSelect && (
+            <input 
+              type="checkbox" 
+              checked={isSelected} 
+              onChange={onToggleSelect} 
+              className="mt-1 size-4 shrink-0 rounded border-[#CBD5E1] text-[#002B5B] focus:ring-[#DCE8FF] cursor-pointer"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="text-[12px] font-bold text-[#64748B]">{batch.batchId}</p>
+            <h3 className="mt-0.5 truncate text-base font-extrabold text-[#071638]">{batch.companyName || "ไม่ระบุบริษัท"}</h3>
+            <p className="mt-0.5 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
+            <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
+              {new Date(batch.submittedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          </div>
         </div>
         <StatusBadge status={batch.status} />
       </div>
