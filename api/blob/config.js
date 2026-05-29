@@ -48,6 +48,22 @@ export default async function handler(request, response) {
         contentType: "application/json",
         cacheControlMaxAge: 60
       });
+
+      // Sync to Google Sheets Stock tab
+      const gasUrl = process.env.VITE_GAS_URL || process.env.GAS_URL || "";
+      const adminToken = process.env.GAS_ADMIN_TOKEN || process.env.ADMIN_SHARED_SECRET || "";
+      if (gasUrl && adminToken) {
+        try {
+          await fetch(gasUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "syncStock", config, adminToken })
+          });
+        } catch (err) {
+          console.error("Failed to sync stock to Google Sheets:", err);
+        }
+      }
+
       response.status(200).json({ ok: true, url: blob.url });
       return;
     }

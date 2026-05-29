@@ -1,5 +1,5 @@
 const SHEET_NAME = "Orders";
-const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว"];
+const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว", "รอของ"];
 const HEADERS = [
   "รหัสคำสั่งเบิก",
   "สถานะ",
@@ -15,6 +15,16 @@ const HEADERS = [
   "สี",
   "ไซส์",
   "จำนวน"
+];
+
+const STOCK_HEADERS = [
+  "ประเภทเสื้อ",
+  "เพศ",
+  "สี",
+  "ไซส์",
+  "สต๊อกทั้งหมด",
+  "เบิกแล้ว",
+  "คงเหลือ"
 ];
 
 function doGet(e) {
@@ -45,6 +55,18 @@ function doPost(e) {
       requireAdmin_(payload.adminToken);
       const deletedRows = deleteBatch_(sheet, payload.batchId);
       return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: deletedRows });
+    }
+
+    if (payload.action === "shipItems") {
+      requireAdmin_(payload.adminToken);
+      const updatedRows = shipBatchItems_(sheet, payload);
+      return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: updatedRows });
+    }
+
+    if (payload.action === "syncStock") {
+      requireAdmin_(payload.adminToken);
+      syncStockSheet_(SpreadsheetApp.getActiveSpreadsheet(), payload.config);
+      return json_({ success: true, action: payload.action });
     }
 
     validateBatch_(payload);
@@ -218,7 +240,14 @@ function readBatches_(sheet) {
       batch.orders.push(order);
     }
 
-    order.items.push({ type, color: color || "", size, qty: Number(qty || 0) });
+    order.items.push({ 
+      type, 
+      color: color || "", 
+      size, 
+      qty: Number(qty || 0),
+      status: status || "รอจัดส่ง",
+      statusUpdatedAt: toIso_(statusUpdatedAt || submittedAt)
+    });
   });
 
   return Array.from(batches.values()).sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
@@ -233,4 +262,144 @@ function json_(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function shipBatchItems_(sheet, payload) {
+  const batchId = payload.batchId;
+  const items = payload.items; // array of { employeeName, gender, type, color, size, shippedQty, pendingQty }
+  const statusUpdatedAt = payload.statusUpdatedAt || new Date().toISOString();
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error("No orders found");
+
+  const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  
+  // Find metadata from the first matching row
+  let meta = null;
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]) === String(batchId)) {
+      meta = values[i];
+      break;
+    }
+  }
+
+  if (!meta) throw new Error("Batch not found");
+
+  const submittedAt = meta[3];
+  const companyName = meta[4];
+  const branch = meta[5];
+  const supervisorName = meta[6];
+  const supervisorPhone = meta[7];
+
+  // Build new rows to replace existing rows for this batch
+  const newBatchRows = [];
+  items.forEach((item) => {
+    const { employeeName, gender, type, color, size, shippedQty, pendingQty } = item;
+    
+    if (Number(shippedQty) > 0) {
+      newBatchRows.push([
+        batchId,
+        "จัดส่งแล้ว",
+        statusUpdatedAt,
+        submittedAt,
+        companyName,
+        branch,
+        supervisorName,
+        supervisorPhone,
+        employeeName,
+        gender,
+        type,
+        color || "",
+        size,
+        Number(shippedQty)
+      ]);
+    }
+    
+    if (Number(pendingQty) > 0) {
+      newBatchRows.push([
+        batchId,
+        "รอของ",
+        statusUpdatedAt,
+        submittedAt,
+        companyName,
+        branch,
+        supervisorName,
+        supervisorPhone,
+        employeeName,
+        gender,
+        type,
+        color || "",
+        size,
+        Number(pendingQty)
+      ]);
+    }
+  });
+
+  // Delete all rows matching batchId (backwards to preserve indices)
+  for (let index = values.length - 1; index >= 0; index--) {
+    if (String(values[index][0]) === String(batchId)) {
+      sheet.deleteRow(index + 2);
+    }
+  }
+
+  // Write new rows
+  if (newBatchRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newBatchRows.length, HEADERS.length).setValues(newBatchRows);
+  }
+
+  return newBatchRows.length;
+}
+
+function syncStockSheet_(spreadsheet, config) {
+  let sheet = spreadsheet.getSheetByName("Stock");
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet("Stock");
+  } else {
+    sheet.clear();
+  }
+
+  const headerRange = sheet.getRange(1, 1, 1, STOCK_HEADERS.length);
+  headerRange.setValues([STOCK_HEADERS]);
+  headerRange.setFontWeight("bold");
+  headerRange.setBackground("#E8F0FE");
+  headerRange.setHorizontalAlignment("center");
+  sheet.setFrozenRows(1);
+
+  if (config && config.length) {
+    const stockRows = [];
+    let rowIndex = 2;
+    config.forEach((item) => {
+      const type = item.type || "";
+      const colors = (Array.isArray(item.colors) && item.colors.length)
+        ? item.colors.map((c) => c.name || "")
+        : [""];
+      const genders = ["ชาย", "หญิง"];
+      genders.forEach((gender) => {
+        const sizeRows = (item.genderSizeRows && item.genderSizeRows[gender]) || item.sizeRows || [];
+        sizeRows.forEach((sizeRow) => {
+          const size = sizeRow.size || "";
+          const qty = Number(sizeRow.qty || 0);
+          colors.forEach((color) => {
+            const formulaWithdrawn = '=SUMIFS(Orders!N:N, Orders!K:K, A' + rowIndex + ', Orders!J:J, B' + rowIndex + ', Orders!L:L, C' + rowIndex + ', Orders!M:M, D' + rowIndex + ', Orders!B:B, "จัดส่งแล้ว")';
+            const formulaTotal = '=F' + rowIndex + '+G' + rowIndex;
+            stockRows.push([
+              type,
+              gender,
+              color,
+              size,
+              formulaTotal,
+              formulaWithdrawn,
+              qty
+            ]);
+            rowIndex++;
+          });
+        });
+      });
+    });
+
+    if (stockRows.length > 0) {
+      sheet.getRange(2, 1, stockRows.length, STOCK_HEADERS.length).setValues(stockRows);
+      sheet.autoResizeColumns(1, STOCK_HEADERS.length);
+    }
+  }
 }

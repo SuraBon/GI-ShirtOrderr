@@ -1,13 +1,19 @@
 import { getGasAdminToken, readJsonBody, requireAdmin, sendError } from "../_security.js";
 
-const ADMIN_ACTIONS = new Set(["updateStatus", "deleteBatch"]);
-const ORDER_STATUSES = new Set(["รอจัดส่ง", "จัดส่งแล้ว"]);
+const ADMIN_ACTIONS = new Set(["updateStatus", "deleteBatch", "shipItems", "syncStock"]);
+const ORDER_STATUSES = new Set(["รอจัดส่ง", "จัดส่งแล้ว", "รอของ"]);
 
 function validatePayload(payload) {
   if (!payload || typeof payload !== "object") return false;
   if (!ADMIN_ACTIONS.has(payload.action)) return false;
+  if (payload.action === "syncStock") {
+    return Array.isArray(payload.config);
+  }
   if (!payload.batchId || typeof payload.batchId !== "string") return false;
   if (payload.action === "updateStatus" && !ORDER_STATUSES.has(payload.status)) return false;
+  if (payload.action === "shipItems") {
+    return Array.isArray(payload.items);
+  }
   return true;
 }
 

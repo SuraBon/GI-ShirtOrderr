@@ -27,6 +27,7 @@ import {
   Settings,
   Shirt,
   Trash2,
+  Truck,
   Upload,
   UserCheck,
   UserPlus,
@@ -50,7 +51,8 @@ const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_COMPANY_NAME = "โกลด์ อินทิเกรท จำกัด";
 const ORDER_STATUS_PENDING = "รอจัดส่ง";
 const ORDER_STATUS_DELIVERED = "จัดส่งแล้ว";
-const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED];
+const ORDER_STATUS_BACKORDER = "รอของ";
+const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED, ORDER_STATUS_BACKORDER];
 
 const BRANCHES = [
   "GI(สาขาใหญ่)",
@@ -97,7 +99,8 @@ function buildStandardSizeRows(type, gender) {
   const detailField = getStandardDetailFields(type)[0];
   return getStandardSizeSource(type, gender).map(([size, measure]) => ({
     size,
-    details: { [detailField]: measure }
+    details: { [detailField]: measure },
+    qty: 0
   }));
 }
 
@@ -132,10 +135,11 @@ function normalizeSizeRows(rows, detailFields) {
   const normalizedRows = Array.isArray(rows) && rows.length
     ? rows.map((row) => ({
       size: String(row?.size || "").trim(),
-      details: normalizeSizeDetails(row, detailFields)
+      details: normalizeSizeDetails(row, detailFields),
+      qty: Number(row?.qty || 0)
     }))
     : [];
-  return normalizedRows.length ? normalizedRows : [{ size: "M", details: normalizeSizeDetails({}, detailFields) }];
+  return normalizedRows.length ? normalizedRows : [{ size: "M", details: normalizeSizeDetails({}, detailFields), qty: 0 }];
 }
 
 function normalizeClothingConfig(config) {
@@ -618,6 +622,38 @@ function flattenBatches(batches) {
 }
 
 function normalizeBatch(batch) {
+  const normalizedOrders = Array.isArray(batch.orders)
+    ? batch.orders.map((order) => ({
+      name: order.name || "-",
+      gender: order.gender || "-",
+      items: Array.isArray(order.items)
+        ? order.items.map((item) => ({
+          type: item.type || "-",
+          size: item.size || "-",
+          color: resolveItemColor(item.type || "-", item.color || ""),
+          qty: Number(item.qty || 0),
+          status: ORDER_STATUSES.includes(item.status) ? item.status : (batch.status || ORDER_STATUS_PENDING),
+          statusUpdatedAt: item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt || new Date().toISOString()
+        })).filter((item) => item.qty > 0)
+        : []
+    })).filter((order) => order.items.length)
+    : [];
+
+  const allItems = normalizedOrders.flatMap((o) => o.items);
+  let batchStatus = batch.status || ORDER_STATUS_PENDING;
+  if (allItems.length > 0) {
+    const uniqueStatuses = new Set(allItems.map((i) => i.status));
+    if (uniqueStatuses.size === 1) {
+      batchStatus = Array.from(uniqueStatuses)[0];
+    } else if (uniqueStatuses.has(ORDER_STATUS_DELIVERED)) {
+      batchStatus = "จัดส่งบางส่วน (รอของ)";
+    } else if (uniqueStatuses.has(ORDER_STATUS_BACKORDER)) {
+      batchStatus = ORDER_STATUS_BACKORDER;
+    } else {
+      batchStatus = ORDER_STATUS_PENDING;
+    }
+  }
+
   return {
     batchId: batch.batchId || `ORD-${Date.now()}`,
     companyName: batch.companyName || "",
@@ -625,22 +661,9 @@ function normalizeBatch(batch) {
     supervisorName: batch.supervisorName || "",
     supervisorPhone: batch.supervisorPhone || "",
     submittedAt: batch.submittedAt || new Date().toISOString(),
-    status: ORDER_STATUSES.includes(batch.status) ? batch.status : ORDER_STATUS_PENDING,
+    status: batchStatus,
     statusUpdatedAt: batch.statusUpdatedAt || batch.submittedAt || new Date().toISOString(),
-    orders: Array.isArray(batch.orders)
-      ? batch.orders.map((order) => ({
-        name: order.name || "-",
-        gender: order.gender || "-",
-        items: Array.isArray(order.items)
-          ? order.items.map((item) => ({
-            type: item.type || "-",
-            size: item.size || "-",
-            color: resolveItemColor(item.type || "-", item.color || ""),
-            qty: Number(item.qty || 0)
-          })).filter((item) => item.qty > 0)
-          : []
-      })).filter((order) => order.items.length)
-      : []
+    orders: normalizedOrders
   };
 }
 
@@ -2300,7 +2323,7 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
         ...(item.genderSizeRows || {}),
         [selectedGender]: [
           ...(item.genderSizeRows?.[selectedGender] || item.sizeRows || []),
-          { size: "", details: item.detailFields.reduce((details, field) => ({ ...details, [field]: "" }), {}) }
+          { size: "", details: item.detailFields.reduce((details, field) => ({ ...details, [field]: "" }), {}), qty: 0 }
         ]
       }
     } : item));
@@ -2383,7 +2406,11 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-extrabold text-[#18181B]">{item.type || "ยังไม่ระบุชื่อ"}</p>
-                <p className="mt-1 text-xs font-semibold text-[#71717A]">{GENDERS.map((gender) => `${gender} ${item.genderSizeRows?.[gender]?.length || item.sizeRows.length}`).join(" · ")} ไซส์</p>
+                <p className="mt-1 text-xs font-semibold text-[#71717A]">{GENDERS.map((gender) => {
+                  const rows = item.genderSizeRows?.[gender] || item.sizeRows || [];
+                  const totalQty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+                  return `${gender} ${rows.length} ไซส์ (${totalQty} ชิ้น)`;
+                }).join(" · ")} </p>
               </div>
             </button>
           ))}
@@ -2465,11 +2492,20 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
                             <input value={row.details?.[field] || ""} onChange={(event) => patchSizeDetail(selectedItem.id, index, field, event.target.value)} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder={field} />
                           </Field>
                         ))}
+                        <Field label="จำนวนสต็อก">
+                          <input
+                            type="number"
+                            min="0"
+                            value={row.qty ?? 0}
+                            onChange={(event) => patchSize(selectedItem.id, index, { qty: Number(event.target.value) || 0 })}
+                            className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]"
+                          />
+                        </Field>
                       </div>
                     ))}
                   </div>
                   <div className="hidden gap-2 overflow-x-auto rounded-lg border border-[#E4E4E7] bg-white p-2 sm:grid">
-                    <div className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
+                    <div className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) minmax(7rem,1fr) 40px` }}>
                       <span className="text-xs font-bold text-[#64748B]">ไซส์</span>
                       {selectedItem.detailFields.map((field, index) => (
                         <div key={`${selectedItem.id}-field-${index}`} className="grid grid-cols-[1fr_32px] gap-1">
@@ -2479,14 +2515,16 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
                           </button>
                         </div>
                       ))}
+                      <span className="text-xs font-bold text-[#64748B]">จำนวน</span>
                       <span />
                     </div>
                     {selectedSizeRows.map((row, index) => (
-                      <div key={`${selectedItem.id}-${index}`} className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) 40px` }}>
+                      <div key={`${selectedItem.id}-${index}`} className="grid min-w-max gap-2" style={{ gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) minmax(7rem,1fr) 40px` }}>
                         <input value={row.size} onChange={(event) => patchSize(selectedItem.id, index, { size: event.target.value })} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder="M" />
                         {selectedItem.detailFields.map((field) => (
                           <input key={`${selectedItem.id}-${index}-${field}`} value={row.details?.[field] || ""} onChange={(event) => patchSizeDetail(selectedItem.id, index, field, event.target.value)} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" placeholder={field} />
                         ))}
+                        <input type="number" min="0" value={row.qty ?? 0} onChange={(event) => patchSize(selectedItem.id, index, { qty: Number(event.target.value) || 0 })} className="min-h-10 rounded-lg border border-[#CBD5E1] px-3 text-sm outline-none focus:border-[#002B5B]" />
                         <button onClick={() => deleteSize(selectedItem.id, index)} className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" title="ลบไซส์">
                           <Trash2 />
                         </button>
@@ -2557,8 +2595,10 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const [exportSizeFilter, setExportSizeFilter] = useState("ทุกไซส์");
   const [exportStatusFilter, setExportStatusFilter] = useState("ทุกสถานะ");
   const [selectedBatch, setSelectedBatch] = useState(null);
+  const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false);
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState("");
   const [exportExpanded, setExportExpanded] = useState(false);
+  const [advancedExportExpanded, setAdvancedExportExpanded] = useState(false);
 
   async function loadData({ silent = false } = {}) {
     if (refreshing) return;
@@ -2694,10 +2734,101 @@ function Dashboard({ demoMode, onAuthExpired }) {
     if (!response.ok || result?.success === false) throw new Error(result?.error || "GAS request failed");
   }
 
+  function findStockIssuesForStatusChange(config, batch, targetStatus) {
+    if (targetStatus !== ORDER_STATUS_DELIVERED) return [];
+    const issues = [];
+    batch.orders.forEach((order) => {
+      const gender = order.gender || GENDERS[0];
+      order.items.forEach((item) => {
+        if (item.status === ORDER_STATUS_DELIVERED) return; // already shipped
+        const type = item.type;
+        const clothing = config.find((c) => c.type === type);
+        const sizeKey = item.size;
+        const requested = Number(item.qty || 0);
+
+        if (!clothing || !sizeKey || requested <= 0) {
+          issues.push(`แบบเสื้อ ${type} ไซส์ ${sizeKey || "ไม่ระบุ"} ไม่มีข้อมูลสต็อก`);
+          return;
+        }
+
+        const rows = clothing.genderSizeRows?.[gender] || clothing.sizeRows || [];
+        const row = rows.find((r) => r.size === sizeKey);
+        const available = Number(row?.qty || 0);
+        if (available < requested) {
+          issues.push(`แบบเสื้อ ${type} ไซส์ ${sizeKey} (${gender}) ต้องการ ${requested} ชิ้น แต่มีสต็อก ${available} ชิ้น`);
+        }
+      });
+    });
+    return issues;
+  }
+
+  function adjustStockForStatusChange(config, batch, targetStatus) {
+    return config.map((clothing) => {
+      const ordersForType = batch.orders.flatMap((order) =>
+        order.items
+          .filter((item) => item.type === clothing.type)
+          .map((item) => ({
+            gender: order.gender || GENDERS[0],
+            size: item.size,
+            qty: Number(item.qty || 0),
+            currentStatus: item.status || ORDER_STATUS_PENDING
+          }))
+      );
+
+      if (!ordersForType.length) return clothing;
+
+      const genderSizeRows = { ...(clothing.genderSizeRows || {}) };
+      let changed = false;
+
+      ordersForType.forEach((orderItem) => {
+        const gender = orderItem.gender;
+        const sizeKey = orderItem.size;
+        const requested = orderItem.qty;
+        const wasShipped = orderItem.currentStatus === ORDER_STATUS_DELIVERED;
+
+        let delta = 0;
+        if (targetStatus === ORDER_STATUS_DELIVERED) {
+          if (!wasShipped) {
+            delta = -requested;
+          }
+        } else {
+          if (wasShipped) {
+            delta = requested;
+          }
+        }
+
+        if (delta === 0) return;
+
+        const rows = genderSizeRows[gender] || clothing.sizeRows || [];
+        const updatedRows = rows.map((row) => {
+          if (row.size !== sizeKey) return row;
+          const nextQty = Number(row.qty || 0) + delta;
+          changed = true;
+          return { ...row, qty: Math.max(0, nextQty) };
+        });
+        genderSizeRows[gender] = updatedRows;
+      });
+
+      return changed ? { ...clothing, genderSizeRows } : clothing;
+    });
+  }
+
   async function updateBatchStatus(batchId, status) {
     const statusUpdatedAt = new Date().toISOString();
     setStatusLoadingId(batchId);
     const loadingToastId = toast.loading("กำลังอัปเดตสถานะ...", { description: "ระบบกำลังบันทึกการเปลี่ยนแปลง กรุณารอสักครู่" });
+    const batch = batches.find((batchItem) => batchItem.batchId === batchId);
+    const previousStatus = batch?.status || ORDER_STATUS_PENDING;
+
+    const issues = findStockIssuesForStatusChange(clothingConfig, batch, status);
+    if (issues.length) {
+      toast.error("ไม่สามารถอัปเดตเป็นจัดส่งแล้วได้", {
+        description: issues.slice(0, 3).join("; ") + (issues.length > 3 ? ` และอีก ${issues.length - 3} รายการ` : "")
+      });
+      setStatusLoadingId("");
+      return;
+    }
+
     try {
       await syncDashboardAction({ action: "updateStatus", batchId, status, statusUpdatedAt });
     } catch (error) {
@@ -2713,14 +2844,81 @@ function Dashboard({ demoMode, onAuthExpired }) {
       return;
     }
 
-    setBatches((current) => {
-      const next = current.map((batch) => batch.batchId === batchId ? { ...batch, status, statusUpdatedAt } : batch);
-      saveStoredBatches(next);
-      return next;
-    });
-    setSelectedBatch((current) => current?.batchId === batchId ? { ...current, status, statusUpdatedAt } : current);
+    // Adjust stock configuration based on status transitions
+    const nextConfig = adjustStockForStatusChange(clothingConfig, batch, status);
+    setClothingConfig(nextConfig);
+    saveClothingConfig(nextConfig);
+    if (!demoMode && isGasConfigured()) {
+      publishSharedClothingConfig(nextConfig).catch((error) => {
+        if (isAuthFailure(error)) {
+          setAdminToken("");
+          onAuthExpired?.();
+          toast.error("สิทธิ์เข้าแดชบอร์ดหมดอายุ", { description: "กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง" });
+          return;
+        }
+        toast.error("บันทึกสต็อกไม่สำเร็จ", { description: error?.message || "กรุณาลองใหม่อีกครั้ง" });
+      });
+    }
+
+    // Reload entire data to refresh the batch statuses from Sheet
+    await loadData({ silent: true });
     setStatusLoadingId("");
     toast.success("อัปเดตสถานะคำสั่งเบิกเสื้อแล้ว", { id: loadingToastId });
+  }
+
+  async function shipBatchItems(batchId, shipmentItems) {
+    const statusUpdatedAt = new Date().toISOString();
+    setStatusLoadingId(batchId);
+    const loadingToastId = toast.loading("กำลังบันทึกข้อมูลการจัดส่ง...", { description: "ระบบกำลังอัปเดตและซิงก์คลังสินค้า..." });
+
+    try {
+      // 1. Update statuses on Google Sheets
+      await syncDashboardAction({
+        action: "shipItems",
+        batchId,
+        items: shipmentItems,
+        statusUpdatedAt
+      });
+
+      // 2. Deduct shipped quantities from the local stock configuration
+      let nextConfig = clothingConfig;
+      shipmentItems.forEach((item) => {
+        if (item.shippedQty <= 0) return;
+        nextConfig = nextConfig.map((clothing) => {
+          if (clothing.type !== item.type) return clothing;
+          const genderSizeRows = { ...(clothing.genderSizeRows || {}) };
+          const rows = genderSizeRows[item.gender] || clothing.sizeRows || [];
+          const updatedRows = rows.map((row) => {
+            if (row.size !== item.size) return row;
+            return { ...row, qty: Math.max(0, Number(row.qty || 0) - item.shippedQty) };
+          });
+          genderSizeRows[item.gender] = updatedRows;
+          return { ...clothing, genderSizeRows };
+        });
+      });
+
+      setClothingConfig(nextConfig);
+      saveClothingConfig(nextConfig);
+
+      if (!demoMode && isGasConfigured()) {
+        await publishSharedClothingConfig(nextConfig);
+      }
+
+      // 3. Reload batch data to get updated row statuses from sheet
+      await loadData({ silent: true });
+
+      toast.success("บันทึกการจัดส่งสินค้าเรียบร้อยแล้ว", { id: loadingToastId });
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken("");
+        onAuthExpired?.();
+        toast.error("สิทธิ์เข้าแดชบอร์ดหมดอายุ", { id: loadingToastId, description: "กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง" });
+      } else {
+        toast.error("บันทึกการจัดส่งไม่สำเร็จ", { id: loadingToastId, description: error?.message || "กรุณาลองใหม่อีกครั้ง" });
+      }
+    } finally {
+      setStatusLoadingId("");
+    }
   }
 
   async function deleteBatch(batchId) {
@@ -2806,7 +3004,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setExportExpanded((v) => !v)} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]">
-              <Download className="size-4" /> ส่งออก CSV
+              <Download className="size-4" /> ส่งออก Excel (CSV)
               <ChevronDown className={cn("size-3.5 transition", exportExpanded && "rotate-180")} />
             </button>
             <button onClick={() => loadData({ silent: true })} disabled={refreshing} className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60">
@@ -2816,27 +3014,56 @@ function Dashboard({ demoMode, onAuthExpired }) {
           </div>
         </div>
         {exportExpanded && (
-        <div className="mt-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1.1fr_9rem_9rem_8rem_9rem_8rem_9rem_auto] xl:items-end">
+        <div className="mt-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3 grid gap-3">
+          {/* Main Filters */}
+          <div className="grid gap-2 sm:grid-cols-3 items-end">
             <Field label="สาขาที่ส่งออก"><Select value={exportBranchFilter} onChange={setExportBranchFilter} values={exportBranchOptions} /></Field>
             <Field label="ตั้งแต่เดือน"><MonthInput value={exportStartMonth} onChange={setExportStartMonth} /></Field>
             <Field label="ถึงเดือน"><MonthInput value={exportEndMonth} onChange={setExportEndMonth} /></Field>
-            <Field label="เพศ"><Select value={exportGenderFilter} onChange={setExportGenderFilter} values={exportGenderOptions} /></Field>
-            <Field label="แบบเสื้อ"><Select value={exportTypeFilter} onChange={setExportTypeFilter} values={exportTypeOptions} /></Field>
-            <Field label="ไซส์"><Select value={exportSizeFilter} onChange={setExportSizeFilter} values={exportSizeOptions} /></Field>
-            <Field label="สถานะ"><Select value={exportStatusFilter} onChange={setExportStatusFilter} values={exportStatusOptions} /></Field>
-            <button onClick={exportCsv} disabled={refreshing || !exportRows.length} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
-              <Download className="size-4" /> ส่งออก CSV ({exportRows.length})
+          </div>
+
+          {/* Toggle for Advanced Filters */}
+          <div>
+            <button 
+              type="button"
+              onClick={() => setAdvancedExportExpanded((prev) => !prev)}
+              className="flex items-center gap-1.5 text-xs font-bold text-[#002B5B] hover:text-[#002144] focus:outline-none"
+            >
+              <Settings className="size-3.5" />
+              {advancedExportExpanded ? "ซ่อนตัวกรองขั้นสูง" : "แสดงตัวกรองขั้นสูง (เพศ, แบบเสื้อ, ไซส์, สถานะ)"}
+              <ChevronDown className={cn("size-3.5 transition", advancedExportExpanded && "rotate-180")} />
+            </button>
+          </div>
+
+          {/* Advanced Filters */}
+          {advancedExportExpanded && (
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 border-t border-[#E2E8F0] pt-3">
+              <Field label="เพศ"><Select value={exportGenderFilter} onChange={setExportGenderFilter} values={exportGenderOptions} /></Field>
+              <Field label="แบบเสื้อ"><Select value={exportTypeFilter} onChange={setExportTypeFilter} values={exportTypeOptions} /></Field>
+              <Field label="ไซส์"><Select value={exportSizeFilter} onChange={setExportSizeFilter} values={exportSizeOptions} /></Field>
+              <Field label="สถานะ"><Select value={exportStatusFilter} onChange={setExportStatusFilter} values={exportStatusOptions} /></Field>
+            </div>
+          )}
+
+          {/* Action Button */}
+          <div className="flex justify-end border-t border-[#E2E8F0] pt-3">
+            <button 
+              onClick={exportCsv} 
+              disabled={refreshing || !exportRows.length} 
+              className="w-full sm:w-auto flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 shadow-sm hover:bg-[#002144] transition-all"
+            >
+              <Download className="size-4" /> ส่งออก Excel (CSV) ({exportRows.length} รายการ)
             </button>
           </div>
         </div>
         )}
       </section>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <Stat icon={Users} value={metrics.totalEmployees} label="พนักงาน" />
-        <Stat icon={ClipboardList} value={metrics.pendingBatches} label="รอจัดส่ง" />
-        <Stat icon={PackageCheck} value={metrics.deliveredBatches} label="จัดส่งแล้ว" />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+        <Stat icon={Users} value={metrics.totalEmployees} label="จำนวนพนักงาน" />
+        <Stat icon={ClipboardList} value={`${metrics.pendingPieces} ชิ้น`} label="ยอดรอจัดส่ง" />
+        <Stat icon={Truck} value={`${metrics.backorderPieces} ชิ้น`} label="ค้างส่ง (รอของ)" />
+        <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
       </div>
 
       <Tabs.Root defaultValue="overview" className="grid gap-3">
@@ -2934,7 +3161,22 @@ function Dashboard({ demoMode, onAuthExpired }) {
         </Tabs.Content>
       </Tabs.Root>
 
-      <BatchDetailDialog batch={selectedBatch} onClose={() => setSelectedBatch(null)} onStatusChange={updateBatchStatus} onDelete={requestDeleteBatch} statusLoadingId={statusLoadingId} deleteLoadingId={deleteLoadingId} />
+      <BatchDetailDialog 
+        batch={selectedBatch} 
+        onClose={() => setSelectedBatch(null)} 
+        onStatusChange={updateBatchStatus} 
+        onDelete={requestDeleteBatch} 
+        statusLoadingId={statusLoadingId} 
+        deleteLoadingId={deleteLoadingId}
+        onShipClick={() => setShipmentDialogOpen(true)}
+      />
+      <PartialShipmentDialog
+        open={shipmentDialogOpen}
+        onClose={() => setShipmentDialogOpen(false)}
+        batch={selectedBatch}
+        clothingConfig={clothingConfig}
+        onShipConfirm={shipBatchItems}
+      />
       <ConfirmDialog
         open={Boolean(deleteConfirmBatch)}
         title="ยืนยันลบคำสั่งเบิกเสื้อ"
@@ -3184,6 +3426,15 @@ function MobileInfo({ label, value, compact = false, strong = false }) {
   );
 }
 
+function getBatchShipmentProgress(batch) {
+  const items = batch.orders.flatMap((o) => o.items);
+  if (!items.length) return { shipped: 0, total: 0, percent: 0 };
+  const total = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+  const shipped = items.filter((item) => item.status === ORDER_STATUS_DELIVERED).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+  const percent = total > 0 ? Math.round((shipped / total) * 100) : 0;
+  return { shipped, total, percent };
+}
+
 function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "" }) {
   const totalPieces = getBatchPieces(batch);
   const totalEmployees = batch.orders.length;
@@ -3213,6 +3464,25 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoa
         <MiniMetric label="พนักงาน" value={totalEmployees} />
         <MiniMetric label="จำนวน" value={`${totalPieces} ชิ้น`} />
       </div>
+      {/* Shipment Progress Bar */}
+      {(() => {
+        const { shipped, total, percent } = getBatchShipmentProgress(batch);
+        if (total === 0) return null;
+        return (
+          <div className="mt-3 rounded-xl bg-[#F1F5F9] p-2.5">
+            <div className="flex items-center justify-between text-xs font-bold text-[#44536A] mb-1">
+              <span>ความคืบหน้าการจัดส่ง</span>
+              <span>{shipped} จาก {total} ตัว ({percent}%)</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-[#E2E8F0] overflow-hidden">
+              <div 
+                className="h-full rounded-full bg-[#10B981] transition-all duration-500" 
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
       <p className="mt-2 text-xs font-semibold text-[#64748B]">อัปเดตสถานะ: {new Date(batch.statusUpdatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {buildTypeTotals(flattenBatches([batch])).map((row) => (
@@ -3236,9 +3506,18 @@ function DashboardOrderCard({ batch, onOpen, onStatusChange, onDelete, statusLoa
 }
 
 function StatusBadge({ status }) {
-  const delivered = status === ORDER_STATUS_DELIVERED;
+  let classes = "bg-[#CBD5E1] text-[#334155]"; // default/gray
+  if (status === ORDER_STATUS_DELIVERED) {
+    classes = "bg-[#DCFCE7] text-[#166534]"; // green
+  } else if (status === ORDER_STATUS_PENDING) {
+    classes = "bg-[#FEE2E2] text-[#991B1B]"; // red (waiting shipment)
+  } else if (status === ORDER_STATUS_BACKORDER || status === "รอของ") {
+    classes = "bg-[#FFEDD5] text-[#9A3412]"; // orange (waiting stock)
+  } else if (status === "จัดส่งบางส่วน (รอของ)" || status.includes("บางส่วน")) {
+    classes = "bg-[#FEF9C3] text-[#854D0E]"; // yellow/brown (partial)
+  }
   return (
-    <span data-status={delivered ? "delivered" : "pending"} className={cn("status-badge inline-flex shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold", delivered ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#FEF3C7] text-[#92400E]")}>
+    <span data-status={status} className={cn("status-badge inline-flex shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold", classes)}>
       {status}
     </span>
   );
@@ -3422,13 +3701,177 @@ function TypeTotalLegend({ rows, colors, className }) {
   );
 }
 
-function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "" }) {
+function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipConfirm }) {
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    if (!batch) return;
+    const flatItems = batch.orders.flatMap((order) => {
+      const gender = order.gender || GENDERS[0];
+      return order.items.map((item) => {
+        const clothing = clothingConfig.find((c) => c.type === item.type);
+        const rows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
+        const stockRow = rows.find((r) => r.size === item.size);
+        const currentStock = Number(stockRow?.qty || 0);
+
+        const isShipped = item.status === ORDER_STATUS_DELIVERED;
+        const requestedQty = isShipped ? 0 : Number(item.qty || 0);
+
+        return {
+          employeeName: order.name,
+          gender,
+          type: item.type,
+          color: item.color || "",
+          size: item.size,
+          requestedQty,
+          currentStock,
+          shippedQty: isShipped ? 0 : Math.min(requestedQty, currentStock),
+          isShipped
+        };
+      });
+    });
+    setItems(flatItems);
+  }, [batch, clothingConfig]);
+
+  function handleShippedQtyChange(index, val) {
+    const nextVal = Math.max(0, Math.min(items[index].requestedQty, Number(val) || 0));
+    setItems((current) => current.map((item, idx) => {
+      if (idx !== index) return item;
+      return { ...item, shippedQty: nextVal };
+    }));
+  }
+
+  function handleConfirm() {
+    const shipmentData = items
+      .filter((item) => !item.isShipped && item.requestedQty > 0)
+      .map((item) => ({
+        employeeName: item.employeeName,
+        gender: item.gender,
+        type: item.type,
+        color: item.color,
+        size: item.size,
+        shippedQty: item.shippedQty,
+        pendingQty: item.requestedQty - item.shippedQty
+      }));
+
+    const totalShipped = shipmentData.reduce((sum, item) => sum + item.shippedQty, 0);
+    if (totalShipped === 0) {
+      toast.error("กรุณาระบุจำนวนที่จะจัดส่งอย่างน้อย 1 ชิ้น");
+      return;
+    }
+
+    onShipConfirm(batch.batchId, shipmentData);
+    onClose();
+  }
+
+  const activeItems = items.filter(item => !item.isShipped && item.requestedQty > 0);
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-[60] bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 z-[61] flex max-h-[85vh] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(54rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+          <div className="flex items-center justify-between border-b border-[#E7EAF0] px-4 py-3">
+            <div>
+              <Dialog.Title className="text-lg font-black text-[#071638]">จัดการการจัดส่งสินค้า (Partial Approval)</Dialog.Title>
+              <p className="text-xs font-semibold text-[#64748B] mt-0.5">ระบุจำนวนที่สามารถจัดส่งได้ในรอบนี้ ค้างส่งจะถูกแยกสถานะเป็น "รอของ"</p>
+            </div>
+            <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+          </div>
+          
+          <div className="employee-scroll-region flex-1 overflow-auto p-4 bg-[#F8FAFC]">
+            {activeItems.length === 0 ? (
+              <div className="py-8 text-center text-sm font-semibold text-[#64748B]">ไม่มีรายการสินค้าที่รอจัดส่ง</div>
+            ) : (
+              <div className="grid gap-3">
+                {items.map((item, index) => {
+                  if (item.isShipped) return null;
+                  const pendingQty = item.requestedQty - item.shippedQty;
+                  
+                  let stockColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
+                  let stockText = `มีสต็อกพอ (${item.currentStock} ชิ้น)`;
+                  
+                  if (item.currentStock === 0) {
+                    stockColor = "text-rose-600 bg-rose-50 border-rose-200";
+                    stockText = "สต๊อกหมด";
+                  } else if (item.currentStock < item.requestedQty) {
+                    stockColor = "text-amber-600 bg-amber-50 border-amber-200";
+                    stockText = `สต๊อกไม่พอ (มี ${item.currentStock} ชิ้น)`;
+                  }
+
+                  return (
+                    <div key={`${item.employeeName}-${item.type}-${item.size}-${index}`} className="rounded-xl border border-[#DCE5F4] bg-white p-3 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F1F5F9] pb-2 mb-2.5">
+                        <div>
+                          <p className="font-extrabold text-sm text-[#071638]">{item.employeeName} ({item.gender})</p>
+                          <p className="text-xs font-bold text-[#002B5B] mt-0.5">{item.type} {item.color ? `· สี${item.color}` : ""} · ไซส์ {item.size}</p>
+                        </div>
+                        <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold", stockColor)}>
+                          {stockText}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-3 items-center text-center">
+                        <div>
+                          <p className="text-[11px] font-bold text-[#64748B]">จำนวนขอเบิก</p>
+                          <p className="text-base font-extrabold text-[#071638] mt-1">{item.requestedQty} ชิ้น</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-[#64748B]">จัดส่งรอบนี้</p>
+                          <div className="flex justify-center mt-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max={item.requestedQty}
+                              value={item.shippedQty}
+                              onChange={(e) => handleShippedQtyChange(index, e.target.value)}
+                              className="h-9 w-16 text-center rounded-lg border border-[#CBD5E1] text-sm font-black text-[#002B5B] focus:border-[#002B5B] focus:ring-2 focus:ring-[#DCE8FF] outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-[#64748B]">ค้างส่ง (รอของ)</p>
+                          <p className={cn("text-base font-extrabold mt-1", pendingQty > 0 ? "text-amber-600" : "text-[#64748B]")}>
+                            {pendingQty} ชิ้น
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          <div className="border-t border-[#E7EAF0] p-4 grid grid-cols-2 gap-3 sm:flex sm:justify-end sm:gap-3 bg-white">
+            <button
+              onClick={onClose}
+              className="min-h-11 rounded-xl border border-[#CBD5E1] bg-white px-5 text-sm font-bold text-[#071638] w-full sm:w-auto"
+            >
+              ยกเลิก
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="min-h-11 rounded-xl bg-[#002B5B] px-5 text-sm font-bold text-white hover:bg-[#002144] shadow-sm transition w-full sm:w-auto"
+            >
+              ยืนยันการจัดส่ง
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoadingId = "", deleteLoadingId = "", onShipClick }) {
   const isUpdatingStatus = Boolean(batch && statusLoadingId === batch.batchId);
   const isDeleting = Boolean(batch && deleteLoadingId === batch.batchId);
   const isBusy = isUpdatingStatus || isDeleting;
   function confirmDelete() {
     if (batch && !isBusy) onDelete(batch.batchId);
   }
+
+  const isFullyDelivered = batch && batch.orders.flatMap(o => o.items).every(item => item.status === ORDER_STATUS_DELIVERED);
 
   return (
     <Dialog.Root open={Boolean(batch)} onOpenChange={(open) => !open && onClose()}>
@@ -3477,7 +3920,10 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
                       <div className="grid gap-2 p-3 sm:hidden">
                         {order.items.map((item) => (
                           <div key={`${order.name}-${item.type}-${item.color}-${item.size}`} className="rounded-lg bg-[#F8FAFC] p-3">
-                            <p className="break-words text-sm font-extrabold text-[#071638]">{item.type}</p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="break-words text-sm font-extrabold text-[#071638]">{item.type}</p>
+                              <StatusBadge status={item.status || ORDER_STATUS_PENDING} />
+                            </div>
                             <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
                               <MobileInfo label="สี" value={item.color || "-"} compact />
                               <MobileInfo label="ไซส์" value={item.size || "-"} compact />
@@ -3491,8 +3937,9 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
                           <tr>
                             <th className="px-3 py-3 sm:px-4">ประเภท</th>
                             <th className="w-20 px-3 py-3 sm:w-24 sm:px-4">สี</th>
-                            <th className="w-20 px-3 py-3 sm:w-24 sm:px-4">ไซส์</th>
-                            <th className="w-20 px-3 py-3 text-right sm:w-24 sm:px-4">จำนวน</th>
+                            <th className="w-16 px-3 py-3 sm:w-20 sm:px-4">ไซส์</th>
+                            <th className="w-16 px-3 py-3 text-right sm:w-20 sm:px-4">จำนวน</th>
+                            <th className="w-28 px-3 py-3 text-center sm:w-32 sm:px-4">สถานะ</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3502,6 +3949,9 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
                               <td className="break-words px-3 py-3 sm:px-4">{item.color || "-"}</td>
                               <td className="break-words px-3 py-3 sm:px-4">{item.size}</td>
                               <td className="px-3 py-3 text-right font-extrabold sm:px-4">{item.qty}</td>
+                              <td className="px-3 py-3 text-center sm:px-4">
+                                <StatusBadge status={item.status || ORDER_STATUS_PENDING} />
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -3509,7 +3959,18 @@ function BatchDetailDialog({ batch, onClose, onStatusChange, onDelete, statusLoa
                     </div>
                   ))}
                 </div>
-                <button onClick={confirmDelete} disabled={isBusy} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60">
+
+                {!isFullyDelivered && (
+                  <button
+                    onClick={onShipClick}
+                    disabled={isBusy}
+                    className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#002B5B] font-bold text-white shadow-sm transition hover:bg-[#002144] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Truck className="size-4" /> ดำเนินการจัดส่ง (แยกตามรายการ)
+                  </button>
+                )}
+
+                <button onClick={confirmDelete} disabled={isBusy} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60">
                   {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
                   {isDeleting ? "กำลังลบคำสั่งเบิกเสื้อ" : "ลบคำสั่งเบิกเสื้อนี้"}
                 </button>
@@ -3660,6 +4121,9 @@ function buildDashboardMetrics(batches) {
   return {
     totalEmployees: batches.reduce((sum, batch) => sum + batch.orders.length, 0),
     totalPieces: rows.reduce((sum, row) => sum + Number(row.qty || 0), 0),
+    pendingPieces: rows.filter((row) => row.status === ORDER_STATUS_PENDING).reduce((sum, row) => sum + Number(row.qty || 0), 0),
+    backorderPieces: rows.filter((row) => row.status === ORDER_STATUS_BACKORDER || row.status === "รอของ").reduce((sum, row) => sum + Number(row.qty || 0), 0),
+    shippedPieces: rows.filter((row) => row.status === ORDER_STATUS_DELIVERED).reduce((sum, row) => sum + Number(row.qty || 0), 0),
     pendingBatches: batches.filter((batch) => batch.status !== ORDER_STATUS_DELIVERED).length,
     deliveredBatches: batches.filter((batch) => batch.status === ORDER_STATUS_DELIVERED).length
   };
