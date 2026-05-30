@@ -1139,3 +1139,169 @@ body {
     max-width: calc(100vw - 16px) !important;
   }
 }
+
+/* Enhanced UI/UX Improvements */
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Button improvements */
+button {
+  transition: all 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Enhanced form inputs */
+input:focus,
+textarea:focus,
+select:focus,
+[aria-haspopup="listbox"]:focus {
+  box-shadow: 0 0 0 3px rgba(13, 21, 42, 0.1), 0 0 0 1px rgba(13, 21, 42, 0.2) !important;
+}
+
+/* Setup panel highlight */
+section:has(> div > h2:contains("ข้อมูลผู้ติดต่อ")) {
+  animation: slideUp 300ms ease-out;
+}
+
+/* Status badge animations */
+[role="dialog"]::backdrop {
+  animation: fadeIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Better hover states */
+.app-shadcn-theme button:not(:disabled) {
+  position: relative;
+}
+
+.app-shadcn-theme button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+/* Improved validation feedback */
+input[invalid="true"],
+.app-shadcn-theme [invalid="true"] {
+  animation: shake 300ms ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+/* Enhanced checkboxes and radio inputs */
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+input[type="checkbox"]:hover:not(:disabled),
+input[type="radio"]:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+/* Dialog animations */
+[role="dialog"] {
+  animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Mobile-optimized touch targets */
+@media (max-width: 768px) {
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="tab"] {
+    min-height: 44px !important;
+  }
+}
+
+/* Improved table row hover */
+.app-shadcn-theme tbody tr:hover {
+  background: #f8fafc !important;
+  transition: background-color 150ms ease;
+}
+
+/* Status indicator pulse */
+.status-badge {
+  animation: slideIn 300ms ease-out;
+}
+
+/* Disabled state improvements */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Toast improvements */
+[data-sonner-toast] {
+  animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Smooth transitions for all interactive elements */
+.app-shadcn-theme * {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Skip transitions for animations */
+* {
+  transition-duration: 0ms !important;
+}
+
+*[class*="animate"] {
+  transition-duration: 0ms !important;
+}

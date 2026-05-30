@@ -1026,29 +1026,36 @@ function QuickOrderSetupPanel({ state, dispatch }) {
   }, [complete]);
 
   return (
-    <section className="flex h-full flex-col rounded-lg border border-[#D8DEEA] bg-white p-3 sm:p-4">
-      <div className="flex items-center justify-between gap-3">
+    <section className={cn("flex h-full flex-col rounded-xl border bg-white p-4 sm:p-5 transition-all", complete ? "border-[#DCFCE7] bg-[#FBFDFC] shadow-sm" : "border-2 border-[#FDE68A] bg-[#FFFBF0] shadow-md")}>
+      <div className="flex items-start justify-between gap-3 mb-2">
         <div className="min-w-0">
-          <h2 className="text-base font-black text-[#071638]">ข้อมูลผู้ติดต่อ</h2>
-          <p className="mt-1 truncate text-[15px] font-bold leading-6 text-[#52525B]">
-            {complete ? `${state.companyName} · ${state.branch} · ${state.supervisorName} · ${formatPhone(state.supervisorPhone)}` : "กรอกบริษัท สาขา ผู้ติดต่อ และเบอร์ติดต่อ"}
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-black text-[#071638]">ข้อมูลผู้ติดต่อ</h2>
+            {complete && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#DCFCE7] px-2 py-1 text-xs font-bold text-[#166534]">
+                <Check className="size-3.5" /> เสร็จ
+              </span>
+            )}
+          </div>
+          <p className="mt-2 text-[14px] font-semibold leading-5 text-[#52525B]">
+            {complete ? `${state.companyName} • ${state.branch} • ${state.supervisorName}` : "✓ จำเป็น - กรอกข้อมูลผู้ติดต่อก่อนส่งเบิก"}
           </p>
         </div>
-        <button onClick={() => setExpanded((value) => !value)} className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#002B5B] sm:text-sm lg:hidden">
+        <button onClick={() => setExpanded((value) => !value)} className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#002B5B] sm:text-sm transition hover:bg-[#F8FAFC] lg:hidden">
           {expanded ? <><ChevronUp className="size-3.5" /> ย่อ</> : <><Pencil className="size-3.5" /> แก้ไข</>}
         </button>
       </div>
-      <div className={cn("mt-3 grid gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-4", !expanded && "hidden lg:grid")}>
-          <Field label="บริษัท">
+      <div className={cn("grid gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-4 transition-all", !expanded && "hidden lg:grid")}>
+          <Field label="บริษัท *">
             <TextInput value={state.companyName} onChange={(value) => dispatch({ type: "patchBatch", patch: { companyName: value } })} placeholder="ระบุชื่อบริษัท" />
           </Field>
-          <Field label="สาขา">
+          <Field label="สาขา *">
             <Select value={state.branch} onChange={(value) => dispatch({ type: "patchBatch", patch: { branch: value } })} values={BRANCHES} />
           </Field>
-          <Field label="ผู้ติดต่อ">
+          <Field label="ผู้ติดต่อ *">
             <TextInput value={state.supervisorName} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorName: value } })} placeholder="ชื่อ-นามสกุล" />
           </Field>
-          <Field label="เบอร์ติดต่อ">
+          <Field label="เบอร์ติดต่อ *">
             <TextInput value={state.supervisorPhone} onChange={(value) => dispatch({ type: "patchBatch", patch: { supervisorPhone: phoneDigitsOnly(value) } })} placeholder="08X-XXX-XXXX" inputMode="numeric" pattern="[0-9]*" />
           </Field>
       </div>
@@ -1218,15 +1225,18 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
   const completedEmployees = employees.filter(isEmployeeComplete).length;
 
   return (
-    <section className="flex flex-col rounded-lg border border-[#C9D8EF] bg-[#F8FBFF] p-3 sm:p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
+    <section className="flex flex-col rounded-xl border border-[#D8DEEA] bg-white p-3 sm:p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3 mb-2">
         <div>
           <h1 className="text-base font-extrabold text-[#071638]">รายการพนักงาน</h1>
-          <p className="mt-1 text-sm font-semibold text-[#64748B]">ครบ {completedEmployees}/{employees.length} คน</p>
+          <p className="mt-1 text-sm font-semibold text-[#64748B]">
+            <span className="font-black text-[#166534]">{completedEmployees}</span>
+            <span className="text-[#94A3B8]">/{employees.length} คน</span>
+          </p>
         </div>
-        <label className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#44536A] shadow-sm cursor-pointer select-none">
+        <label className="flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#44536A] shadow-sm cursor-pointer select-none transition hover:bg-[#F8FAFC]">
           <input type="checkbox" checked={showIncompleteOnly} onChange={(event) => setShowIncompleteOnly(event.target.checked)} className="size-4 accent-[#002B5B]" />
-          ยังไม่ครบ
+          <span>ยังไม่ครบ</span>
         </label>
       </div>
 
@@ -1235,13 +1245,13 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="ค้นหาชื่อพนักงาน/ไซส์/แบบเสื้อ..."
+          placeholder="ค้นหาชื่อ/ไซส์/แบบเสื้อ..."
           className="h-10 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-8 text-xs font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-2 focus:ring-[#002B5B]/10"
         />
         {query ? (
           <button
             onClick={() => setQuery("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-[#071638]"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-[#071638] transition"
             title="ล้างข้อความค้นหา"
           >
             <X className="size-3.5" />
@@ -1249,33 +1259,43 @@ function QuickOrderActionsPanel({ employees, dispatch, showIncompleteOnly, setSh
         ) : null}
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <button onClick={onQuickOrder} className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-2.5 text-xs font-bold text-white sm:min-h-11 sm:text-sm shadow-sm transition hover:bg-[#013A78]">
-          <UserPlus /> เพิ่มหลายคน
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button onClick={onQuickOrder} className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-3 text-xs font-black text-white sm:text-sm shadow-sm transition hover:bg-[#013A78] active:scale-95">
+          <UserPlus className="size-4" />
+          <span>เพิ่มหลายคน</span>
         </button>
-        <button onClick={() => dispatch({ type: "add" })} className="min-h-10 rounded-lg border border-[#CBD5E1] bg-white px-2.5 text-xs font-bold text-[#002B5B] sm:min-h-11 sm:px-3 sm:text-sm shadow-sm transition hover:bg-[#F8FAFC]">
-          <span className="inline-flex items-center justify-center gap-1.5"><Plus className="size-4" /> เพิ่ม 1 คน</span>
+        <button onClick={() => dispatch({ type: "add" })} className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#002B5B] sm:text-sm shadow-sm transition hover:bg-[#F8FAFC] active:bg-[#EEF4FF]">
+          <Plus className="size-4" />
+          <span>เพิ่ม 1 คน</span>
         </button>
       </div>
-      <div className="mt-2 flex items-center gap-2">
-        <div className="h-px flex-1 bg-[#E7EAF0]" />
-        <span className="text-[10px] font-bold text-[#94A3B8]">จัดการ</span>
-        <div className="h-px flex-1 bg-[#E7EAF0]" />
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <button onClick={() => dispatch({ type: "copyFirstSetupToAll" })} disabled={!employees[0]?.items.length} className="min-h-10 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-2.5 text-xs font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm shadow-sm transition hover:bg-[#D5E6FF]">
-          <span className="inline-flex items-center justify-center gap-1.5"><Copy className="size-4" /> คัดลอกแถวแรก</span>
+      
+      <div className="mt-4 h-px bg-[#E7EAF0]" />
+      
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button 
+          onClick={() => dispatch({ type: "copyFirstSetupToAll" })} 
+          disabled={!employees[0]?.items.length} 
+          className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-2.5 text-xs font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45 sm:text-sm shadow-sm transition hover:bg-[#D5E6FF] active:bg-[#C5DEFF]"
+        >
+          <Copy className="size-3.5" />
+          <span>คัดลอก</span>
         </button>
-        <button onClick={() => dispatch({ type: "removeBlankEmployees" })} disabled={!canRemoveBlank} className="min-h-10 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-11 sm:px-3 sm:text-sm shadow-sm transition hover:bg-[#FFF3CD]">
-          <span className="inline-flex items-center justify-center gap-1.5"><Eraser className="size-4" /> ลบแถวว่าง</span>
+        <button 
+          onClick={() => dispatch({ type: "removeBlankEmployees" })} 
+          disabled={!canRemoveBlank} 
+          className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:text-sm shadow-sm transition hover:bg-[#FFF3CD] active:bg-[#FFED99]"
+        >
+          <Eraser className="size-3.5" />
+          <span>ลบแถวว่าง</span>
         </button>
       </div>
 
       <button
         onClick={() => setResetConfirmOpen(true)}
-        className="mt-2 flex min-h-8 w-full items-center justify-center gap-1.5 text-[11px] font-bold text-[#94A3B8] transition hover:text-[#B91C1C]"
+        className="mt-3 flex min-h-8 w-full items-center justify-center gap-1.5 text-[11px] font-bold text-[#94A3B8] transition hover:text-[#B91C1C]"
       >
-        <Trash2 className="size-3.5" /> ล้างรายการทั้งหมด
+        <Trash2 className="size-3.5" /> ล้างทั้งหมด
       </button>
       <ConfirmDialog
         open={resetConfirmOpen}
@@ -1417,51 +1437,63 @@ function GarmentEditorDialog({ employee, dispatch, onClose }) {
         <Dialog.Content aria-describedby={undefined} className="fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(42rem,88vh)] sm:w-[min(48rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2">
           {employee && (
             <>
-              <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4">
+              <div className="flex items-start justify-between gap-4 border-b border-[#E7EAF0] px-5 py-4 bg-gradient-to-r from-[#F8FAFC] to-[#FFFFFF]">
                 <div className="min-w-0">
                   <Dialog.Title className="truncate text-xl font-extrabold text-[#071638]">แก้รายการเสื้อ</Dialog.Title>
                   <p className="mt-1 truncate text-sm font-bold text-[#64748B]">{employee.name || "ยังไม่ระบุชื่อ"} · {employee.gender || "ยังไม่เลือกเพศ"}</p>
                 </div>
-                <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+                <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9] transition" aria-label="ปิด"><X className="size-5" /></Dialog.Close>
               </div>
 
               <div className="border-b border-[#E7EAF0] p-4">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]" />
-                  <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 w-full rounded-xl border border-[#CBD5E1] bg-white pl-11 pr-4 text-[15px] outline-none focus:border-[#002B5B] focus:ring-4 focus:ring-[#DCE8FF]" placeholder="ค้นหาแบบเสื้อ" />
+                  <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 w-full rounded-lg border border-[#CBD5E1] bg-white pl-11 pr-4 text-[15px] font-semibold outline-none transition focus:border-[#002B5B] focus:ring-2 focus:ring-[#002B5B]/20" placeholder="ค้นหาแบบเสื้อ..." />
                 </div>
               </div>
 
               <div className="employee-scroll-region min-h-0 flex-1 overflow-y-auto bg-[#F8FAFC] p-4">
-                <div className="grid gap-2.5">
+                <div className="grid gap-3">
                   {filteredTypes.map((type) => {
                     const item = employee.items.find((entry) => entry.type === type);
                     return (
-                      <div key={type} className={cn("rounded-xl border bg-white p-3 shadow-sm", item ? "border-[#BFD0EA] bg-[#FBFDFF]" : "border-[#E2E8F0]")}>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div key={type} className={cn("rounded-lg border-2 bg-white p-4 transition", item ? "border-[#BFD0EA] bg-[#FBFDFF] shadow-sm" : "border-[#E2E8F0] hover:border-[#CBD5E1]")}>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <p className="break-words text-base font-extrabold text-[#071638]">{type}</p>
-                            {item && <p className="mt-1 text-xs font-bold text-[#64748B]">{formatOrderItemLabel(item)}</p>}
+                            {item && <p className="mt-1.5 text-xs font-bold text-[#64748B]">📦 {formatOrderItemLabel(item)}</p>}
                           </div>
                           <button
                             onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })}
-                            className={cn("min-h-11 shrink-0 rounded-lg px-4 text-sm font-black", item ? "border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]" : "border border-[#BFD0EA] bg-[#E5EFFD] text-[#002B5B]")}
+                            className={cn("min-h-11 shrink-0 rounded-lg px-4 text-sm font-bold transition active:scale-95", item ? "border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] hover:bg-[#FEE2E2]" : "border border-[#BFD0EA] bg-[#E5EFFD] text-[#002B5B] hover:bg-[#D5E6FF]")}
                           >
                             {item ? "ลบรายการ" : "เพิ่มรายการ"}
                           </button>
                         </div>
 
                         {item && (
-                          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem] sm:items-start">
-                            <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} values={employee.gender ? [["", "เลือกไซส์"], ...getSizeOptionsWithLabels(item.type, employee.gender)] : [["", "เลือกเพศก่อน"]]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} compact />
-                            {needsColorSelection(item.type) ? (
-                              <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
-                            ) : (
-                              <div className="hidden sm:block" />
-                            )}
-                            <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
+                          <div className="mt-4 pt-4 border-t border-[#E7EAF0] grid gap-3">
+                            <div className="grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem] gap-3 items-start">
+                              <div>
+                                <label className="text-xs font-bold text-[#44536A] mb-1.5 block">ไซส์ *</label>
+                                <GridSelect value={item.size} disabled={!employee.gender} placeholder={employee.gender ? "เลือกไซส์" : "เลือกเพศก่อน"} values={employee.gender ? [["", "เลือกไซส์"], ...getSizeOptionsWithLabels(item.type, employee.gender)] : [["", "เลือกเพศก่อน"]]} onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: patchSizeWithDefaultQty(item, value) })} compact />
+                              </div>
+                              {needsColorSelection(item.type) ? (
+                                <div>
+                                  <label className="text-xs font-bold text-[#44536A] mb-1.5 block">สี *</label>
+                                  <ItemColorSelect employee={employee} item={item} dispatch={dispatch} compact />
+                                </div>
+                              ) : (
+                                <div className="hidden sm:block" />
+                              )}
+                              <div>
+                                <label className="text-xs font-bold text-[#44536A] mb-1.5 block">จำนวน *</label>
+                                <GridInput type="number" inputMode="numeric" value={item.qty} placeholder="จำนวน" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { qty: digitsOnly(value) } })} />
+                              </div>
+                            </div>
                             {item.size === OTHER_SIZE && (
-                              <div className="sm:col-span-3">
+                              <div>
+                                <label className="text-xs font-bold text-[#44536A] mb-1.5 block">ระบุไซส์เพิ่มเติม *</label>
                                 <GridInput value={item.customSize} placeholder="ระบุไซส์เพิ่มเติม" onChange={(value) => dispatch({ type: "patchItem", id: employee.id, itemType: item.type, patch: { customSize: value } })} />
                               </div>
                             )}
@@ -1471,7 +1503,7 @@ function GarmentEditorDialog({ employee, dispatch, onClose }) {
                     );
                   })}
                   {!filteredTypes.length && (
-                    <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">ไม่พบแบบเสื้อ</div>
+                    <div className="rounded-lg border-2 border-dashed border-[#CBD5E1] bg-white p-8 text-center font-bold text-[#64748B]">ไม่พบแบบเสื้อ</div>
                   )}
                 </div>
               </div>
@@ -1519,51 +1551,74 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
     <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 lg:hidden" />
-        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-xl bg-white shadow-2xl lg:hidden">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl lg:hidden">
           {employee && (
             <>
-              <div className="flex min-h-14 items-center justify-between border-b border-[#E7EAF0] px-4">
-                <Dialog.Title className="font-extrabold text-[#071638]">พนักงานลำดับ {index + 1}</Dialog.Title>
-                <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]" aria-label="ปิด"><X /></Dialog.Close>
+              <div className="flex min-h-14 items-center justify-between border-b border-[#E7EAF0] bg-gradient-to-r from-[#F8FAFC] to-[#FFFFFF] px-4">
+                <div className="min-w-0">
+                  <Dialog.Title className="font-extrabold text-[#071638]">พนักงานลำดับ {index + 1}</Dialog.Title>
+                  <p className="text-xs text-[#64748B] font-semibold mt-0.5">{employee.name || "ยังไม่ระบุชื่อ"}</p>
+                </div>
+                <Dialog.Close className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9] transition" aria-label="ปิด"><X className="size-5" /></Dialog.Close>
               </div>
-              <div className="employee-scroll-region grid gap-3 overflow-y-auto bg-[#F5F7FB] p-3">
-                <Field label="ชื่อ-นามสกุล">
+              <div className="employee-scroll-region grid gap-4 overflow-y-auto bg-[#F8FAFC] p-4">
+                <Field label="ชื่อ-นามสกุล *">
                   <TextInput value={employee.name} invalid={showErrors && !employee.name.trim()} onChange={(value) => dispatch({ type: "patchEmployee", id: employee.id, patch: { name: value } })} placeholder="ระบุชื่อพนักงาน" />
                 </Field>
-                <Field label="เพศ">
-                  <div className="grid grid-cols-2 gap-2">
+                <Field label="เพศ *">
+                  <div className="grid grid-cols-2 gap-3">
                     {GENDERS.map((gender) => (
                       <button
                         key={gender}
                         onClick={() => dispatch({ type: "patchEmployee", id: employee.id, patch: { gender } })}
                         className={cn(
-                          "min-h-11 rounded-lg border text-sm font-bold transition",
+                          "min-h-12 rounded-lg border-2 text-sm font-bold transition active:scale-95",
                           employee.gender === gender
-                            ? "border-[#002B5B] bg-[#002B5B] text-white"
+                            ? "border-[#002B5B] bg-[#002B5B] text-white shadow-md"
                             : (showErrors && !employee.gender
                                 ? "border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C]"
-                                : "border-[#CBD5E1] bg-white text-[#071638]")
+                                : "border-[#CBD5E1] bg-white text-[#071638] hover:border-[#002B5B]")
                         )}
                       >
-                        {gender}
+                        {gender === "ชาย" ? "👨" : "👩"} {gender}
                       </button>
                     ))}
                   </div>
                 </Field>
-                <div className="grid gap-2">
-                  {clothingTypes.map((type) => (
-                    <div key={type} className={cn("rounded-lg border bg-white p-3", showErrors && !employee.items.length ? "border-[#EF4444] bg-[#FFF7F7]" : "border-[#D8DEEA]")}>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="font-extrabold text-[#071638]">{type}</p>
-                        <label className="flex items-center gap-2 text-sm font-bold text-[#002B5B]">
-                          <input type="checkbox" checked={employee.items.some((item) => item.type === type)} onChange={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })} className="size-4 accent-[#002B5B]" />
-                          เบิก
-                        </label>
-                      </div>
-                      {employee.items.some((item) => item.type === type) && <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} />}
-                    </div>
-                  ))}
-                </div>
+                <Field label={`แบบเสื้อที่ต้องการ${showErrors && !employee.items.length ? ' *' : ''}`}>
+                  <div className="grid gap-2.5">
+                    {clothingTypes.map((type) => {
+                      const hasItem = employee.items.some((item) => item.type === type);
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => dispatch({ type: "toggleType", id: employee.id, itemType: type })}
+                          className={cn(
+                            "rounded-lg border-2 p-3 text-left transition active:scale-95",
+                            hasItem
+                              ? "border-[#002B5B] bg-[#EAF2FF]"
+                              : (showErrors && !employee.items.length
+                                  ? "border-[#EF4444] bg-[#FFF7F7]"
+                                  : "border-[#E2E8F0] bg-white hover:border-[#BFD0EA]")
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5">
+                              <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center transition", hasItem ? "border-[#002B5B] bg-[#002B5B]" : "border-[#CBD5E1] bg-white")}>
+                                {hasItem && <Check className="size-3 text-white" />}
+                              </div>
+                              <p className={cn("font-semibold", hasItem ? "text-[#002B5B]" : "text-[#071638]")}>{type}</p>
+                            </div>
+                          </div>
+                          {hasItem && <QuickGarmentCell employee={employee} type={type} dispatch={dispatch} invalidEmployeeId={invalidEmployeeId} />}
+                        </button>
+                      );
+                    })}
+                    {showErrors && !employee.items.length && (
+                      <p className="text-xs font-bold text-[#B91C1C] mt-1">⚠ เลือกแบบเสื้ออย่างน้อย 1 แบบ</p>
+                    )}
+                  </div>
+                </Field>
               </div>
               <div className="grid grid-cols-[48px_1fr] gap-2 border-t border-[#E7EAF0] bg-white p-3">
                 <button
@@ -1573,11 +1628,12 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                     onClose();
                   }}
                   disabled={!canDelete}
-                  className="grid min-h-11 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="grid min-h-11 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-45 transition hover:bg-[#FEE2E2] active:scale-95"
+                  title={!canDelete ? "ต้องเก็บไว้อย่างน้อย 1 บรรทัด" : "ลบพนักงานคนนี้"}
                 >
-                  <Trash2 />
+                  <Trash2 className="size-4" />
                 </button>
-                <button onClick={() => nextEmployee ? onNext(nextEmployee.id) : onClose()} className="min-h-11 rounded-lg bg-[#002B5B] font-bold text-white">
+                <button onClick={() => nextEmployee ? onNext(nextEmployee.id) : onClose()} className="min-h-11 rounded-lg bg-[#002B5B] font-bold text-white transition hover:bg-[#013A78] active:scale-95">
                   {nextEmployee ? "บันทึกและถัดไป" : "เสร็จสิ้น"}
                 </button>
               </div>
@@ -1591,38 +1647,53 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
 
 function QuickSummaryBar({ totalPieces, completedEmployees, totalEmployees, hasIncompleteEmployee, isSubmitting, onJumpIncomplete, onSubmit }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#D8DEEA] bg-white/96 px-3 py-3.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#D8DEEA] bg-white/98 px-3 py-3 shadow-[0_-12px_32px_rgba(15,23,42,0.12)] backdrop-blur-sm">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2 sm:px-4">
-        <div className="flex items-center justify-between gap-4 sm:justify-start">
+        <div className="flex items-center justify-between gap-4 sm:gap-6 sm:justify-start">
           <div className="min-w-0">
-            <p className="text-xs font-bold text-[#64748B]">ความคืบหน้า</p>
-            <p className="text-[15px] font-black text-[#071638] sm:text-base">
-              ครบ <span className="text-[#166534]">{completedEmployees}</span>/{totalEmployees} คน
+            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">ความคืบหน้า</p>
+            <p className="mt-1 text-lg font-black text-[#071638]">
+              <span className="text-[#166534]">{completedEmployees}</span>
+              <span className="text-[#94A3B8]">/{totalEmployees}</span>
+              <span className="text-sm text-[#64748B] font-semibold"> คน</span>
             </p>
           </div>
           <div className="h-8 w-px bg-[#E2E8F0] hidden sm:block" />
-          <div>
-            <p className="text-xs font-bold text-[#64748B]">ยอดรวมเบิกเสื้อ</p>
-            <p className="text-lg font-black text-[#002B5B]">
-              {totalPieces} <span className="text-xs font-bold text-[#64748B]">ชิ้น</span>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">เบิกเสื้อรวม</p>
+            <p className="mt-1 text-lg font-black text-[#002B5B]">
+              {totalPieces}
+              <span className="text-sm text-[#64748B] font-semibold"> ชิ้น</span>
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
-          <button
-            onClick={onJumpIncomplete}
-            disabled={!hasIncompleteEmployee}
-            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-3 text-xs font-black text-[#92400E] transition hover:bg-[#FFF9E6] disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
-          >
-            ไปแถวที่ยังไม่ครบ
-          </button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          {hasIncompleteEmployee && (
+            <button
+              onClick={onJumpIncomplete}
+              className="flex min-h-11 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg border-2 border-[#FDE68A] bg-[#FFFBEB] px-3 text-xs font-black text-[#92400E] transition hover:bg-[#FFF9E6] active:scale-95 sm:text-sm"
+            >
+              <AlertCircle className="size-4" />
+              <span>แก้ไข</span>
+            </button>
+          )}
           <button
             onClick={onSubmit}
-            disabled={isSubmitting}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#013A78] disabled:opacity-60"
+            disabled={isSubmitting || hasIncompleteEmployee}
+            className="flex min-h-11 flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-5 text-sm font-black text-white shadow-md transition hover:bg-[#013A78] disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} ส่งเบิก
+            {isSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>กำลังส่ง...</span>
+              </>
+            ) : (
+              <>
+                <Send className="size-4" />
+                <span>ส่งเบิก</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -1816,15 +1887,17 @@ function Logo() {
 
 function OrderHeader({ branch, onSizeOpen, onOpenDashboard }) {
   return (
-    <header className="relative z-10 border-b border-[#D8DEEA] bg-[#F7FAFF]/94 px-2 py-2 backdrop-blur-xl sm:px-3">
+    <header className="relative z-10 border-b border-[#D8DEEA] bg-[#F7FAFF]/98 px-2 py-2.5 shadow-sm backdrop-blur-xl sm:px-3">
       <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-2 sm:gap-3">
         <Logo />
-        <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
-          <button onClick={onSizeOpen} className="flex min-h-9 shrink-0 items-center gap-1 rounded-xl bg-[#E5EFFD] px-2.5 text-xs font-bold text-[#002B5B] sm:px-3 sm:text-sm">
-            <Ruler /> ข้อมูลเสื้อ
+        <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
+          <button onClick={onSizeOpen} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#E5EFFD] px-3 text-xs font-bold text-[#002B5B] sm:text-sm transition hover:bg-[#D5E6FF] active:scale-95">
+            <Ruler className="size-4" />
+            <span>ข้อมูลเสื้อ</span>
           </button>
-          <button onClick={onOpenDashboard} className="flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-[#C8D6EA] bg-white px-2.5 text-xs font-black text-[#002B5B] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:px-3 sm:text-sm">
-            <LayoutDashboard /> แดชบอร์ด
+          <button onClick={onOpenDashboard} className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border-2 border-[#C8D6EA] bg-white px-3 text-xs font-black text-[#002B5B] shadow-sm transition hover:border-[#002B5B] hover:shadow-md hover:-translate-y-0.5 sm:text-sm active:scale-95">
+            <LayoutDashboard className="size-4" />
+            <span>แดชบอร์ด</span>
           </button>
         </div>
       </div>
