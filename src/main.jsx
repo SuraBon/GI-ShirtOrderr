@@ -1209,14 +1209,32 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       description: 'ระบบกำลังบันทึกคำสั่ง กรุณารอสักครู่',
     });
     try {
-      const response = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.success === false)
-        throw new Error(result?.error || 'GAS request failed');
+      const postToGAS = async (data, attempts = 2, timeoutMs = 15000) => {
+        let lastErr = null;
+        for (let i = 0; i < attempts; i++) {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const res = await fetch(APPS_SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json;charset=utf-8' },
+              body: JSON.stringify(data),
+              signal: controller.signal,
+            });
+            clearTimeout(id);
+            const json = await res.json().catch(() => null);
+            if (!res.ok || json?.success === false) throw new Error(json?.error || 'GAS request failed');
+            return json;
+          } catch (err) {
+            lastErr = err;
+            // small backoff before retry
+            await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+          }
+        }
+        throw lastErr;
+      };
+
+      const result = await postToGAS(payload);
       saveStoredBatch(payload);
       toast.success('บันทึกคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
       localStorage.removeItem(ORDER_DRAFT_KEY);
