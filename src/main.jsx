@@ -747,8 +747,20 @@ function orderReducer(state, action) {
       const employees = state.employees.filter(hasEmployeeData);
       return { ...state, employees: employees.length ? employees : [createEmployee(0)] };
     }
-    case 'add':
-      return { ...state, employees: [...state.employees, createEmployee(state.employees.length)] };
+    case 'add': {
+      const prevEmployee = state.employees[state.employees.length - 1];
+      const newEmployee = createEmployee(state.employees.length);
+      if (action.id) {
+        newEmployee.id = action.id;
+      }
+      if (prevEmployee) {
+        newEmployee.gender = prevEmployee.gender || '';
+        if (Array.isArray(prevEmployee.items)) {
+          newEmployee.items = prevEmployee.items.map((item) => ({ ...item }));
+        }
+      }
+      return { ...state, employees: [...state.employees, newEmployee] };
+    }
     case 'delete':
       if (!canDeleteEmployee(state.employees)) return state;
       return {
@@ -1356,6 +1368,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
             onQuickOrder={() => setQuickOpen(true)}
             query={query}
             setQuery={setQuery}
+            onEdit={setMobileEmployeeId}
           />
         </div>
         <QuickEmployeeTable
@@ -1784,6 +1797,7 @@ function QuickOrderActionsPanel({
   onQuickOrder,
   query = '',
   setQuery,
+  onEdit,
 }) {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -1842,7 +1856,11 @@ function QuickOrderActionsPanel({
           <span>เพิ่มหลายคน</span>
         </button>
         <button
-          onClick={() => dispatch({ type: 'add' })}
+          onClick={() => {
+            const newId = crypto.randomUUID();
+            dispatch({ type: 'add', id: newId });
+            onEdit(newId);
+          }}
           className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#002B5B] sm:text-sm shadow-sm transition hover:bg-[#F8FAFC] active:bg-[#EEF4FF]"
           title="เพิ่มพนักงาน 1 คนเข้ารายการ"
         >
@@ -2393,7 +2411,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-[48px_1fr] gap-2 border-t border-[#E7EAF0] bg-white p-3">
+              <div className="grid grid-cols-[48px_1fr_1.2fr] sm:grid-cols-[48px_1fr_1.5fr] gap-2 border-t border-[#E7EAF0] bg-white p-3">
                 <button
                   onClick={() => {
                     if (!canDelete) return;
@@ -2407,16 +2425,36 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                   <Trash2 className="size-4" />
                 </button>
                 <button
-                  onClick={() => (nextEmployee ? onNext(nextEmployee.id) : onClose())}
-                  className="min-h-11 rounded-lg bg-[#002B5B] font-bold text-white transition hover:bg-[#013A78] active:scale-95"
-                  title={
-                    nextEmployee
-                      ? 'บันทึกข้อมูลและไปยังพนักงานคนต่อไป'
-                      : 'บันทึกข้อมูลและปิดการแก้ไข'
-                  }
+                  onClick={onClose}
+                  className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white text-xs sm:text-sm font-bold text-[#44536A] transition hover:bg-[#F8FAFC] active:scale-95"
+                  title="บันทึกข้อมูลและปิดหน้าต่าง"
                 >
-                  {nextEmployee ? `ถัดไป (${employees.length - index - 1} คน)` : 'เสร็จสิ้น'}
+                  เสร็จสิ้น
                 </button>
+                {nextEmployee ? (
+                  <button
+                    onClick={() => onNext(nextEmployee.id)}
+                    className="min-h-11 rounded-lg bg-[#002B5B] text-xs sm:text-sm font-bold text-white transition hover:bg-[#013A78] active:scale-95"
+                    title="บันทึกข้อมูลและไปยังพนักงานคนต่อไป"
+                  >
+                    คนถัดไป ({employees.length - index - 1} คน)
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const newId = crypto.randomUUID();
+                      dispatch({ type: 'add', id: newId });
+                      onNext(newId);
+                      toast.success('➕ เพิ่มพนักงานคนใหม่สำเร็จ', {
+                        description: 'กรุณากรอกข้อมูลสำหรับพนักงานคนถัดไป',
+                      });
+                    }}
+                    className="min-h-11 rounded-lg bg-[#002B5B] text-xs sm:text-sm font-bold text-white transition hover:bg-[#013A78] active:scale-95"
+                    title="เพิ่มพนักงานใหม่และแก้ไขต่อทันที"
+                  >
+                    เพิ่มคนถัดไป ➕
+                  </button>
+                )}
               </div>
             </>
           )}
