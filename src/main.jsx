@@ -2294,7 +2294,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                             )}
                           </div>
                           {hasItem && (
-                            <QuickGarmentCell
+                            <QuickGarmentCellInline
                               employee={employee}
                               type={type}
                               dispatch={dispatch}
