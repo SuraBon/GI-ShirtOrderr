@@ -460,8 +460,7 @@ function formatOrderItemLabel(item) {
     .join(' ');
 }
 
-function EmployeeItemSummary({ employee, onEdit, invalid = false }) {
-  const visibleItems = employee.items.slice(0, 3);
+function EmployeeItemSummary({ employee, onEdit, dispatch, invalid = false }) {
   if (!employee.items.length) {
     return (
       <button
@@ -482,26 +481,92 @@ function EmployeeItemSummary({ employee, onEdit, invalid = false }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex min-w-[14rem] flex-1 flex-wrap gap-1.5">
-        {visibleItems.map((item) => (
-          <span
-            key={`${item.type}-${item.color}-${item.size}`}
-            className="max-w-full truncate rounded-full border border-[#D8DEEA] bg-[#F8FAFC] px-2.5 py-1 text-xs font-bold text-[#44536A]"
-          >
-            {formatOrderItemLabel(item)}
-          </span>
-        ))}
-        {employee.items.length > visibleItems.length && (
-          <span className="rounded-full bg-[#EEF4FF] px-2.5 py-1 text-xs font-black text-[#002B5B]">
-            +{employee.items.length - visibleItems.length}
-          </span>
-        )}
+      <div className="flex flex-wrap gap-2 flex-1 min-w-[14rem]">
+        {employee.items.map((item) => {
+          const sizeOptions = getSizeOptionsWithLabels(item.type, employee.gender);
+          return (
+            <div
+              key={`${item.type}-${item.color}`}
+              className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-[#CBD5E1] bg-white px-2 py-1.5 shadow-sm text-xs font-semibold"
+            >
+              <span className="font-extrabold text-[#071638]">{item.type}</span>
+              {item.color && (
+                <span className="text-[#64748B] font-bold">สี{item.color}</span>
+              )}
+              
+              {/* Inline Size Dropdown */}
+              <select
+                value={item.size}
+                onChange={(e) =>
+                  dispatch({
+                    type: 'patchItem',
+                    id: employee.id,
+                    itemType: item.type,
+                    patch: { size: e.target.value },
+                  })
+                }
+                className="h-7 border border-[#CBD5E1] rounded bg-white px-1 text-xs font-black text-[#002B5B] focus:border-[#002B5B] cursor-pointer"
+              >
+                {!item.size && <option value="">ไซส์</option>}
+                {sizeOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+
+              {/* customSize text input if OTHER_SIZE is selected */}
+              {item.size === OTHER_SIZE && (
+                <input
+                  type="text"
+                  value={item.customSize || ''}
+                  onChange={(e) =>
+                    dispatch({
+                      type: 'patchItem',
+                      id: employee.id,
+                      itemType: item.type,
+                      patch: { customSize: e.target.value },
+                    })
+                  }
+                  placeholder="ระบุไซส์"
+                  className="w-16 h-7 border border-[#CBD5E1] rounded px-1.5 text-xs font-semibold focus:border-[#002B5B]"
+                />
+              )}
+
+              {/* Inline Qty Input */}
+              <input
+                type="number"
+                value={item.qty || 0}
+                onChange={(e) =>
+                  dispatch({
+                    type: 'patchItem',
+                    id: employee.id,
+                    itemType: item.type,
+                    patch: { qty: digitsOnly(e.target.value) },
+                  })
+                }
+                className="w-10 h-7 border border-[#CBD5E1] rounded text-center font-bold text-xs"
+              />
+              
+              {/* Delete garment button */}
+              <button
+                onClick={() =>
+                  dispatch({ type: 'toggleType', id: employee.id, itemType: item.type })
+                }
+                className="text-[#94A3B8] hover:text-[#B91C1C] transition p-0.5"
+                title="ลบเสื้อตัวนี้"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          );
+        })}
       </div>
       <button
         onClick={onEdit}
-        className="min-h-9 shrink-0 rounded-lg border border-[#D9E2EF] bg-white px-3 text-sm font-black text-[#0D152A]"
+        className="min-h-9 shrink-0 rounded-lg border border-[#D9E2EF] bg-white px-3 text-sm font-black text-[#0D152A] hover:bg-[#F8FAFC] transition"
       >
-        แก้รายการ
+        จัดการแบบเสื้อ
       </button>
     </div>
   );
@@ -2057,6 +2122,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                   <td className="px-3 py-3">
                     <EmployeeItemSummary
                       employee={employee}
+                      dispatch={dispatch}
                       onEdit={() => onEdit(employee.id)}
                       invalid={showErrors && hasGarmentIssue}
                     />
@@ -2253,22 +2319,35 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                     {clothingTypes.map((type) => {
                       const hasItem = employee.items.some((item) => item.type === type);
                       return (
-                        <button
+                        <div
                           key={type}
-                          onClick={() =>
-                            dispatch({ type: 'toggleType', id: employee.id, itemType: type })
-                          }
                           className={cn(
-                            'rounded-lg border-2 p-3 text-left transition active:scale-95',
+                            'rounded-lg border-2 p-3 text-left transition',
                             hasItem
                               ? 'border-[#002B5B] bg-[#EAF2FF]'
                               : showErrors && !employee.items.length
                                 ? 'border-[#EF4444] bg-[#FFF7F7]'
                                 : 'border-[#E2E8F0] bg-white hover:border-[#BFD0EA]'
                           )}
-                          title={`${hasItem ? 'ยกเลิก' : 'เลือก'} ${type}`}
                         >
-                          <div className="flex items-center justify-between gap-2">
+                          <div
+                            onClick={() =>
+                              dispatch({ type: 'toggleType', id: employee.id, itemType: type })
+                            }
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                dispatch({ type: 'toggleType', id: employee.id, itemType: type });
+                              }
+                            }}
+                            className={cn(
+                              "flex items-center justify-between gap-2 cursor-pointer select-none focus:outline-none",
+                              hasItem && "pb-2 border-b border-dashed border-[#CBD5E1]/60"
+                            )}
+                            title={`${hasItem ? 'ยกเลิก' : 'เลือก'} ${type}`}
+                          >
                             <div className="flex items-center gap-2.5">
                               <div
                                 className={cn(
@@ -2294,14 +2373,16 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                             )}
                           </div>
                           {hasItem && (
-                            <QuickGarmentCellInline
-                              employee={employee}
-                              type={type}
-                              dispatch={dispatch}
-                              invalidEmployeeId={invalidEmployeeId}
-                            />
+                            <div className="mt-3">
+                              <QuickGarmentCellInline
+                                employee={employee}
+                                type={type}
+                                dispatch={dispatch}
+                                invalidEmployeeId={invalidEmployeeId}
+                              />
+                            </div>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                     {showErrors && !employee.items.length && (
