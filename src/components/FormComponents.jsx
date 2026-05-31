@@ -1,5 +1,5 @@
-import React from "react";
-import { cn } from "../lib/utils";
+import React from 'react';
+import { cn } from '../lib/utils';
 
 export function Field({ label, children, required = false, hint, error }) {
   return (
@@ -22,13 +22,13 @@ export const TextInput = React.forwardRef(function TextInput(
     onChange,
     placeholder,
     inputMode,
-    type = "text",
+    type = 'text',
     pattern,
     autoCapitalize,
     disabled = false,
     maxLength,
     invalid = false,
-    title
+    title,
   },
   ref
 ) {
@@ -46,10 +46,7 @@ export const TextInput = React.forwardRef(function TextInput(
       disabled={disabled}
       title={title}
       onChange={(event) => onChange(event.target.value)}
-      className={cn(
-        "form-input",
-        invalid && "form-input-error"
-      )}
+      className={cn('form-input', invalid && 'form-input-error')}
     />
   );
 });
@@ -65,7 +62,15 @@ export function MonthInput({ value, onChange }) {
   );
 }
 
-export function TextArea({ value, onChange, placeholder, rows = 6, disabled = false, invalid = false, title }) {
+export function TextArea({
+  value,
+  onChange,
+  placeholder,
+  rows = 6,
+  disabled = false,
+  invalid = false,
+  title,
+}) {
   return (
     <textarea
       value={value}
@@ -74,15 +79,24 @@ export function TextArea({ value, onChange, placeholder, rows = 6, disabled = fa
       disabled={disabled}
       title={title}
       onChange={(event) => onChange(event.target.value)}
-      className={cn(
-        "form-textarea",
-        invalid && "form-input-error"
-      )}
+      className={cn('form-textarea', invalid && 'form-input-error')}
     />
   );
 }
 
-export function GridInput({ value, onChange, placeholder, type = "text", inputMode, pattern, autoCapitalize, disabled = false, invalid = false, className, title }) {
+export function GridInput({
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  inputMode,
+  pattern,
+  autoCapitalize,
+  disabled = false,
+  invalid = false,
+  className,
+  title,
+}) {
   return (
     <input
       type={type}
@@ -96,11 +110,11 @@ export function GridInput({ value, onChange, placeholder, type = "text", inputMo
       onChange={(event) => onChange(event.target.value)}
       {...rest}
       className={cn(
-        "h-11 w-full rounded-lg border bg-white px-3 text-neutral-900 outline-none transition",
+        'h-11 w-full rounded-lg border bg-white px-3 text-neutral-900 outline-none transition',
         invalid
-          ? "border-error focus:border-error focus:ring-error/15"
-          : "border-neutral-300 focus:border-primary-600 focus:ring-primary-400/15",
-        disabled && "bg-neutral-100 text-neutral-500 cursor-not-allowed",
+          ? 'border-error focus:border-error focus:ring-error/15'
+          : 'border-neutral-300 focus:border-primary-600 focus:ring-primary-400/15',
+        disabled && 'bg-neutral-100 text-neutral-500 cursor-not-allowed',
         className
       )}
     />

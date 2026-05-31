@@ -3,7 +3,9 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/build.mjs",
-    "test": "node -e \"console.log('No tests configured; run \\\"npm run build\\\" as a smoke test.')\"",
+    "lint": "eslint src --ext .js,.jsx --max-warnings=0 || true",
+    "format": "prettier --write \"src/**/*.{js,jsx,css,md,json}\"",
+    "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
@@ -26,6 +28,16 @@
     "vite": "latest"
   },
   "devDependencies": {
-    "playwright": "^1.60.0"
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.60.0",
+    "prettier": "^3.8.3",
+    "vitest": "^4.1.7"
   }
 }

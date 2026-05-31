@@ -1,6 +1,6 @@
-import React from "react";
-import { Ruler, LayoutDashboard } from "lucide-react";
-import { cn } from "../lib/utils";
+import React from 'react';
+import { Ruler, LayoutDashboard } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export function Logo() {
   return (
