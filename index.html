@@ -1,17 +1,115 @@
 <!doctype html>
 <html lang="th">
   <head>
+    <!-- Character Encoding & Viewport -->
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0d152a" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+    
+    <!-- Theme & Branding -->
+    <meta name="theme-color" content="#4f68a8" />
+    <meta name="color-scheme" content="light" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ระบบเบิกเสื้อพนักงาน" />
+    
+    <!-- SEO & Description -->
+    <title>ระบบเบิกเสื้อพนักงาน | Gold Integrate</title>
+    <meta name="description" content="ระบบจัดการการเบิกเสื้อพนักงาน สำหรับบริษัท Gold Integrate" />
+    <meta name="keywords" content="เสื้อพนักงาน,ระบบจัดการ,Gold Integrate" />
+    <meta name="author" content="Gold Integrate" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ระบบเบิกเสื้อพนักงาน" />
+    <meta property="og:description" content="ระบบจัดการการเบิกเสื้อพนักงาน" />
+    <meta property="og:site_name" content="Gold Integrate" />
+    <meta property="og:locale" content="th_TH" />
+    
+    <!-- PWA & Manifest -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/gold-integrate-logo.jpg" />
-    <title>ระบบเบิกเสื้อพนักงาน | Gold Integrate</title>
+    <link rel="icon" type="image/jpg" href="/gold-integrate-logo.jpg" />
+    
+    <!-- Accessibility -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="ระบบเบิกเสื้อพนักงาน" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <!-- Security -->
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
+    
+    <!-- Preload Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Styles -->
+    <style>
+      /* Critical CSS - prevent layout shift */
+      :root {
+        --color-primary: #4f68a8;
+        --color-accent: #e86d3f;
+        --color-neutral-900: #1f2937;
+        --color-neutral-50: #f9fafb;
+      }
+      
+      html {
+        scroll-behavior: smooth;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #f5f7fa 0%, #eaeff5 100%);
+        font-family: "Noto Sans Thai", "Segoe UI", system-ui, sans-serif;
+        color: #374151;
+        line-height: 1.6;
+      }
+      
+      #root {
+        min-height: 100vh;
+        width: 100%;
+      }
+      
+      /* Loading skeleton */
+      .loading-skeleton {
+        background: linear-gradient(90deg, #e5e7eb 25%, #d1d5db 50%, #e5e7eb 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+      }
+      
+      @keyframes loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+    </style>
   </head>
   <body>
+    <!-- Main App Container -->
     <div id="root"></div>
+    
+    <!-- Service Worker Registration for PWA -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+          // Service worker registration failed, app will still work
+        });
+      }
+    </script>
+    
+    <!-- Main App Script -->
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- No-JS Fallback -->
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: system-ui, sans-serif;">
+        <p style="margin: 0; font-size: 18px; color: #1f2937; font-weight: 500;">
+          โปรแกรมนี้ต้องการ JavaScript
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #6b7280;">
+          กรุณาเปิดใช้งาน JavaScript ในเบราว์เซอร์ของคุณ
+        </p>
+      </div>
+    </noscript>
   </body>
 </html>
