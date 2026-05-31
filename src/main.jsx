@@ -5683,6 +5683,25 @@ function BatchDetailDialog({
                     timeStyle: 'short',
                   })}
                 </p>
+                <div className="mb-4 flex flex-col gap-2">
+                  {!isFullyDelivered && (
+                    <button
+                      onClick={onShipClick}
+                      disabled={isBusy}
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#002B5B] font-bold text-white shadow-sm transition hover:bg-[#002144] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Truck className="size-4" /> ดำเนินการจัดส่ง (แยกตามรายการ)
+                    </button>
+                  )}
+                  <button
+                    onClick={confirmDelete}
+                    disabled={isBusy}
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isDeleting ? 'กำลังลบคำสั่งเบิกเสื้อ' : 'ลบคำสั่งเบิกเสื้อนี้'}
+                  </button>
+                </div>
                 <div className="grid gap-3">
                   {batch.orders.map((order) => (
                     <div
@@ -5752,25 +5771,6 @@ function BatchDetailDialog({
                     </div>
                   ))}
                 </div>
-
-                {!isFullyDelivered && (
-                  <button
-                    onClick={onShipClick}
-                    disabled={isBusy}
-                    className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#002B5B] font-bold text-white shadow-sm transition hover:bg-[#002144] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Truck className="size-4" /> ดำเนินการจัดส่ง (แยกตามรายการ)
-                  </button>
-                )}
-
-                <button
-                  onClick={confirmDelete}
-                  disabled={isBusy}
-                  className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {isDeleting ? 'กำลังลบคำสั่งเบิกเสื้อ' : 'ลบคำสั่งเบิกเสื้อนี้'}
-                </button>
               </div>
             </>
           )}
