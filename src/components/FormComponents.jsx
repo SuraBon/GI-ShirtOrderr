@@ -96,6 +96,7 @@ export function GridInput({
   invalid = false,
   className,
   title,
+  ...rest
 }) {
   return (
     <input
