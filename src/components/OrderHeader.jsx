@@ -17,12 +17,19 @@ export function Logo() {
   );
 }
 
-export function OrderHeader({ branch, onSizeOpen, onOpenDashboard }) {
+export function OrderHeader({ branch, onSizeOpen, onOpenDashboard, onManualOpen }) {
   return (
     <header className="relative z-10 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50 px-2 py-2.5 shadow-xs backdrop-blur-sm sm:px-3">
       <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-2 sm:gap-3">
         <Logo />
         <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
+          <button
+            onClick={onManualOpen}
+            className="btn-secondary flex min-h-10 shrink-0 items-center gap-1.5 px-3 text-xs sm:text-sm transition"
+            title="คู่มือการใช้งานระบบ"
+          >
+            <span>❓ คู่มือการใช้งาน</span>
+          </button>
           <button
             onClick={onSizeOpen}
             className="btn-secondary flex min-h-10 shrink-0 items-center gap-1.5 px-3 text-xs sm:text-sm transition"

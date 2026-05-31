@@ -325,19 +325,34 @@ function isAuthFailure(error) {
 
 async function authFetch(url, options = {}) {
   const token = getAdminToken();
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (response.status === 401) {
-    const error = new Error('Unauthorized');
-    error.status = 401;
-    throw error;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...(options.headers || {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    clearTimeout(timeoutId);
+    if (response.status === 401) {
+      const error = new Error('Unauthorized');
+      error.status = 401;
+      throw error;
+    }
+    return response;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      const timeoutError = new Error('การเชื่อมต่อหมดเวลา (Timeout) กรุณาลองใหม่อีกครั้ง');
+      timeoutError.name = 'TimeoutError';
+      throw timeoutError;
+    }
+    throw err;
   }
-  return response;
 }
 
 function getClothingTypes() {
@@ -1008,6 +1023,7 @@ function App() {
 
 function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const [sizeOpen, setSizeOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1261,24 +1277,10 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         branch={state.branch}
         onSizeOpen={() => setSizeOpen(true)}
         onOpenDashboard={onOpenDashboard}
+        onManualOpen={() => setManualOpen(true)}
       />
       <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-3 px-3 pb-40 pt-3 sm:px-5 lg:gap-4 lg:pb-36">
         {!gasConfigured && <SetupWarning />}
-        {state.employees.length === 1 && !state.employees[0]?.name && (
-          <div className="flex items-start gap-3 rounded-xl border border-[#BFD0EA] bg-[#EAF2FF] p-4">
-            <span className="text-2xl shrink-0">💡</span>
-            <div className="min-w-0">
-              <p className="font-bold text-[#002B5B]">เริ่มต้นใหม่ได้ 2 วิธี:</p>
-              <p className="mt-2 text-sm text-[#44536A]">
-                1. <strong>วิธีรวดเร็ว</strong> → กด "<strong>เพิ่มหลายคน</strong>" วางรายชื่อ
-                และตั้งเสื้อชุดเดียวกัน
-              </p>
-              <p className="text-sm text-[#44536A]">
-                2. <strong>วิธีช้าๆ</strong> → กด "เพิ่ม 1 คน" แล้วแก้ทีละคน
-              </p>
-            </div>
-          </div>
-        )}
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
           <QuickOrderSetupPanel state={state} dispatch={dispatch} />
           <QuickOrderActionsPanel
@@ -1297,6 +1299,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           query={query}
           showIncompleteOnly={showIncompleteOnly}
           invalidEmployeeId={invalidEmployeeId}
+          onEdit={setMobileEmployeeId}
         />
         <QuickMobileList
           employees={state.employees}
@@ -1327,6 +1330,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       />
       <QuickOrderDialog open={quickOpen} setOpen={setQuickOpen} state={state} dispatch={dispatch} />
       <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
+      <UserManualDialog open={manualOpen} setOpen={setManualOpen} />
       <QuickOrderSummaryDialog
         open={summaryOpen}
         setOpen={setSummaryOpen}
@@ -1987,10 +1991,9 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
   );
 }
 
-function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, invalidEmployeeId }) {
+function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, invalidEmployeeId, onEdit }) {
   const filteredEmployees = getFilteredEmployees(employees, query, showIncompleteOnly);
   const canDelete = canDeleteEmployee(employees);
-  const clothingTypes = getClothingTypes();
 
   return (
     <section className="hidden overflow-hidden rounded-lg border border-[#D8DEEA] bg-white lg:block">
@@ -2000,12 +2003,8 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
             <tr>
               <th className="w-14 border-b border-[#D8DEEA] px-3 py-3 text-center">ลำดับ</th>
               <th className="w-[15rem] border-b border-[#D8DEEA] px-3 py-3">ชื่อพนักงาน</th>
-              <th className="w-36 border-b border-[#D8DEEA] px-3 py-3">เพศ</th>
-              {clothingTypes.map((type) => (
-                <th key={type} className="w-[14.5rem] border-b border-[#D8DEEA] px-3 py-3">
-                  {type}
-                </th>
-              ))}
+              <th className="w-32 border-b border-[#D8DEEA] px-3 py-3">เพศ</th>
+              <th className="w-auto border-b border-[#D8DEEA] px-3 py-3">รายการเสื้อที่เบิก</th>
               <th className="w-32 border-b border-[#D8DEEA] px-3 py-3 text-center">สถานะ</th>
               <th className="w-16 border-b border-[#D8DEEA] px-3 py-3 text-center"></th>
             </tr>
@@ -2016,6 +2015,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
               const complete = isEmployeeComplete(employee);
               const missingFields = getEmployeeMissingFields(employee);
               const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
+              const hasGarmentIssue = missingFields.some((f) => f !== 'ชื่อ' && f !== 'เพศ');
               return (
                 <tr
                   key={employee.id}
@@ -2054,16 +2054,13 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                       }
                     />
                   </td>
-                  {clothingTypes.map((type) => (
-                    <td key={type} className="px-3 py-3">
-                      <QuickGarmentCellInline
-                        employee={employee}
-                        type={type}
-                        dispatch={dispatch}
-                        invalidEmployeeId={invalidEmployeeId}
-                      />
-                    </td>
-                  ))}
+                  <td className="px-3 py-3">
+                    <EmployeeItemSummary
+                      employee={employee}
+                      onEdit={() => onEdit(employee.id)}
+                      invalid={showErrors && hasGarmentIssue}
+                    />
+                  </td>
                   <td className="px-3 py-3 text-center">
                     <span
                       className={cn(
@@ -2097,7 +2094,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
             {!filteredEmployees.length && (
               <tr>
                 <td
-                  colSpan={5 + clothingTypes.length}
+                  colSpan={6}
                   className="px-4 py-10 text-center font-bold text-[#64748B]"
                 >
                   <div className="flex flex-col items-center gap-2">
@@ -2184,10 +2181,10 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
   return (
     <Dialog.Root open={Boolean(employee)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 lg:hidden" />
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45" />
         <Dialog.Content
           aria-describedby={undefined}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl lg:left-1/2 lg:top-1/2 lg:bottom-auto lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:w-[480px] lg:max-h-[85vh]"
         >
           {employee && (
             <>
@@ -2875,6 +2872,105 @@ function SizeReference({ open, setOpen }) {
               })}
             </div>
           </Tabs.Root>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function UserManualDialog({ open, setOpen }) {
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="user-manual-dialog fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#DDE5F0] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(44rem,88vh)] sm:w-[min(46rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
+        >
+          <div className="flex items-center justify-between border-b border-[#E7EAF0] bg-white px-4 py-3 sm:px-5">
+            <div className="min-w-0">
+              <Dialog.Title className="text-lg font-black text-[#071638] sm:text-xl">
+                📖 คู่มือการใช้งานระบบเบิกเสื้อพนักงาน
+              </Dialog.Title>
+            </div>
+            <Dialog.Close
+              className="grid size-10 shrink-0 place-items-center rounded-full text-[#1F2937] transition hover:bg-[#F1F5F9]"
+              aria-label="ปิด"
+            >
+              <X className="size-5" />
+            </Dialog.Close>
+          </div>
+          
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 space-y-6 text-sm text-[#374151] leading-relaxed">
+            <section className="space-y-3">
+              <h3 className="text-base font-extrabold text-[#002B5B] flex items-center gap-2">
+                <span>💡</span> เริ่มต้นใช้งานได้ 2 วิธี
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-primary-100 bg-[#EAF2FF]/20 p-3.5 space-y-2">
+                  <h4 className="font-bold text-[#002B5B]">1. วิธีรวดเร็ว (เพิ่มหลายคนพร้อมกัน)</h4>
+                  <p className="text-xs text-[#44536A]">
+                    กดปุ่ม <strong className="text-[#002B5B]">"เพิ่มหลายคน"</strong> จากนั้นวางรายชื่อพนักงานทั้งหมด (คั่นด้วยบรรทัดใหม่) 
+                    และสามารถตั้งเพศ ขนาดเสื้อ และจำนวนเริ่มต้นให้ทุกคนได้ในคลิกเดียว
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-3.5 space-y-2">
+                  <h4 className="font-bold text-neutral-700">2. วิธีช้าๆ (เพิ่มทีละคน)</h4>
+                  <p className="text-xs text-[#44536A]">
+                    กดปุ่ม <strong className="text-neutral-700">"เพิ่ม 1 คน"</strong> เพื่อเปิดกล่องกรอกข้อมูลทีละคน 
+                    เหมาะสำหรับรายชื่อที่ต้องการความละเอียดแตกต่างกัน
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-base font-extrabold text-[#002B5B] flex items-center gap-2">
+                <span>🔄</span> เครื่องมือช่วยเบิกเสื้อผ้าให้รวดเร็วขึ้น
+              </h3>
+              <ul className="list-disc pl-5 space-y-2.5 text-[#44536A]">
+                <li>
+                  <strong className="text-[#071638]">คัดลอกข้อมูลคนแรกไปให้ทุกคน:</strong> หากพนักงานส่วนใหญ่เบิกของในสเปกเดียวกัน (เช่น เพศเดียวกัน หรือได้ของประเภทเดียวกัน) 
+                  ให้ตั้งค่าคนแรกให้เรียบร้อยแล้วกดปุ่มนี้ ระบบจะนำเพศและรายการเบิกของคนแรกไปใส่ให้ทุกคนทันที
+                </li>
+                <li>
+                  <strong className="text-[#071638]">คัดลอกการตั้งค่ารายบุคคล:</strong> สามารถกดปุ่มเครื่องมือที่มุมขวาบนของพนักงานแต่ละคน เพื่อคัดลอกข้อมูลพนักงานคนใดคนหนึ่งไปใช้กับอีกคนหนึ่งได้
+                </li>
+                <li>
+                  <strong className="text-[#071638]">กรองเฉพาะคนที่กรอกไม่ครบ:</strong> หากมีพนักงานหลายคน ให้เปิดใช้สวิตช์ <strong className="text-[#071638]">"แสดงเฉพาะคนที่กรอกไม่ครบ"</strong> เพื่อตรวจดูว่าคนไหนลืมกรอกขนาด สี หรือจำนวนเสื้อผ้า
+                </li>
+              </ul>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-base font-extrabold text-[#002B5B] flex items-center gap-2">
+                <span>📬</span> ขั้นตอนการส่งคำสั่งเบิก
+              </h3>
+              <ol className="list-decimal pl-5 space-y-2 text-[#44536A]">
+                <li>ระบุ <strong className="text-[#071638]">ชื่อผู้ควบคุมงาน (Supervisor)</strong> และ <strong className="text-[#071638]">เบอร์โทรศัพท์</strong> ในแถบด้านขวา</li>
+                <li>ตรวจสอบข้อมูลความถูกต้องของขนาด สี และจำนวนเสื้อของพนักงานแต่ละท่าน</li>
+                <li>กดปุ่มสีน้ำเงิน <strong className="text-[#002B5B]">"บันทึกและส่งข้อมูล"</strong> ด้านล่างขวาเพื่อบันทึกข้อมูลเข้าสู่ฐานข้อมูลหลัก</li>
+              </ol>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-base font-extrabold text-[#002B5B] flex items-center gap-2">
+                <span>📊</span> ระบบบันทึกดราฟต์และแดชบอร์ด
+              </h3>
+              <p className="text-[#44536A]">
+                ตัวระบบมีการบันทึกดราฟต์ไว้ในเครื่องโดยอัตโนมัติ (LocalStorage) หากเบราว์เซอร์เผลอปิดหรืออินเทอร์เน็ตหลุด ข้อมูลจะยังไม่หาย สามารถทำต่อได้ทันทีเมื่อเปิดหน้าเว็บใหม่ นอกจากนี้ หากเป็นผู้ดูแลระบบ สามารถกดปุ่ม <strong className="text-[#071638]">"แดชบอร์ด"</strong> ที่หัวเว็บเพื่อเข้าไปจัดการสถานะจัดส่งและดาวน์โหลดสรุปได้
+              </p>
+            </section>
+          </div>
+          
+          <div className="flex justify-end gap-2 border-t border-[#E7EAF0] bg-[#F8FAFD] px-4 py-3 sm:px-5">
+            <button
+              onClick={() => setOpen(false)}
+              className="min-h-10 rounded-lg bg-[#002B5B] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#002144]"
+            >
+              เข้าใจแล้ว
+            </button>
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -4029,6 +4125,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
     const issues = findStockIssuesForStatusChange(clothingConfig, batch, status);
     if (issues.length) {
       toast.error('ไม่สามารถอัปเดตเป็นจัดส่งแล้วได้', {
+        id: loadingToastId,
         description:
           issues.slice(0, 3).join('; ') +
           (issues.length > 3 ? ` และอีก ${issues.length - 3} รายการ` : ''),
