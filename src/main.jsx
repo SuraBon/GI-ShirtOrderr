@@ -62,6 +62,7 @@ const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
 const CLOTHING_CONFIG_KEY = 'gi-shirt-clothing-config';
 const CLOTHING_SIZE_TABLE_VERSION_KEY = 'gi-shirt-clothing-size-table-version';
 const CLOTHING_SIZE_TABLE_VERSION = '2026-05-standard-shirt-table-v2';
+const CLOTHING_CONFIG_UPDATED_AT_KEY = 'gi-shirt-clothing-config-updated-at';
 const IMAGE_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
@@ -333,6 +334,7 @@ async function loadSharedClothingConfig() {
   if (!Array.isArray(data?.config) || !data.config.length) return null;
   const normalized = migrateStandardSizeTables(data.config);
   saveClothingConfig(normalized);
+  if (data?.updatedAt) localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(data.updatedAt));
   localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
   return normalized;
 }
@@ -340,13 +342,14 @@ async function loadSharedClothingConfig() {
 async function publishSharedClothingConfig(config) {
   const normalized = normalizeClothingConfig(config);
   const token = getAdminToken();
+  const expected = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
   const response = await fetch('/api/blob/config', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ config: normalized }),
+    body: JSON.stringify({ config: normalized, expectedUpdatedAt: expected }),
   });
   if (!response.ok) {
     const data = await response.json().catch(() => null);
@@ -354,6 +357,8 @@ async function publishSharedClothingConfig(config) {
     error.status = response.status;
     throw error;
   }
+  const result = await response.json().catch(() => null);
+  if (result?.updatedAt) localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedAt));
   return normalized;
 }
 
@@ -790,6 +795,59 @@ function normalizeBatch(batch) {
     statusUpdatedAt: batch.statusUpdatedAt || batch.submittedAt || new Date().toISOString(),
     orders: normalizedOrders,
   };
+}
+
+function shortBatchId(id) {
+  // Accept either a batch object or a string id
+  const BATCH_ID_FORMAT_KEY = 'gi-batch-id-format';
+  function getBatchFormat() {
+    return (
+      localStorage.getItem(BATCH_ID_FORMAT_KEY) || import.meta.env.VITE_BATCH_ID_FORMAT || 'day-tail'
+    );
+  }
+
+  const format = getBatchFormat();
+  let batchId = '';
+  let submittedAt = '';
+  if (typeof id === 'object' && id !== null) {
+    batchId = String(id.batchId || '');
+    submittedAt = id.submittedAt || '';
+  } else {
+    batchId = String(id || '');
+  }
+
+  const s = batchId;
+  // Try multiple patterns: ORD-YYYYMMDD-XXXXX or ORD-YYYY-MM-DD-XXXXX or any-YYYYMMDD-XXXXX
+  const ordMatch = s.match(/(?:.*-)?(\d{8})-(\d+)$/);
+  if (ordMatch && format.startsWith('day')) {
+    const yyyymmdd = ordMatch[1];
+    const day = yyyymmdd.slice(6, 8);
+    const tail = ordMatch[2];
+    return `${day}-${tail}`;
+  }
+
+  // Try pattern with dashes YYYY-MM-DD-XXXXX
+  const dashMatch = s.match(/(?:.*-)?(\d{4}-\d{2}-\d{2})-(\d+)$/);
+  if (dashMatch && format.startsWith('day')) {
+    const ymd = dashMatch[1];
+    const day = String(new Date(ymd).getDate()).padStart(2, '0');
+    const tail = dashMatch[2];
+    return `${day}-${tail}`;
+  }
+
+  // If configured day-tail and we have submittedAt fallback
+  if (format === 'day-tail' && submittedAt) {
+    const date = new Date(submittedAt);
+    if (!Number.isNaN(date.getTime())) {
+      const day = String(date.getDate()).padStart(2, '0');
+      const tail = s.replace(/\D/g, '').slice(-5) || s.slice(-5);
+      return `${day}-${tail}`;
+    }
+  }
+
+  // Default: ellipsis last 5 characters
+  if (s.length <= 5) return s;
+  return `…${s.slice(-5)}`;
 }
 
 function buildOrderSummaryRows(employees) {
@@ -3526,6 +3584,10 @@ function DashboardApp({ onOpenOrder }) {
   const [adminToken, setDashboardToken] = useState(getAdminToken);
   const [dashboardView, setDashboardView] = useState('orders');
   const [manualOpen, setManualOpen] = useState(false);
+  const BATCH_ID_FORMAT_KEY = 'gi-batch-id-format';
+  const [batchFormat, setBatchFormat] = useState(() =>
+    localStorage.getItem(BATCH_ID_FORMAT_KEY) || import.meta.env.VITE_BATCH_ID_FORMAT || 'day-tail'
+  );
 
   function handleUnlock(token) {
     setAdminToken(token);
@@ -3542,6 +3604,11 @@ function DashboardApp({ onOpenOrder }) {
     setDashboardToken('');
   }
 
+  function handleBatchFormatChange(value) {
+    localStorage.setItem(BATCH_ID_FORMAT_KEY, value);
+    setBatchFormat(value);
+  }
+
   if (!adminToken) {
     return <DashboardLogin onUnlock={handleUnlock} onOpenOrder={onOpenOrder} />;
   }
@@ -3554,6 +3621,8 @@ function DashboardApp({ onOpenOrder }) {
         onOpenOrder={onOpenOrder}
         onManualOpen={() => setManualOpen(true)}
         onLogout={handleLogout}
+        batchFormat={batchFormat}
+        onBatchFormatChange={handleBatchFormatChange}
       />
       <main className="relative z-10 mx-auto flex w-full max-w-[1520px] flex-col gap-3 px-2 pb-10 pt-3 sm:px-4 lg:gap-4 lg:px-6 lg:pt-5">
         <Dashboard
@@ -4568,6 +4637,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const [deleteLoadingId, setDeleteLoadingId] = useState('');
   const [clothingConfig, setClothingConfig] = useState(readClothingConfig);
   const [selectedBatchIds, setSelectedBatchIds] = useState(new Set());
+  const [isWideScreen, setIsWideScreen] = useState(() => window.innerWidth >= 1200);
+  const [expandedBatchIds, setExpandedBatchIds] = useState(new Set());
   const [branchFilter, setBranchFilter] = useState('ทุกสาขา');
   const [statusFilter, setStatusFilter] = useState('ทุกสถานะ');
   const [query, setQuery] = useState('');
@@ -4627,6 +4698,14 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   useEffect(() => {
     setLoading(true);
     loadData();
+  }, []);
+
+  useEffect(() => {
+    function onResize() {
+      setIsWideScreen(window.innerWidth >= 1200);
+    }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
   const filteredBatches = useMemo(
@@ -4724,14 +4803,20 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   }, [monthFilter, monthFilterOptions]);
 
   async function syncDashboardAction(payload) {
+    const expectedUpdatedAt = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
+    const body = { ...payload, expectedUpdatedAt };
     const response = await authFetch('/api/dashboard/action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
     const result = await response.json().catch(() => null);
     if (!response.ok || result?.success === false)
       throw new Error(result?.error || 'GAS request failed');
+    // If GAS returned an updated clothing config, persist its version
+    if (result?.updatedConfig && result?.updatedConfig.updatedAt) {
+      localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedConfig.updatedAt));
+    }
   }
 
   function findStockIssuesForStatusChange(config, batch, targetStatus) {
@@ -4822,12 +4907,14 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     const batchesToChange = batches.filter((b) => idsToChange.includes(b.batchId));
 
     if (targetStatus === ORDER_STATUS_DELIVERED) {
+      // Fetch latest config from shared source to ensure checks are against real stock
+      const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || clothingConfig;
       const allIssues = [];
       const successfulBatchIds = [];
       const failedBatchIds = [];
 
       batchesToChange.forEach((batch) => {
-        const issues = findStockIssuesForStatusChange(clothingConfig, batch, targetStatus);
+        const issues = findStockIssuesForStatusChange(latestConfig, batch, targetStatus);
         if (issues.length > 0) {
           allIssues.push({
             batchId: batch.batchId,
@@ -4854,23 +4941,24 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           return;
         }
 
-        await executeBulkStatusChange(successfulBatchIds, targetStatus);
+        await executeBulkStatusChange(successfulBatchIds, targetStatus, latestConfig);
       } else {
         await executeBulkStatusChange(idsToChange, targetStatus);
       }
     } else {
-      await executeBulkStatusChange(idsToChange, targetStatus);
+      const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || clothingConfig;
+      await executeBulkStatusChange(idsToChange, targetStatus, latestConfig);
     }
   }
 
-  async function executeBulkStatusChange(ids, status) {
+  async function executeBulkStatusChange(ids, status, initialConfig) {
     const statusUpdatedAt = new Date().toISOString();
     const loadingToastId = toast.loading(`กำลังอัปเดตสถานะกลุ่ม (${ids.length} รายการ)...`, {
       description: 'ระบบกำลังบันทึกข้อมูลและปรับสต๊อกสินค้า...',
     });
 
     let successCount = 0;
-    let nextConfig = clothingConfig;
+    let nextConfig = initialConfig || clothingConfig;
 
     try {
       for (let i = 0; i < ids.length; i++) {
@@ -4915,8 +5003,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       description: 'ระบบกำลังบันทึกการเปลี่ยนแปลง กรุณารอสักครู่',
     });
     const batch = batches.find((batchItem) => batchItem.batchId === batchId);
-
-    const issues = findStockIssuesForStatusChange(clothingConfig, batch, status);
+    // Check against the latest shared config to avoid shipping more than available
+    const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || clothingConfig;
+    const issues = findStockIssuesForStatusChange(latestConfig, batch, status);
     if (issues.length) {
       toast.error('ไม่สามารถอัปเดตเป็นจัดส่งแล้วได้', {
         id: loadingToastId,
@@ -4949,8 +5038,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       return;
     }
 
-    // Adjust stock configuration based on status transitions
-    const nextConfig = adjustStockForStatusChange(clothingConfig, batch, status);
+    // Adjust stock configuration based on status transitions using latest config
+    const nextConfig = adjustStockForStatusChange(latestConfig, batch, status);
     setClothingConfig(nextConfig);
     saveClothingConfig(nextConfig);
     publishSharedClothingConfig(nextConfig).catch((error) => {
@@ -4981,6 +5070,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     });
 
     try {
+      // Ensure we check and adjust against latest shared config
+      const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || clothingConfig;
       // 1. Update statuses on Google Sheets
       await syncDashboardAction({
         action: 'shipItems',
@@ -4990,7 +5081,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       });
 
       // 2. Deduct shipped quantities from the local stock configuration
-      let nextConfig = clothingConfig;
+      let nextConfig = latestConfig;
       shipmentItems.forEach((item) => {
         if (item.shippedQty <= 0) return;
         nextConfig = nextConfig.map((clothing) => {
@@ -5379,12 +5470,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               </button>
             </div>
           </div>
-          <div className="dashboard-panel-summary">
-            <MiniMetric label="จำนวนคำสั่งที่แสดง" value={filteredBatches.length} />
-            <MiniMetric label="สาขา" value={branchFilter} />
-            <MiniMetric label="สถานะ" value={statusFilter} />
-            <MiniMetric label="ค้นหา" value={query || '-'} />
-          </div>
+          {/* summary removed — duplicates left filter */}
 
           {exportExpanded && (
             <div className="dashboard-export-panel">
@@ -5425,8 +5511,131 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             </div>
           )}
 
-          <div className="dashboard-table-wrap">
-            <table className="dashboard-batch-table">
+          {isWideScreen && orderRows.length > 4 ? (
+            <div className="dashboard-orders-columns">
+              {(() => {
+                const half = Math.ceil(orderRows.length / 2);
+                const left = orderRows.slice(0, half);
+                const right = orderRows.slice(half);
+                const renderTable = (rows) => (
+                  <div className="dashboard-table-wrap">
+                    <table className="dashboard-batch-table">
+                      <thead>
+                        <tr>
+                          <th>
+                            <input
+                              type="checkbox"
+                              checked={
+                                filteredBatches.length > 0 &&
+                                filteredBatches.every((batch) => selectedBatchIds.has(batch.batchId))
+                              }
+                              onChange={() => {
+                                const allSelected = filteredBatches.every((batch) => selectedBatchIds.has(batch.batchId));
+                                setSelectedBatchIds((prev) => {
+                                  const next = new Set(prev);
+                                  filteredBatches.forEach((batch) => {
+                                    if (allSelected) next.delete(batch.batchId);
+                                    else next.add(batch.batchId);
+                                  });
+                                  return next;
+                                });
+                              }}
+                            />
+                          </th>
+                          <th>เลขที่คำสั่งเบิก</th>
+                          <th>วันที่ทำรายการ</th>
+                          <th>บริษัท/หน่วยงาน</th>
+                          <th>สาขา</th>
+                          <th>ผู้ติดต่อ</th>
+                          <th>จำนวน</th>
+                          <th>สถานะ</th>
+                          <th>อัปเดตล่าสุด</th>
+                          <th>จัดการ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((batch) => (
+                          <tr key={batch.batchId}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedBatchIds.has(batch.batchId)}
+                                onChange={() => {
+                                  setSelectedBatchIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(batch.batchId)) next.delete(batch.batchId);
+                                    else next.add(batch.batchId);
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </td>
+                            <td>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  className="dashboard-link"
+                                  onClick={() => setSelectedBatch(batch)}
+                                  title={String(batch.batchId)}
+                                >
+                                  {shortBatchId(batch)}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="dashboard-icon-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard?.writeText(String(batch.batchId)).then(() => {
+                                      toast.success('คัดลอกรหัสเรียบร้อย');
+                                    });
+                                  }}
+                                  title="คัดลอกรหัสเต็ม"
+                                >
+                                  <Copy className="size-4" />
+                                </button>
+                              </div>
+                            </td>
+                            <td>{formatDashboardDate(batch.submittedAt)}</td>
+                            <td>{batch.companyName || '-'}</td>
+                            <td>{batch.branch || '-'}</td>
+                            <td>{batch.supervisorName || '-'}</td>
+                            <td>{getBatchPieces(batch)}</td>
+                            <td>
+                              <StatusBadge status={batch.status} />
+                            </td>
+                            <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>
+                            <td className="dashboard-row-actions">
+                              <div className="dashboard-row-actions-group">
+                                <button className="dashboard-icon-btn" onClick={() => setSelectedBatch(batch)}>
+                                  <ChevronDown className="size-4 -rotate-90" />
+                                </button>
+                                {batch.status !== ORDER_STATUS_DELIVERED && (
+                                  <button
+                                    className="dashboard-action-btn"
+                                    onClick={() => updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED)}
+                                  >
+                                    ส่งแล้ว
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+
+                return (
+                  <>
+                    {renderTable(left)}
+                    {renderTable(right)}
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="dashboard-table-wrap">
+              <table className="dashboard-batch-table">
               <thead>
                 <tr>
                   <th>
@@ -5449,20 +5658,21 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                       }}
                     />
                   </th>
-                  <th>เลขที่คำสั่งเบิก</th>
-                  <th>วันที่ทำรายการ</th>
-                  <th>บริษัท/หน่วยงาน</th>
+                  <th>รหัสคำสั่ง</th>
+                  <th>วันที่</th>
+                  <th>บริษัท/หน่วยงาน (ผู้ขอ)</th>
                   <th>สาขา</th>
-                  <th>ผู้ติดต่อ</th>
-                  <th>จำนวน</th>
+                  <th>ผู้ขอ/ผู้ติดต่อ</th>
+                  <th>จำนวนรวม</th>
                   <th>สถานะ</th>
                   <th>อัปเดตล่าสุด</th>
-                  <th>จัดการ</th>
+                  <th>ปฏิบัติการ</th>
                 </tr>
               </thead>
               <tbody>
                 {orderRows.map((batch) => (
-                  <tr key={batch.batchId}>
+                  <React.Fragment key={batch.batchId}>
+                    <tr>
                     <td>
                       <input
                         type="checkbox"
@@ -5478,9 +5688,43 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                       />
                     </td>
                     <td>
-                      <button className="dashboard-link" onClick={() => setSelectedBatch(batch)}>
-                        {batch.batchId}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="dashboard-icon-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedBatchIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(batch.batchId)) next.delete(batch.batchId);
+                              else next.add(batch.batchId);
+                              return next;
+                            });
+                          }}
+                          title={expandedBatchIds.has(batch.batchId) ? 'ย่อ' : 'ขยาย' }
+                        >
+                          <ChevronDown className={cn('size-4 transition-transform', expandedBatchIds.has(batch.batchId) && '-rotate-180')} />
+                        </button>
+                        <button
+                          className="dashboard-link"
+                          onClick={() => setSelectedBatch(batch)}
+                          title={String(batch.batchId)}
+                        >
+                          {shortBatchId(batch)}
+                        </button>
+                        <button
+                          type="button"
+                          className="dashboard-icon-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard?.writeText(String(batch.batchId)).then(() => {
+                              toast.success('คัดลอกรหัสเรียบร้อย');
+                            });
+                          }}
+                          title="คัดลอกรหัสเต็ม"
+                        >
+                          <Copy className="size-4" />
+                        </button>
+                      </div>
                     </td>
                     <td>{formatDashboardDate(batch.submittedAt)}</td>
                     <td>{batch.companyName || '-'}</td>
@@ -5491,26 +5735,78 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                       <StatusBadge status={batch.status} />
                     </td>
                     <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>
-                    <td className="dashboard-row-actions">
+                            <td className="dashboard-row-actions">
                       <div className="dashboard-row-actions-group">
                         <button className="dashboard-icon-btn" onClick={() => setSelectedBatch(batch)}>
                           <ChevronDown className="size-4 -rotate-90" />
                         </button>
-                        {batch.status !== ORDER_STATUS_DELIVERED && (
-                          <button
-                            className="dashboard-action-btn"
-                            onClick={() => updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED)}
-                          >
-                            ส่งแล้ว
-                          </button>
-                        )}
+                                {batch.status !== ORDER_STATUS_DELIVERED && (
+                                  <button
+                                    className="dashboard-action-btn"
+                                    onClick={() => updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED)}
+                                  >
+                                    ยืนยันจัดส่ง
+                                  </button>
+                                )}
                       </div>
                     </td>
                   </tr>
-                ))}
+                          {/* Expanded detail rows for this batch */}
+                          {(
+                            <tr className="batch-detail-row" key={`${batch.batchId}-details`}>
+                              <td colSpan={10} className="p-0">
+                                <div className="batch-detail-container">
+                                  <div className={cn('batch-detail-inner', expandedBatchIds.has(batch.batchId) && 'open')}>
+                                    <table className="batch-detail-table">
+                                      <thead>
+                                        <tr>
+                                          <th>ชื่อพนักงาน</th>
+                                          <th>เพศ</th>
+                                          <th>ประเภท</th>
+                                          <th>ไซส์</th>
+                                          <th>จำนวน</th>
+                                          <th>สถานะไอเท็ม</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {batch.orders.flatMap((order) =>
+                                          order.items.map((item, idx) => {
+                                            const requested = Number(item.qty || 0);
+                                            const clothing = (clothingConfig || []).find((c) => c.type === item.type);
+                                            const sizeRows = (clothing?.genderSizeRows?.[order.gender] || clothing?.sizeRows) || [];
+                                            const sizeRow = sizeRows.find((r) => String(r.size) === String(item.size));
+                                            const available = Number(sizeRow?.qty || 0);
+                                            const understock = requested > available && item.size !== OTHER_SIZE;
+                                            return (
+                                              <tr key={`${batch.batchId}-${order.name}-${idx}`} className={cn('batch-detail-item', understock && 'understock')}>
+                                                <td className="text-left">{order.name}</td>
+                                                <td>{order.gender}</td>
+                                                <td className="text-left">{item.type}</td>
+                                                <td>{item.size}</td>
+                                                <td>
+                                                  {requested}
+                                                  {understock && (
+                                                    <div className="understock-flag">สต็อกไม่พอ (มี {available})</div>
+                                                  )}
+                                                </td>
+                                                <td><StatusBadge status={item.status || batch.status} small /></td>
+                                              </tr>
+                                            );
+                                          })
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
               </tbody>
             </table>
           </div>
+          )}
 
           <div className="dashboard-mobile-orders">
             {orderRows.map((batch) => (
@@ -5520,10 +5816,23 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                 onClick={() => setSelectedBatch(batch)}
               >
                 <div className="dashboard-mobile-order-top">
-                  <div>
-                    <strong>{batch.batchId}</strong>
-                    <span>{formatDashboardDate(batch.submittedAt)}</span>
-                  </div>
+                        <div>
+                          <strong title={String(batch.batchId)}>{shortBatchId(batch)}</strong>
+                          <button
+                            type="button"
+                            className="dashboard-icon-btn ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard?.writeText(String(batch.batchId)).then(() => {
+                                toast.success('คัดลอกรหัสเรียบร้อย');
+                              });
+                            }}
+                            title="คัดลอกรหัสเต็ม"
+                          >
+                            <Copy className="size-4" />
+                          </button>
+                          <span>{formatDashboardDate(batch.submittedAt)}</span>
+                        </div>
                   <ChevronDown className="size-4 -rotate-90" />
                 </div>
                 <div className="dashboard-mobile-order-grid">
@@ -6340,6 +6649,7 @@ function BatchDetailDialog({
                       </table>
                     </div>
                   ))}
+                      
                 </div>
               </div>
             </>

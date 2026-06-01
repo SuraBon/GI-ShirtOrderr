@@ -69,6 +69,8 @@ export function DashboardHeader({
   onOpenOrder,
   onManualOpen,
   onLogout,
+  batchFormat,
+  onBatchFormatChange,
 }) {
   const navItems = [
     { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
@@ -121,6 +123,18 @@ export function DashboardHeader({
             <LogOut size={18} />
             <span>ออกจากระบบ</span>
           </button>
+          <div className="ml-2 flex items-center gap-2">
+            <label className="text-xs font-bold text-white/90">รหัส:</label>
+            <select
+              value={batchFormat}
+              onChange={(e) => onBatchFormatChange?.(e.target.value)}
+              className="rounded-md bg-white/10 text-sm font-bold text-white/90"
+              title="รูปแบบการแสดงรหัสคำสั่ง"
+            >
+              <option value="day-tail">วัน-รหัส (01-15131)</option>
+              <option value="ellipsis">ย่อ …12345</option>
+            </select>
+          </div>
         </div>
       </div>
     </header>

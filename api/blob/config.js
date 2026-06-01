@@ -36,9 +36,31 @@ export default async function handler(request, response) {
       }
       const body = await readJsonBody(request);
       const config = Array.isArray(body?.config) ? body.config : [];
+      const expected = body?.expectedUpdatedAt || null;
       if (!config.length || config.length > MAX_CONFIG_ITEMS) {
         response.status(400).json({ error: "Invalid clothing config" });
         return;
+      }
+
+      // Read current blob to support optimistic concurrency
+      const { blobs } = await list({ prefix: CONFIG_PATH, limit: 1 });
+      const existing = blobs.find((entry) => entry.pathname === CONFIG_PATH);
+      if (existing) {
+        const currentResponse = await fetch(existing.url, { cache: 'no-store' });
+        if (currentResponse.ok) {
+          const currentJson = await currentResponse.json().catch(() => null);
+          const currentUpdatedAt = currentJson?.updatedAt || null;
+          if (expected && currentUpdatedAt && expected !== currentUpdatedAt) {
+            response.status(409).json({ error: 'Version mismatch', current: currentJson });
+            return;
+          }
+        }
+      } else {
+        if (expected) {
+          // Expected a version but none exists
+          response.status(409).json({ error: 'Version mismatch', current: null });
+          return;
+        }
       }
 
       const payload = JSON.stringify({ config, updatedAt: new Date().toISOString() });
@@ -64,7 +86,7 @@ export default async function handler(request, response) {
         }
       }
 
-      response.status(200).json({ ok: true, url: blob.url });
+      response.status(200).json({ ok: true, url: blob.url, updatedAt: JSON.parse(payload).updatedAt });
       return;
     }
 

@@ -2484,6 +2484,21 @@ body {
   font-weight: 900;
 }
 
+.dashboard-link {
+  display: inline-block;
+  max-width: 13ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.dashboard-batch-table td:nth-child(2),
+.dashboard-mobile-order-card strong {
+  text-align: center;
+}
+
 .dashboard-mobile-orders {
   display: none;
   gap: 0.75rem;
@@ -2549,6 +2564,43 @@ body {
   white-space: nowrap;
 }
 
+/* batch detail nested table */
+.batch-detail-container {
+  padding: 0.5rem 0.75rem 0.8rem;
+  background: #ffffff;
+}
+.batch-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.batch-detail-table th,
+.batch-detail-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--gi-border);
+  font-size: 0.85rem;
+}
+.batch-detail-table th {
+  text-align: left;
+  font-weight: 900;
+  color: var(--gi-text);
+}
+.batch-detail-row td { background: #fbfdff; }
+.dashboard-icon-btn { display: inline-grid; place-items: center; }
+
+/* Accordion slide-down for batch details */
+.batch-detail-inner {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 320ms cubic-bezier(.2,.9,.2,1), padding 240ms ease;
+  padding: 0 0.5rem;
+}
+.batch-detail-inner.open {
+  max-height: 1200px; /* large enough to fit content */
+  padding: 0.5rem 0.5rem 0.8rem;
+}
+.batch-detail-item.understock td { background: #fff6f6; }
+.understock-flag { color: #b91c1c; font-weight: 800; font-size: 0.85rem; }
+
 .dashboard-mobile-order-bottom button {
   min-height: 2rem;
   border-radius: 7px;
@@ -2557,6 +2609,27 @@ body {
   color: #ffffff;
   font-size: 0.74rem;
   font-weight: 900;
+}
+
+/* Two-column orders layout for large screens */
+.dashboard-orders-columns {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (min-width: 1200px) {
+  .dashboard-orders-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-orders-columns .dashboard-batch-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .dashboard-orders-columns .dashboard-table-wrap {
+    overflow: visible;
+  }
 }
 
 .dashboard-panel-foot {
