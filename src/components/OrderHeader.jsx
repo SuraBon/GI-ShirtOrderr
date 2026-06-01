@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, HelpCircle, LayoutDashboard, LogOut, Ruler, Shirt, Users } from 'lucide-react';
+import { BookOpen, ClipboardList, HelpCircle, LayoutDashboard, LogOut, Ruler, Shirt, Users } from 'lucide-react';
 
 export function Logo({ surface = 'order' }) {
   const isDashboard = surface === 'dashboard';
@@ -71,10 +71,10 @@ export function DashboardHeader({
   onLogout,
 }) {
   const navItems = [
-    { id: 'orders', label: 'รายการเบิก' },
+    { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
     { id: 'employees', label: 'ข้อมูลพนักงาน', icon: Users },
-    { id: 'dashboard', label: 'ภาพรวม' },
-    { id: 'inventory', label: 'แบบเสื้อ/สต็อก' },
+    { id: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
+    { id: 'inventory', label: 'แบบเสื้อ/สต็อก', icon: Shirt },
   ];
 
   return (

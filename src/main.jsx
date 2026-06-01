@@ -4298,8 +4298,9 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
             const total = Object.values(item.genderSizeRows || {})
               .flat()
               .reduce((sum, row) => sum + Number(row.qty || 0), 0);
+            const canDelete = config.length > 1;
             return (
-              <button
+              <div
                 key={item.id}
                 className={cn('inventory-item-card', item.id === selectedItem.id && 'active')}
                 onClick={() => {
@@ -4314,7 +4315,24 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
                   <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
                   <small>คงเหลือ {total} ชิ้น</small>
                 </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (!canDelete) return;
+                    const nextConfig = config.filter((current) => current.id !== item.id);
+                    setConfig(nextConfig.length ? nextConfig : config);
+                    if (item.id === selectedId) {
+                      setSelectedId(nextConfig[0]?.id || '');
+                    }
+                  }}
+                  className="inventory-item-delete"
+                  aria-label="ลบแบบเสื้อ"
+                  disabled={!canDelete}
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
             );
           })}
         </div>
@@ -4661,6 +4679,18 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       ),
     [rows]
   );
+
+  const employeeCompanyGroups = useMemo(() => {
+    const counts = new Map();
+    employeeRows.forEach((row) => {
+      const company = row.companyName || 'ไม่ระบุบริษัท';
+      counts.set(company, (counts.get(company) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'th'))
+      .slice(0, 3);
+  }, [employeeRows]);
+
   const monthFilterOptions = useMemo(() => buildMonthFilterOptions(rows), [rows]);
   const metrics = useMemo(() => buildDashboardMetrics(filteredBatches), [filteredBatches]);
   const allRows = useMemo(() => flattenBatches(batches), [batches]);
@@ -5207,27 +5237,59 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <div className="dashboard-overview-hero">
             <div>
               <h2>ภาพรวมการดำเนินงาน</h2>
-            <p>ติดตามสถานะคำสั่งเบิกและจุดที่ต้องจัดการต่อ</p>
+              <p>ติดตามคำสั่งเบิก สต็อก และข้อมูลพนักงาน ได้ครบในหน้าเดียว</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 <span>โหลดข้อมูลใหม่</span>
               </button>
+              <button className="dark" onClick={() => onViewChange?.('orders')}>
+                <ClipboardList className="size-4" />
+                <span>คำสั่งเบิก</span>
+              </button>
               <button className="dark" onClick={() => onViewChange?.('employees')}>
                 <Users className="size-4" />
-                <span>ดูข้อมูลพนักงาน</span>
+                <span>ข้อมูลพนักงาน</span>
+              </button>
+              <button className="dark" onClick={() => onViewChange?.('inventory')}>
+                <Shirt className="size-4" />
+                <span>สต็อก</span>
               </button>
             </div>
           </div>
-          <div className="dashboard-overview-stats">
-            <Stat icon={ClipboardList} value={filteredBatches.length} label="คำสั่งเบิกทั้งหมด" />
-            <Stat icon={Clock} value={countByStatus(ORDER_STATUS_PENDING)} label="รอดำเนินการ" />
-            <Stat icon={Truck} value={`${metrics.backorderPieces} ชิ้น`} label="รอของ" />
-            <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
+
+          <div className="dashboard-overview-grid">
+            <div className="dashboard-overview-stats">
+              <Stat icon={ClipboardList} value={filteredBatches.length} label="คำสั่งเบิกทั้งหมด" />
+              <Stat icon={PackageSearch} value={metrics.totalCompanies} label="บริษัท / หน่วยงาน" />
+              <Stat icon={Users} value={`${metrics.totalEmployees} คน`} label="พนักงานที่เบิก" />
+              <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
+            </div>
+
+            <div className="dashboard-overview-chart-card">
+              <DashboardOverviewChart metrics={metrics} />
+            </div>
+
+            <div className="dashboard-overview-stock-card">
+              <div className="dashboard-panel-head slim">
+                <div>
+                  <h2>ภาพรวมสต็อก</h2>
+                  <p>สต็อกรวมทั้งหมดและรายการที่ต้องติดตาม</p>
+                </div>
+              </div>
+              <div className="dashboard-stock-summary-totals dashboard-stock-summary-totals-grid">
+                <span>สต็อกตั้งต้น {stockSummaryTotals.totalStock} ชิ้น</span>
+                <span>เบิกแล้ว {stockSummaryTotals.withdrawn} ชิ้น</span>
+                <span>คงเหลือ {stockSummaryTotals.remaining} ชิ้น</span>
+              </div>
+              <div className="dashboard-stock-summary-notes">
+                <p>ดูรายการสต็อกต่ำที่สุดด้านล่าง เพื่อเลือกงานที่ต้องแก้ก่อนจัดส่ง</p>
+              </div>
+            </div>
           </div>
+
           <div className="dashboard-overview-workspace">
-            <section className="dashboard-work-panel">
               <article className="dashboard-work-card">
                 <div>
                   <h2>งานที่ต้องติดตาม</h2>
@@ -5318,21 +5380,49 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               </button>
             </div>
           </div>
+          <div className="dashboard-panel-summary">
+            <MiniMetric label="จำนวนคำสั่งที่แสดง" value={filteredBatches.length} />
+            <MiniMetric label="สาขา" value={branchFilter} />
+            <MiniMetric label="สถานะ" value={statusFilter} />
+            <MiniMetric label="ค้นหา" value={query || '-'} />
+          </div>
 
           {exportExpanded && (
-            <div className="dashboard-export-strip">
-              <Field label="สาขา">
-                <Select value={exportBranchFilter} onChange={setExportBranchFilter} values={exportBranchOptions} />
-              </Field>
-              <Field label="ตั้งแต่เดือน">
-                <MonthInput value={exportStartMonth} onChange={setExportStartMonth} />
-              </Field>
-              <Field label="ถึงเดือน">
-                <MonthInput value={exportEndMonth} onChange={setExportEndMonth} />
-              </Field>
-              <button onClick={exportCsv} disabled={!exportRows.length}>
-                <Download className="size-4" /> CSV ({exportRows.length})
-              </button>
+            <div className="dashboard-export-panel">
+              <div className="dashboard-export-grid">
+                <Field label="สาขาส่งออก">
+                  <Select
+                    value={exportBranchFilter}
+                    onChange={setExportBranchFilter}
+                    values={exportBranchOptions}
+                  />
+                </Field>
+                <Field label="เดือนเริ่มต้น">
+                  <TextInput
+                    type="month"
+                    value={exportStartMonth}
+                    onChange={setExportStartMonth}
+                    placeholder="เลือกเดือน"
+                  />
+                </Field>
+                <Field label="เดือนสิ้นสุด">
+                  <TextInput
+                    type="month"
+                    value={exportEndMonth}
+                    onChange={setExportEndMonth}
+                    placeholder="เลือกเดือน"
+                  />
+                </Field>
+                <div className="dashboard-export-actions">
+                  <button className="dashboard-primary-action" onClick={exportCsv}>
+                    <Download className="size-4" />
+                    ส่งออก CSV
+                  </button>
+                  <p className="dashboard-export-note">
+                    ส่งออกเฉพาะรายการตามสาขาและช่วงเดือนที่เลือก
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -5362,11 +5452,12 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   </th>
                   <th>เลขที่คำสั่งเบิก</th>
                   <th>วันที่ทำรายการ</th>
+                  <th>บริษัท/หน่วยงาน</th>
                   <th>สาขา</th>
-                  <th>ผู้ขอเบิก</th>
+                  <th>ผู้ติดต่อ</th>
                   <th>จำนวน</th>
                   <th>สถานะ</th>
-                  <th>กำหนดส่ง</th>
+                  <th>อัปเดตล่าสุด</th>
                   <th>จัดการ</th>
                 </tr>
               </thead>
@@ -5393,17 +5484,28 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                       </button>
                     </td>
                     <td>{formatDashboardDate(batch.submittedAt)}</td>
+                    <td>{batch.companyName || '-'}</td>
                     <td>{batch.branch || '-'}</td>
-                    <td>{batch.supervisorName || batch.companyName || '-'}</td>
+                    <td>{batch.supervisorName || '-'}</td>
                     <td>{getBatchPieces(batch)}</td>
                     <td>
                       <StatusBadge status={batch.status} />
                     </td>
                     <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>
-                    <td>
-                      <button className="dashboard-icon-btn" onClick={() => setSelectedBatch(batch)}>
-                        <ChevronDown className="size-4 -rotate-90" />
-                      </button>
+                    <td className="dashboard-row-actions">
+                      <div className="dashboard-row-actions-group">
+                        <button className="dashboard-icon-btn" onClick={() => setSelectedBatch(batch)}>
+                          <ChevronDown className="size-4 -rotate-90" />
+                        </button>
+                        {batch.status !== ORDER_STATUS_DELIVERED && (
+                          <button
+                            className="dashboard-action-btn"
+                            onClick={() => updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED)}
+                          >
+                            ส่งแล้ว
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -5426,10 +5528,11 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   <ChevronDown className="size-4 -rotate-90" />
                 </div>
                 <div className="dashboard-mobile-order-grid">
+                  <span>บริษัท <strong>{batch.companyName || '-'}</strong></span>
                   <span>สาขา <strong>{batch.branch || '-'}</strong></span>
-                  <span>ผู้ขอ <strong>{batch.supervisorName || batch.companyName || '-'}</strong></span>
+                  <span>ผู้ติดต่อ <strong>{batch.supervisorName || '-'}</strong></span>
                   <span>จำนวน <strong>{getBatchPieces(batch)} ตัว</strong></span>
-                  <span>กำหนดส่ง <strong>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</strong></span>
+                  <span>อัปเดตล่าสุด <strong>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</strong></span>
                 </div>
                 <div className="dashboard-mobile-order-bottom">
                   <StatusBadge status={batch.status} />
@@ -5475,12 +5578,33 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               </button>
             </div>
           </div>
+          <div className="dashboard-panel-summary">
+            <MiniMetric label="พนักงานทั้งหมด" value={employeeRows.length} />
+            <MiniMetric label="บริษัท" value={metrics.totalCompanies} />
+            <MiniMetric label="สาขา" value={branchFilter} />
+            <MiniMetric label="ค้นหา" value={query || '-'} />
+          </div>
+
+          <div className="dashboard-group-summary">
+            <h3>บริษัทที่มีรายการมากที่สุด</h3>
+            {employeeCompanyGroups.length ? (
+              employeeCompanyGroups.map(([company, count]) => (
+                <p key={company}>
+                  <strong>{company}</strong>
+                  <span>{count} รายการ</span>
+                </p>
+              ))
+            ) : (
+              <p>ยังไม่มีข้อมูลบริษัท</p>
+            )}
+          </div>
 
           <div className="dashboard-table-wrap">
             <table className="dashboard-employee-table">
               <thead>
                 <tr>
                   <th>ชื่อพนักงาน</th>
+                  <th>บริษัท</th>
                   <th>เพศ</th>
                   <th>เสื้อ</th>
                   <th>ไซส์</th>
@@ -5498,6 +5622,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   return (
                     <tr key={row.id}>
                       <td>{row.name || '-'}</td>
+                      <td>{row.companyName || '-'}</td>
                       <td>{row.gender || '-'}</td>
                       <td>{row.type || '-'}</td>
                       <td>{row.size || '-'}</td>
@@ -5539,6 +5664,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                     <StatusBadge status={row.itemStatus || row.status} />
                   </div>
                   <div className="dashboard-mobile-order-grid">
+                    <span>บริษัท <strong>{row.companyName || '-'}</strong></span>
+                    <span>สาขา <strong>{row.branch || '-'}</strong></span>
                     <span>เพศ <strong>{row.gender || '-'}</strong></span>
                     <span>เสื้อ <strong>{row.type || '-'}</strong></span>
                     <span>ไซส์ <strong>{row.size || '-'}</strong></span>
@@ -5621,6 +5748,22 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               </button>
             </div>
           </div>
+
+          <div className="dashboard-inventory-card-grid">
+            {inventoryRows.map((item) => (
+              <article key={item.id} className="dashboard-inventory-card">
+                <div>
+                  <strong>{item.type}</strong>
+                  <small>{item.sizes.join(', ') || 'ไม่มีไซส์'}</small>
+                </div>
+                <div>
+                  <span>{item.total} ชิ้น</span>
+                  <span>{item.sizes.length} ไซส์</span>
+                </div>
+              </article>
+            ))}
+          </div>
+
           <div className="dashboard-stock-summary">
             <div className="dashboard-panel-head slim">
               <div>
@@ -6332,7 +6475,9 @@ function buildMonthFilterOptions(rows) {
 
 function buildDashboardMetrics(batches) {
   const rows = flattenBatches(batches);
+  const companies = new Set(batches.map((batch) => batch.companyName || '').filter(Boolean));
   return {
+    totalCompanies: companies.size,
     totalEmployees: batches.reduce((sum, batch) => sum + batch.orders.length, 0),
     totalPieces: rows.reduce((sum, row) => sum + Number(row.qty || 0), 0),
     pendingPieces: rows
@@ -6364,6 +6509,41 @@ function Stat({ icon: Icon, value, label }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+function DashboardOverviewChart({ metrics }) {
+  const rows = [
+    { label: 'จัดส่งแล้ว', value: metrics.shippedPieces, color: '#10b981' },
+    { label: 'รอของ', value: metrics.backorderPieces, color: '#f59e0b' },
+    { label: 'รอดำเนินการ', value: metrics.pendingPieces, color: '#ef4444' },
+  ];
+  const maxValue = Math.max(...rows.map((row) => row.value), 1);
+
+  return (
+    <div className="dashboard-overview-chart">
+      <div className="dashboard-overview-chart-head">
+        <h3>กราฟสถานะคำสั่งเบิก</h3>
+        <p>เปรียบเทียบจำนวนชิ้นตามสถานะเพื่อดูภาพรวมได้เร็วขึ้น</p>
+      </div>
+      <div className="dashboard-overview-chart-bars">
+        {rows.map((row) => (
+          <div key={row.label} className="dashboard-overview-chart-row">
+            <div className="dashboard-overview-chart-label">
+              <span className="dashboard-overview-chart-marker" style={{ background: row.color }} />
+              <strong>{row.label}</strong>
+            </div>
+            <div className="dashboard-overview-chart-track">
+              <div
+                className="dashboard-overview-chart-bar"
+                style={{ width: `${Math.round((row.value / maxValue) * 100)}%`, background: row.color }}
+              />
+            </div>
+            <span className="dashboard-overview-chart-value">{row.value} ชิ้น</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
