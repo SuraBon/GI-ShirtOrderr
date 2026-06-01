@@ -53,6 +53,7 @@ import {
   findClothingConfig,
   getSizeRows,
   getSizeOptions,
+  getSizeOptionsWithLabels,
   defaultSize,
 } from './lib/config';
 import {
@@ -2802,7 +2803,6 @@ function GarmentItemsPicker({ employee, clothingTypes, dispatch, invalidEmployee
   const selectedTypes = employee.items.map((item) => item.type);
   const availableTypes = clothingTypes.filter((type) => !selectedTypes.includes(type));
   const hasAvailableTypes = availableTypes.length > 0;
-  const [lastAddedType, setLastAddedType] = React.useState('');
 
   return (
     <div className="grid gap-2">
@@ -2846,16 +2846,9 @@ function GarmentItemsPicker({ employee, clothingTypes, dispatch, invalidEmployee
           compact
           onChange={(type) => {
             if (!type) return;
-            // update lastAddedType so tests can reliably find the chosen label inside the card
-            setLastAddedType(type);
             dispatch({ type: 'toggleType', id: employee.id, itemType: type });
           }}
         />
-        {lastAddedType && (
-          <div className="text-xs font-bold text-[#002B5B] truncate" aria-live="polite">
-            {lastAddedType}
-          </div>
-        )}
       </div>
     </div>
   );
