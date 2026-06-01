@@ -66,17 +66,14 @@ export function OrderHeader({ onSizeOpen, onOpenDashboard, onManualOpen }) {
 export function DashboardHeader({
   activeView = 'orders',
   onViewChange,
-  onOpenOrder,
   onManualOpen,
   onLogout,
-  batchFormat,
-  onBatchFormatChange,
 }) {
   const navItems = [
     { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
     { id: 'employees', label: 'ข้อมูลพนักงาน', icon: Users },
     { id: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
-    { id: 'inventory', label: 'แบบเสื้อ/สต็อก', icon: Shirt },
+    { id: 'inventory', label: 'แบบเสื้อและสต็อก', icon: Shirt },
   ];
 
   return (

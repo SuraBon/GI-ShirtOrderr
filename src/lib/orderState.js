@@ -10,8 +10,7 @@ import { digitsOnly } from './utils';
 export const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
 export const ORDER_STATUS_PENDING = 'รอจัดส่ง';
 export const ORDER_STATUS_DELIVERED = 'จัดส่งแล้ว';
-export const ORDER_STATUS_BACKORDER = 'รอของ';
-export const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED, ORDER_STATUS_BACKORDER];
+export const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED];
 
 export function createEmployee(index = 0) {
   return {
@@ -277,9 +276,11 @@ export function normalizeBatch(batch) {
                   type: item.type || '-',
                   size: item.size || '-',
                   qty: Number(item.qty || 0),
-                  status: ORDER_STATUSES.includes(item.status)
-                    ? item.status
-                    : batch.status || ORDER_STATUS_PENDING,
+                  status:
+                    item.status === ORDER_STATUS_DELIVERED ||
+                    batch.status === ORDER_STATUS_DELIVERED
+                      ? ORDER_STATUS_DELIVERED
+                      : ORDER_STATUS_PENDING,
                   statusUpdatedAt:
                     item.statusUpdatedAt ||
                     batch.statusUpdatedAt ||
@@ -293,15 +294,11 @@ export function normalizeBatch(batch) {
     : [];
 
   const allItems = normalizedOrders.flatMap((o) => o.items);
-  let batchStatus = batch.status || ORDER_STATUS_PENDING;
+  let batchStatus = batch.status === ORDER_STATUS_DELIVERED ? ORDER_STATUS_DELIVERED : ORDER_STATUS_PENDING;
   if (allItems.length > 0) {
     const uniqueStatuses = new Set(allItems.map((i) => i.status));
     if (uniqueStatuses.size === 1) {
       batchStatus = Array.from(uniqueStatuses)[0];
-    } else if (uniqueStatuses.has(ORDER_STATUS_DELIVERED)) {
-      batchStatus = 'จัดส่งบางส่วน (รอของ)';
-    } else if (uniqueStatuses.has(ORDER_STATUS_BACKORDER)) {
-      batchStatus = ORDER_STATUS_BACKORDER;
     } else {
       batchStatus = ORDER_STATUS_PENDING;
     }

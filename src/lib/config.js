@@ -215,7 +215,7 @@ export async function publishSharedClothingConfig(config) {
     const server = await response.json().catch(() => null);
     try {
       await loadSharedClothingConfig();
-    } catch (err) {
+    } catch {
       const error = new Error(server?.error || 'Version conflict and failed to reload latest config');
       error.status = 409;
       error.server = server;

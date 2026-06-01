@@ -1,5 +1,5 @@
 const SHEET_NAME = "Orders";
-const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว", "รอของ"];
+const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว"];
 const HEADERS = [
   "รหัสคำสั่งเบิก",
   "สถานะ",
@@ -317,7 +317,7 @@ function shipBatchItems_(sheet, payload) {
     if (Number(pendingQty) > 0) {
       newBatchRows.push([
         batchId,
-        "รอของ",
+        "รอจัดส่ง",
         statusUpdatedAt,
         submittedAt,
         companyName,

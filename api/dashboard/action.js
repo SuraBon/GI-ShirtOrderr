@@ -1,7 +1,7 @@
 import { getGasAdminToken, readJsonBody, requireAdmin, sendError } from "../_security.js";
 
 const ADMIN_ACTIONS = new Set(["updateStatus", "deleteBatch", "shipItems", "syncStock"]);
-const ORDER_STATUSES = new Set(["รอจัดส่ง", "จัดส่งแล้ว", "รอของ"]);
+const ORDER_STATUSES = new Set(["รอจัดส่ง", "จัดส่งแล้ว"]);
 
 function validatePayload(payload) {
   if (!payload || typeof payload !== "object") return false;

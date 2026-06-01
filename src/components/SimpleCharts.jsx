@@ -2,20 +2,26 @@ import React from 'react';
 
 export function Donut({ data = [], size = 140, stroke = 18 }) {
   const total = Math.max(data.reduce((s, r) => s + (r.value || 0), 0), 1);
-  let acc = 0;
   const radius = (size - stroke) / 2;
   const cx = size / 2;
   const cy = size / 2;
   const circumference = 2 * Math.PI * radius;
+  const segments = data.map((d, i) => {
+    const value = Math.max(0, d.value || 0);
+    const portion = value / total;
+    const offsetPortion = data
+      .slice(0, i)
+      .reduce((sum, item) => sum + Math.max(0, item.value || 0) / total, 0);
+    return {
+      ...d,
+      dash: portion * circumference,
+      offset: circumference * offsetPortion,
+    };
+  });
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {data.map((d, i) => {
-        const value = Math.max(0, d.value || 0);
-        const portion = value / total;
-        const dash = portion * circumference;
-        const offset = circumference * acc;
-        acc += portion;
+      {segments.map((d, i) => {
         return (
           <circle
             key={i}
@@ -24,8 +30,8 @@ export function Donut({ data = [], size = 140, stroke = 18 }) {
             cy={cy}
             stroke={d.color}
             strokeWidth={stroke}
-            strokeDasharray={`${dash} ${circumference - dash}`}
-            strokeDashoffset={-offset}
+            strokeDasharray={`${d.dash} ${circumference - d.dash}`}
+            strokeDashoffset={-d.offset}
             fill="none"
             style={{ transition: 'stroke-dasharray 320ms ease, stroke-dashoffset 320ms ease' }}
             transform={`rotate(-90 ${cx} ${cy})`}

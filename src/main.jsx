@@ -8,7 +8,6 @@ import {
   BarChart3,
   Check,
   CheckSquare,
-  Clock,
   ChevronDown,
   ClipboardList,
   Copy,
@@ -24,6 +23,7 @@ import {
   Ruler,
   Search,
   Send,
+  Settings2,
   Shirt,
   Trash2,
   Truck,
@@ -45,13 +45,9 @@ import {
   saveClothingConfig,
   loadSharedClothingConfig,
   publishSharedClothingConfig,
-  CLOTHING_CONFIG_KEY,
-  CLOTHING_SIZE_TABLE_VERSION_KEY,
-  CLOTHING_SIZE_TABLE_VERSION,
   CLOTHING_CONFIG_UPDATED_AT_KEY,
+  normalizeClothingConfig,
   getClothingTypes,
-  findClothingConfig,
-  getSizeRows,
   getSizeOptions,
   getSizeOptionsWithLabels,
   defaultSize,
@@ -62,7 +58,6 @@ import {
   DashboardHeader,
   Field,
   TextInput,
-  MonthInput,
   GridInput,
   TextArea,
   CustomSelect,
@@ -82,8 +77,57 @@ const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
 const ORDER_STATUS_PENDING = 'รอจัดส่ง';
 const ORDER_STATUS_DELIVERED = 'จัดส่งแล้ว';
-const ORDER_STATUS_BACKORDER = 'รอของ';
-const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED, ORDER_STATUS_BACKORDER];
+const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED];
+const DASHBOARD_TABLE_COLUMNS_KEY = 'gi-dashboard-table-columns';
+const ORDER_TABLE_COLUMNS = [
+  { id: 'code', label: 'รหัสคำสั่ง' },
+  { id: 'date', label: 'วันที่' },
+  { id: 'company', label: 'บริษัท/หน่วยงาน' },
+  { id: 'branch', label: 'สาขา' },
+  { id: 'contact', label: 'ผู้ติดต่อ' },
+  { id: 'total', label: 'จำนวนรวม' },
+  { id: 'status', label: 'สถานะ' },
+  { id: 'updated', label: 'อัปเดตล่าสุด' },
+];
+const EMPLOYEE_TABLE_COLUMNS = [
+  { id: 'name', label: 'ชื่อพนักงาน' },
+  { id: 'company', label: 'บริษัท' },
+  { id: 'gender', label: 'เพศ' },
+  { id: 'type', label: 'เสื้อ' },
+  { id: 'size', label: 'ไซส์' },
+  { id: 'qty', label: 'จำนวน' },
+  { id: 'status', label: 'สถานะ' },
+  { id: 'branch', label: 'สาขา' },
+  { id: 'batchId', label: 'เลขที่คำสั่ง' },
+  { id: 'date', label: 'วันที่เบิก' },
+];
+
+function getDefaultColumnIds(columns) {
+  return columns.map((column) => column.id);
+}
+
+function readDashboardTableColumns(tableId, columns) {
+  if (typeof localStorage === 'undefined') return getDefaultColumnIds(columns);
+  try {
+    const saved = JSON.parse(localStorage.getItem(DASHBOARD_TABLE_COLUMNS_KEY) || '{}');
+    const allowed = new Set(columns.map((column) => column.id));
+    const visible = Array.isArray(saved?.[tableId])
+      ? saved[tableId].filter((id) => allowed.has(id))
+      : [];
+    return visible.length ? visible : getDefaultColumnIds(columns);
+  } catch {
+    return getDefaultColumnIds(columns);
+  }
+}
+
+function writeDashboardTableColumns(tableId, visibleColumns) {
+  if (typeof localStorage === 'undefined') return;
+  const saved = JSON.parse(localStorage.getItem(DASHBOARD_TABLE_COLUMNS_KEY) || '{}');
+  localStorage.setItem(
+    DASHBOARD_TABLE_COLUMNS_KEY,
+    JSON.stringify({ ...saved, [tableId]: visibleColumns })
+  );
+}
 
 const BRANCHES = [
   'GI(สาขาใหญ่)',
@@ -105,7 +149,6 @@ const BRANCHES = [
   'เลียบด่วนรามอินทรา',
   'เอ็มสเฟียร์',
 ];
-const CLOTHING_TYPES = ['เสื้อโปโล', 'เสื้อช็อป', 'กางเกงช็อป'];
 const GENDERS = ['ชาย', 'หญิง'];
 
 function genderSymbol(gender) {
@@ -113,121 +156,6 @@ function genderSymbol(gender) {
 }
 const OTHER_SIZE = 'อื่นๆ';
 const PHONE_LENGTH = 10;
-
-const SIZE_TABLES = {
-  'เสื้อโปโล ชาย': [
-    ['S', '38"'],
-    ['M', '40"'],
-    ['L', '42"'],
-    ['XL', '44"'],
-    ['2XL', '46"'],
-    ['3XL', '48"'],
-    ['4XL', '50"'],
-    ['5XL', '52"'],
-  ],
-  'เสื้อโปโล หญิง': [
-    ['S', '34"'],
-    ['M', '36"'],
-    ['L', '38"'],
-    ['XL', '40"'],
-    ['2XL', '42"'],
-    ['3XL', '44"'],
-  ],
-  เสื้อช็อป: [
-    ['S', '38"'],
-    ['M', '40"'],
-    ['L', '42"'],
-    ['XL', '44"'],
-    ['2XL', '46"'],
-    ['3XL', '48"'],
-    ['4XL', '50"'],
-    ['5XL', '52"'],
-  ],
-  กางเกงช็อป: [
-    ['28”', ''],
-    ['30”', ''],
-    ['32”', '3'],
-    ['34”', '3'],
-    ['36”', ''],
-    ['38”', '3'],
-    ['40”', ''],
-    ['42”', '3'],
-    ['44”', ''],
-  ],
-};
-
-function getStandardSizeSource(type, gender) {
-  if (type === 'เสื้อโปโล')
-    return SIZE_TABLES[`เสื้อโปโล ${gender}`] || SIZE_TABLES['เสื้อโปโล ชาย'];
-  return SIZE_TABLES[type] || [];
-}
-
-function getStandardDetailFields(type) {
-  return type === 'กางเกงช็อป' ? ['จำนวน'] : ['อก'];
-}
-
-function buildStandardSizeRows(type, gender) {
-  const detailField = getStandardDetailFields(type)[0];
-  return getStandardSizeSource(type, gender).map(([size, measure]) => ({
-    size,
-    details: { [detailField]: measure },
-    qty: 0,
-  }));
-}
-
-function buildDefaultClothingItem(type, item = {}) {
-  const detailFields = getStandardDetailFields(type);
-  const genderSizeRows = GENDERS.reduce(
-    (rows, gender) => ({
-      ...rows,
-      [gender]: buildStandardSizeRows(type, gender),
-    }),
-    {}
-  );
-  return {
-    id: item.id || crypto.randomUUID(),
-    type,
-    imageUrl: item.imageUrl || '',
-    detailFields,
-    sizeRows: genderSizeRows[GENDERS[0]],
-    genderSizeRows,
-  };
-}
-
-const DEFAULT_CLOTHING_CONFIG = CLOTHING_TYPES.map((type) => buildDefaultClothingItem(type));
-
-function normalizeSizeDetails(row, detailFields) {
-  if (row?.details && typeof row.details === 'object') {
-    return detailFields.reduce(
-      (details, field) => ({ ...details, [field]: String(row.details[field] || '') }),
-      {}
-    );
-  }
-  const fallback = String(row?.measure || '').trim();
-  return detailFields.reduce(
-    (details, field, index) => ({ ...details, [field]: index === 0 ? fallback : '' }),
-    {}
-  );
-}
-
-function normalizeSizeRows(rows, detailFields) {
-  const normalizedRows =
-    Array.isArray(rows) && rows.length
-      ? rows.map((row) => {
-          const qty = Number(row?.qty || 0);
-          const ledger = normalizeStockLedger(row, qty);
-          return {
-            size: String(row?.size || '').trim(),
-            details: normalizeSizeDetails(row, detailFields),
-            qty,
-            ...ledger,
-          };
-        })
-      : [];
-  return normalizedRows.length
-    ? normalizedRows
-    : [{ size: 'M', details: normalizeSizeDetails({}, detailFields), qty: 0, ...normalizeStockLedger({}, 0) }];
-}
 
 function normalizeStockLedger(row, qty = Number(row?.qty || 0)) {
   const stockAdded = Number(row?.stockAdded || 0);
@@ -631,9 +559,11 @@ function normalizeBatch(batch) {
                   type: String(item?.type || '-'),
                   size: String(item?.size || '-'),
                   qty: Number(item?.qty || 0),
-                  status: ORDER_STATUSES.includes(item?.status)
-                    ? item.status
-                    : batch.status || ORDER_STATUS_PENDING,
+                  status:
+                    item?.status === ORDER_STATUS_DELIVERED ||
+                    batch.status === ORDER_STATUS_DELIVERED
+                      ? ORDER_STATUS_DELIVERED
+                      : ORDER_STATUS_PENDING,
                   statusUpdatedAt:
                     item.statusUpdatedAt ||
                     batch.statusUpdatedAt ||
@@ -647,15 +577,11 @@ function normalizeBatch(batch) {
     : [];
 
   const allItems = normalizedOrders.flatMap((o) => o.items);
-  let batchStatus = batch.status || ORDER_STATUS_PENDING;
+  let batchStatus = batch.status === ORDER_STATUS_DELIVERED ? ORDER_STATUS_DELIVERED : ORDER_STATUS_PENDING;
   if (allItems.length > 0) {
     const uniqueStatuses = new Set(allItems.map((i) => i.status));
     if (uniqueStatuses.size === 1) {
       batchStatus = Array.from(uniqueStatuses)[0];
-    } else if (uniqueStatuses.has(ORDER_STATUS_DELIVERED)) {
-      batchStatus = 'จัดส่งบางส่วน (รอของ)';
-    } else if (uniqueStatuses.has(ORDER_STATUS_BACKORDER)) {
-      batchStatus = ORDER_STATUS_BACKORDER;
     } else {
       batchStatus = ORDER_STATUS_PENDING;
     }
@@ -914,7 +840,7 @@ function App() {
       <Toaster
         richColors
         closeButton
-        position="top-right"
+        position="bottom-right"
         toastOptions={{
           duration: 4800,
           classNames: {
@@ -1148,6 +1074,46 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     return true;
   }
 
+  async function validateOrderStockAvailability(payload) {
+    const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || readClothingConfig();
+    const requestedByKey = new Map();
+
+    payload.orders.forEach((order) => {
+      order.items.forEach((item) => {
+        const key = [item.type, order.gender, item.size].join('::');
+        const current = requestedByKey.get(key) || {
+          type: item.type,
+          gender: order.gender,
+          size: item.size,
+          qty: 0,
+        };
+        current.qty += Number(item.qty || 0);
+        requestedByKey.set(key, current);
+      });
+    });
+
+    const issues = Array.from(requestedByKey.values()).filter((request) => {
+      const clothing = latestConfig.find((item) => item.type === request.type);
+      const rows = clothing?.genderSizeRows?.[request.gender] || clothing?.sizeRows || [];
+      const row = rows.find((item) => String(item.size) === String(request.size));
+      const available = Number(row?.qty || 0);
+      request.available = available;
+      return !row || available < request.qty;
+    });
+
+    if (issues.length) {
+      toast.error('สต็อกไม่พอ ไม่สามารถส่งคำสั่งเบิกได้', {
+        description: issues
+          .slice(0, 3)
+          .map((item) => `${item.type} ${item.gender} ไซส์ ${item.size}: ต้องการ ${item.qty} มี ${item.available || 0}`)
+          .join(' / '),
+      });
+      return false;
+    }
+
+    return true;
+  }
+
   async function submitOrder() {
     const payload = {
       batchId: `ORD-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Date.now().toString().slice(-5)}`,
@@ -1170,6 +1136,9 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           })),
       })),
     };
+
+    const hasStock = await validateOrderStockAvailability(payload);
+    if (!hasStock) return;
 
     setIsSubmitting(true);
     const loadingToastId = toast.loading('กำลังส่งคำสั่งเบิกเสื้อ...', {
@@ -3640,6 +3609,62 @@ function ConfirmDialog({
   );
 }
 
+function ColumnSettingsDialog({
+  open,
+  title,
+  columns,
+  visibleColumns,
+  onChange,
+  onClose,
+}) {
+  const visibleSet = new Set(visibleColumns);
+  const allColumnIds = getDefaultColumnIds(columns);
+
+  function setColumnVisible(columnId, checked) {
+    const next = checked
+      ? [...new Set([...visibleColumns, columnId])]
+      : visibleColumns.filter((id) => id !== columnId);
+    onChange(next.length ? next : [columnId]);
+  }
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onClose?.()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-[70] bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="fixed left-1/2 top-1/2 z-[71] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-2xl"
+        >
+          <Dialog.Title className="text-lg font-extrabold text-[#071638]">{title}</Dialog.Title>
+          <div className="mt-4 grid gap-2">
+            {columns.map((column) => (
+              <label key={column.id} className="table-column-option">
+                <input
+                  type="checkbox"
+                  checked={visibleSet.has(column.id)}
+                  onChange={(event) => setColumnVisible(column.id, event.target.checked)}
+                />
+                <span>{column.label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <button type="button" className="dashboard-action-btn" onClick={() => onChange(allColumnIds)}>
+              เลือกทั้งหมด
+            </button>
+            <button type="button" className="dashboard-action-btn" onClick={() => onChange(allColumnIds)}>
+              รีเซ็ต
+            </button>
+            <button type="button" className="dashboard-primary-action" onClick={onClose}>
+              เสร็จสิ้น
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 function SizeReference({ open, setOpen }) {
   const tabs = readClothingConfig();
   const [selectedGender, setSelectedGender] = useState(GENDERS[1] || GENDERS[0]);
@@ -3900,14 +3925,14 @@ function AdminManualDialog({ open, setOpen }) {
             <ManualSection icon={BarChart3} title="หน้าภาพรวม">
               <ManualList
                 items={[
-                  'ดูจำนวนคำสั่งเบิกทั้งหมด งานรอดำเนินการ งานรอของ และงานที่จัดส่งแล้ว',
+                  'ดูจำนวนคำสั่งเบิกทั้งหมด งานรอจัดส่ง และงานที่จัดส่งแล้ว',
                   'ส่วนสรุปสต็อกเสื้อแสดงจำนวนที่เคยมี เบิกแล้ว และคงเหลือ แยกตามแบบเสื้อ เพศ และไซส์',
                   'ใช้ส่วนนี้ตรวจแนวโน้มการใช้เสื้อ และดูว่าสต็อกแบบไหนลดเร็วหรือควรเติมก่อน',
                 ]}
               />
             </ManualSection>
 
-            <ManualSection icon={PackageSearch} title="หน้าแบบเสื้อ/สต็อก">
+            <ManualSection icon={PackageSearch} title="หน้าแบบเสื้อและสต็อก">
               <ManualList
                 items={[
                   'แท็บข้อมูลเสื้อใช้แก้ชื่อแบบเสื้อ รูปภาพ และรายละเอียดไซส์ เช่น อกหรือเอว',
@@ -3964,8 +3989,10 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
   const [activeSection, setActiveSection] = useState('details');
   const [uploadingId, setUploadingId] = useState('');
   const [stockAdjustments, setStockAdjustments] = useState({});
+  const [deleteClothingId, setDeleteClothingId] = useState('');
   const syncTimerRef = useRef(null);
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
+  const deleteClothingItem = config.find((item) => item.id === deleteClothingId);
   const stockRows = selectedItem?.genderSizeRows?.[selectedGender] || selectedItem?.sizeRows || [];
 
   useEffect(() => {
@@ -4002,6 +4029,17 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
 
   function patchItem(id, patch) {
     commit(config.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }
+
+  function confirmDeleteClothing() {
+    if (!deleteClothingItem || config.length <= 1) return;
+    const nextConfig = config.filter((current) => current.id !== deleteClothingItem.id);
+    commit(nextConfig);
+    if (deleteClothingItem.id === selectedId) {
+      setSelectedId(nextConfig[0]?.id || '');
+      setEditing(false);
+    }
+    setDeleteClothingId('');
   }
 
   function patchStock(id, rowIndex, patch) {
@@ -4228,6 +4266,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
   };
 
   return (
+    <>
     <section className="inventory-manager-shell">
       <aside className="inventory-list-panel">
         <div className="inventory-list-head">
@@ -4266,11 +4305,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
                   onClick={(event) => {
                     event.stopPropagation();
                     if (!canDelete) return;
-                    const nextConfig = config.filter((current) => current.id !== item.id);
-                    setConfig(nextConfig.length ? nextConfig : config);
-                    if (item.id === selectedId) {
-                      setSelectedId(nextConfig[0]?.id || '');
-                    }
+                    setDeleteClothingId(item.id);
                   }}
                   className="inventory-item-delete"
                   aria-label="ลบแบบเสื้อ"
@@ -4502,6 +4537,21 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
         </section>
       </div>
     </section>
+    <ConfirmDialog
+      open={Boolean(deleteClothingItem)}
+      title="ยืนยันลบแบบเสื้อ"
+      description={
+        deleteClothingItem
+          ? `ลบแบบเสื้อ "${deleteClothingItem.type || 'ยังไม่ระบุชื่อ'}" และข้อมูลไซส์/สต็อกทั้งหมด?`
+          : ''
+      }
+      confirmLabel="ลบแบบเสื้อ"
+      cancelLabel="ยกเลิก"
+      destructive
+      onCancel={() => setDeleteClothingId('')}
+      onConfirm={confirmDeleteClothing}
+    />
+    </>
   );
 }
 
@@ -4527,6 +4577,13 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false);
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState('');
   const [exportExpanded, setExportExpanded] = useState(false);
+  const [columnSettingsTable, setColumnSettingsTable] = useState('');
+  const [visibleOrderColumns, setVisibleOrderColumns] = useState(() =>
+    readDashboardTableColumns('orders', ORDER_TABLE_COLUMNS)
+  );
+  const [visibleEmployeeColumns, setVisibleEmployeeColumns] = useState(() =>
+    readDashboardTableColumns('employees', EMPLOYEE_TABLE_COLUMNS)
+  );
   const [orderPage, setOrderPage] = useState(1);
   const [employeePage, setEmployeePage] = useState(1);
 
@@ -4584,6 +4641,14 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  useEffect(() => {
+    writeDashboardTableColumns('orders', visibleOrderColumns);
+  }, [visibleOrderColumns]);
+
+  useEffect(() => {
+    writeDashboardTableColumns('employees', visibleEmployeeColumns);
+  }, [visibleEmployeeColumns]);
 
   const filteredBatches = useMemo(
     () =>
@@ -4777,6 +4842,98 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     });
   }
 
+  function getStockAvailable(config, item) {
+    if (!item || item.size === OTHER_SIZE) return Number.POSITIVE_INFINITY;
+    const clothing = config.find((c) => c.type === item.type);
+    const rows = clothing?.genderSizeRows?.[item.gender] || clothing?.sizeRows || [];
+    const row = rows.find((r) => String(r.size) === String(item.size));
+    return Number(row?.qty || 0);
+  }
+
+  function buildShipmentPayload(batch, overrides = []) {
+    const overrideByKey = new Map(
+      overrides.map((item) => [
+        [item.employeeName, item.gender, item.type, item.size].join('::'),
+        item,
+      ])
+    );
+
+    return batch.orders.flatMap((order) => {
+      const gender = order.gender || GENDERS[0];
+      return order.items.map((item) => {
+        const requestedQty = Number(item.qty || 0);
+        const key = [order.name, gender, item.type, item.size].join('::');
+        const override = overrideByKey.get(key);
+        const currentShippedQty = item.status === ORDER_STATUS_DELIVERED ? requestedQty : 0;
+        const rawShippedQty =
+          override && Number.isFinite(Number(override.shippedQty))
+            ? Number(override.shippedQty)
+            : currentShippedQty;
+        const shippedQty = Math.max(0, Math.min(requestedQty, rawShippedQty));
+
+        return {
+          employeeName: order.name,
+          gender,
+          type: item.type,
+          size: item.size,
+          shippedQty,
+          pendingQty: requestedQty - shippedQty,
+        };
+      });
+    });
+  }
+
+  function getShipmentStockMovements(batch, shipmentItems) {
+    const desiredByKey = new Map(
+      shipmentItems.map((item) => [
+        [item.employeeName, item.gender, item.type, item.size].join('::'),
+        Number(item.shippedQty || 0),
+      ])
+    );
+
+    return batch.orders.flatMap((order) => {
+      const gender = order.gender || GENDERS[0];
+      return order.items
+        .map((item) => {
+          const requestedQty = Number(item.qty || 0);
+          const currentShippedQty = item.status === ORDER_STATUS_DELIVERED ? requestedQty : 0;
+          const key = [order.name, gender, item.type, item.size].join('::');
+          const desiredShippedQty = desiredByKey.has(key)
+            ? Number(desiredByKey.get(key) || 0)
+            : currentShippedQty;
+
+          return {
+            employeeName: order.name,
+            gender,
+            type: item.type,
+            size: item.size,
+            delta: desiredShippedQty - currentShippedQty,
+          };
+        })
+        .filter((item) => item.delta !== 0 && item.size !== OTHER_SIZE);
+    });
+  }
+
+  function applyShipmentStockMovements(config, movements) {
+    return movements.reduce((currentConfig, movement) => {
+      return currentConfig.map((clothing) => {
+        if (clothing.type !== movement.type) return clothing;
+        const genderSizeRows = { ...(clothing.genderSizeRows || {}) };
+        const rows = genderSizeRows[movement.gender] || clothing.sizeRows || [];
+        const updatedRows = rows.map((row) => {
+          if (String(row.size) !== String(movement.size)) return row;
+          return applyStockMovement(
+            row,
+            -movement.delta,
+            movement.delta > 0 ? 'withdraw' : 'restore'
+          );
+        });
+        genderSizeRows[movement.gender] = updatedRows;
+        return { ...clothing, genderSizeRows };
+      });
+    }, config);
+  }
+
   async function handleBulkStatusChange(targetStatus) {
     const idsToChange = Array.from(selectedBatchIds);
     if (!idsToChange.length) return;
@@ -4939,7 +5096,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     toast.success('อัปเดตสถานะคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
   }
 
-  async function shipBatchItems(batchId, shipmentItems) {
+  async function shipBatchItems(batchId, shipmentOverrides) {
     const statusUpdatedAt = new Date().toISOString();
     setStatusLoadingId(batchId);
     const loadingToastId = toast.loading('กำลังบันทึกข้อมูลการจัดส่ง...', {
@@ -4949,6 +5106,23 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     try {
       // Ensure we check and adjust against latest shared config
       const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || clothingConfig;
+      const batch = batches.find((batchItem) => batchItem.batchId === batchId);
+      if (!batch) throw new Error('ไม่พบคำสั่งเบิกที่ต้องการอัปเดต');
+      const shipmentItems = buildShipmentPayload(batch, shipmentOverrides);
+      const stockMovements = getShipmentStockMovements(batch, shipmentItems);
+      const stockIssues = stockMovements
+        .filter((movement) => movement.delta > 0)
+        .filter((movement) => getStockAvailable(latestConfig, movement) < movement.delta);
+
+      if (stockIssues.length) {
+        throw new Error(
+          `สต๊อกไม่พอ: ${stockIssues
+            .slice(0, 3)
+            .map((item) => `${item.type} ไซส์ ${item.size} (${item.gender})`)
+            .join(', ')}`
+        );
+      }
+
       // 1. Update statuses on Google Sheets
       await syncDashboardAction({
         action: 'shipItems',
@@ -4958,21 +5132,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       });
 
       // 2. Deduct shipped quantities from the local stock configuration
-      let nextConfig = latestConfig;
-      shipmentItems.forEach((item) => {
-        if (item.shippedQty <= 0) return;
-        nextConfig = nextConfig.map((clothing) => {
-          if (clothing.type !== item.type) return clothing;
-          const genderSizeRows = { ...(clothing.genderSizeRows || {}) };
-          const rows = genderSizeRows[item.gender] || clothing.sizeRows || [];
-          const updatedRows = rows.map((row) => {
-            if (row.size !== item.size) return row;
-            return applyStockMovement(row, -item.shippedQty, 'withdraw');
-          });
-          genderSizeRows[item.gender] = updatedRows;
-          return { ...clothing, genderSizeRows };
-        });
-      });
+      const nextConfig = applyShipmentStockMovements(latestConfig, stockMovements);
 
       setClothingConfig(nextConfig);
       saveClothingConfig(nextConfig);
@@ -5002,16 +5162,18 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     }
   }
 
-  async function shipSingleItem(batchId, orderName, item) {
+  async function updateSingleItemStatus(batch, order, item, status) {
+    const requestedQty = Number(item.qty || 0);
     const shipmentItems = [
       {
-        gender: item.gender || '',
+        employeeName: order.name,
+        gender: order.gender || GENDERS[0],
         type: item.type,
         size: item.size,
-        shippedQty: Number(item.qty || 0),
+        shippedQty: status === ORDER_STATUS_DELIVERED ? requestedQty : 0,
       },
     ];
-    await shipBatchItems(batchId, shipmentItems);
+    await shipBatchItems(batch.batchId, shipmentItems);
   }
 
   async function deleteBatch(batchId) {
@@ -5200,6 +5362,26 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     const batch = batches.find((item) => item.batchId === id);
     return sum + (batch ? getBatchPieces(batch) : 0);
   }, 0);
+  const useSplitOrderColumns = false;
+  const visibleOrderColumnSet = new Set(visibleOrderColumns);
+  const visibleEmployeeColumnSet = new Set(visibleEmployeeColumns);
+  const isOrderColumnVisible = (columnId) => visibleOrderColumnSet.has(columnId);
+  const isEmployeeColumnVisible = (columnId) => visibleEmployeeColumnSet.has(columnId);
+  const orderTableColSpan = visibleOrderColumns.length + 2;
+  const toggleBatchExpanded = (batchId) => {
+    setExpandedBatchIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(batchId)) next.delete(batchId);
+      else next.add(batchId);
+      return next;
+    });
+  };
+  const handleBatchRowKeyDown = (event, batchId) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleBatchExpanded(batchId);
+    }
+  };
 
   return (
     <>
@@ -5277,7 +5459,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                 </div>
                 <div className="dashboard-work-list">
                   <p><span className="dot red" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
-                  <p><span className="dot amber" /> รอของ <strong>{countByStatus(ORDER_STATUS_BACKORDER)} รายการ</strong></p>
+                  <p><span className="dot amber" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
                   <p><span className="dot green" /> ส่งแล้ว <strong>{countByStatus(ORDER_STATUS_DELIVERED)} รายการ</strong></p>
                 </div>
                 <div className="dashboard-panel-actions">
@@ -5346,10 +5528,13 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         <section className="dashboard-orders-panel">
           <div className="dashboard-panel-head">
             <div>
-              <h2>รายการคำสั่งเบิก</h2>
+              <h2>รายการเบิก</h2>
               <p>ทั้งหมด {filteredBatches.length} รายการ</p>
             </div>
             <div className="dashboard-panel-actions">
+              <button type="button" onClick={() => setColumnSettingsTable('orders')} title="ตั้งค่าคอลัมน์ตาราง">
+                <Settings2 className="size-4" />
+              </button>
               <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               </button>
@@ -5400,7 +5585,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             </div>
           )}
 
-          {isWideScreen && orderRows.length > 4 ? (
+          {useSplitOrderColumns && isWideScreen && orderRows.length > 4 ? (
             <div className="dashboard-orders-columns">
               {(() => {
                 const half = Math.ceil(orderRows.length / 2);
@@ -5444,11 +5629,19 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                       </thead>
                       <tbody>
                         {rows.map((batch) => (
-                          <tr key={batch.batchId}>
+                          <tr
+                            key={batch.batchId}
+                            className="dashboard-clickable-row"
+                            tabIndex={0}
+                            aria-expanded={expandedBatchIds.has(batch.batchId)}
+                            onClick={() => toggleBatchExpanded(batch.batchId)}
+                            onKeyDown={(event) => handleBatchRowKeyDown(event, batch.batchId)}
+                          >
                             <td>
                               <input
                                 type="checkbox"
                                 checked={selectedBatchIds.has(batch.batchId)}
+                                onClick={(event) => event.stopPropagation()}
                                 onChange={() => {
                                   setSelectedBatchIds((prev) => {
                                     const next = new Set(prev);
@@ -5463,15 +5656,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                               <div className="flex items-center gap-2">
                                 <button
                                   className="dashboard-link"
-                                  onClick={() => {
-                                    setExpandedBatchIds((prev) => {
-                                      const next = new Set(prev);
-                                      if (next.has(batch.batchId)) next.delete(batch.batchId);
-                                      else next.add(batch.batchId);
-                                      return next;
-                                    });
-                                  }}
                                   title={String(batch.batchId)}
+                                  type="button"
                                 >
                                   {shortBatchId(batch)}
                                 </button>
@@ -5501,23 +5687,13 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                             <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>
                             <td className="dashboard-row-actions">
                               <div className="dashboard-row-actions-group">
-                                <button
-                                  className="dashboard-icon-btn"
-                                  onClick={() => {
-                                    setExpandedBatchIds((prev) => {
-                                      const next = new Set(prev);
-                                      if (next.has(batch.batchId)) next.delete(batch.batchId);
-                                      else next.add(batch.batchId);
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  <ChevronDown className="size-4 -rotate-90" />
-                                </button>
                                 {batch.status !== ORDER_STATUS_DELIVERED && (
                                   <button
                                     className="dashboard-action-btn"
-                                    onClick={() => updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED);
+                                    }}
                                   >
                                     ส่งแล้ว
                                   </button>
@@ -5564,25 +5740,32 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                       }}
                     />
                   </th>
-                  <th>รหัสคำสั่ง</th>
-                  <th>วันที่</th>
-                  <th>บริษัท/หน่วยงาน (ผู้ขอ)</th>
-                  <th>สาขา</th>
-                  <th>ผู้ขอ/ผู้ติดต่อ</th>
-                  <th>จำนวนรวม</th>
-                  <th>สถานะ</th>
-                  <th>อัปเดตล่าสุด</th>
+                  {isOrderColumnVisible('code') && <th>รหัสคำสั่ง</th>}
+                  {isOrderColumnVisible('date') && <th>วันที่</th>}
+                  {isOrderColumnVisible('company') && <th>บริษัท/หน่วยงาน</th>}
+                  {isOrderColumnVisible('branch') && <th>สาขา</th>}
+                  {isOrderColumnVisible('contact') && <th>ผู้ติดต่อ</th>}
+                  {isOrderColumnVisible('total') && <th>จำนวนรวม</th>}
+                  {isOrderColumnVisible('status') && <th>สถานะ</th>}
+                  {isOrderColumnVisible('updated') && <th>อัปเดตล่าสุด</th>}
                   <th>ปฏิบัติการ</th>
                 </tr>
               </thead>
               <tbody>
                 {orderRows.map((batch) => (
                   <React.Fragment key={batch.batchId}>
-                    <tr>
+                    <tr
+                      className="dashboard-clickable-row"
+                      tabIndex={0}
+                      aria-expanded={expandedBatchIds.has(batch.batchId)}
+                      onClick={() => toggleBatchExpanded(batch.batchId)}
+                      onKeyDown={(event) => handleBatchRowKeyDown(event, batch.batchId)}
+                    >
                     <td>
                       <input
                         type="checkbox"
                         checked={selectedBatchIds.has(batch.batchId)}
+                        onClick={(event) => event.stopPropagation()}
                         onChange={() => {
                           setSelectedBatchIds((prev) => {
                             const next = new Set(prev);
@@ -5593,34 +5776,13 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                         }}
                       />
                     </td>
+                    {isOrderColumnVisible('code') && (
                     <td>
                       <div className="flex items-center gap-2">
                         <button
-                          className="dashboard-icon-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedBatchIds((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(batch.batchId)) next.delete(batch.batchId);
-                              else next.add(batch.batchId);
-                              return next;
-                            });
-                          }}
-                          title={expandedBatchIds.has(batch.batchId) ? 'ย่อ' : 'ขยาย' }
-                        >
-                          <ChevronDown className={cn('size-4 transition-transform', expandedBatchIds.has(batch.batchId) && '-rotate-180')} />
-                        </button>
-                        <button
                           className="dashboard-link"
-                          onClick={() => {
-                            setExpandedBatchIds((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(batch.batchId)) next.delete(batch.batchId);
-                              else next.add(batch.batchId);
-                              return next;
-                            });
-                          }}
                           title={String(batch.batchId)}
+                          type="button"
                         >
                           {shortBatchId(batch)}
                         </button>
@@ -5639,24 +5801,27 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                         </button>
                       </div>
                     </td>
-                    <td>{formatDashboardDate(batch.submittedAt)}</td>
-                    <td>{batch.companyName || '-'}</td>
-                    <td>{batch.branch || '-'}</td>
-                    <td>{batch.supervisorName || '-'}</td>
-                    <td>{getBatchPieces(batch)}</td>
+                    )}
+                    {isOrderColumnVisible('date') && <td>{formatDashboardDate(batch.submittedAt)}</td>}
+                    {isOrderColumnVisible('company') && <td>{batch.companyName || '-'}</td>}
+                    {isOrderColumnVisible('branch') && <td>{batch.branch || '-'}</td>}
+                    {isOrderColumnVisible('contact') && <td>{batch.supervisorName || '-'}</td>}
+                    {isOrderColumnVisible('total') && <td>{getBatchPieces(batch)}</td>}
+                    {isOrderColumnVisible('status') && (
                     <td>
                       <StatusBadge status={batch.status} />
                     </td>
-                    <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>
+                    )}
+                    {isOrderColumnVisible('updated') && <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>}
                             <td className="dashboard-row-actions">
                       <div className="dashboard-row-actions-group">
-                        <button className="dashboard-icon-btn" onClick={() => setSelectedBatch(batch)}>
-                          <ChevronDown className="size-4 -rotate-90" />
-                        </button>
                                 {batch.status !== ORDER_STATUS_DELIVERED && (
                                   <button
                                     className="dashboard-action-btn"
-                                    onClick={() => updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED);
+                                    }}
                                   >
                                     ยืนยันจัดส่ง
                                   </button>
@@ -5667,7 +5832,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                           {/* Expanded detail rows for this batch */}
                           {(
                             <tr className="batch-detail-row" key={`${batch.batchId}-details`}>
-                              <td colSpan={10} className="p-0">
+                              <td colSpan={orderTableColSpan} className="p-0">
                                 <div className="batch-detail-container">
                                   <div className={cn('batch-detail-inner', expandedBatchIds.has(batch.batchId) && 'open')}>
                                     <table className="batch-detail-table text-center">
@@ -5706,7 +5871,49 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                     <div className="understock-flag">สต็อกไม่พอ (มี {available})</div>
                                                   )}
                                                 </td>
-                                                <td><StatusBadge status={item.status || batch.status} small /></td>
+                                                <td>
+                                                  <div className="batch-item-status-cell">
+                                                    <StatusBadge status={item.status || batch.status} small />
+                                                    <div className="batch-item-status-actions">
+                                                      <button
+                                                        type="button"
+                                                        disabled={
+                                                          statusLoadingId === batch.batchId ||
+                                                          item.status === ORDER_STATUS_DELIVERED ||
+                                                          understock
+                                                        }
+                                                        onClick={() =>
+                                                          updateSingleItemStatus(
+                                                            batch,
+                                                            order,
+                                                            item,
+                                                            ORDER_STATUS_DELIVERED
+                                                          )
+                                                        }
+                                                        title={understock ? `สต๊อกไม่พอ (มี ${available})` : 'จัดส่งรายการนี้'}
+                                                      >
+                                                        จัดส่งแล้ว
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        disabled={
+                                                          statusLoadingId === batch.batchId ||
+                                                          item.status === ORDER_STATUS_PENDING
+                                                        }
+                                                        onClick={() =>
+                                                          updateSingleItemStatus(
+                                                            batch,
+                                                            order,
+                                                            item,
+                                                            ORDER_STATUS_PENDING
+                                                          )
+                                                        }
+                                                      >
+                                                        รอจัดส่ง
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                </td>
                                                 <td>{batch.companyName || '-'}</td>
                                                 <td>{batch.branch || '-'}</td>
                                                 <td>{String(batch.batchId)}</td>
@@ -5761,7 +5968,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                           </button>
                           <span>{formatDashboardDate(batch.submittedAt)}</span>
                         </div>
-                  <ChevronDown className="size-4 -rotate-90" />
                 </div>
                 <div className="dashboard-mobile-order-grid">
                   <span>บริษัท <strong>{batch.companyName || '-'}</strong></span>
@@ -5804,6 +6010,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               <p>ทั้งหมด {employeeRows.length} รายการตามตัวกรองปัจจุบัน</p>
             </div>
             <div className="dashboard-panel-actions">
+              <button type="button" onClick={() => setColumnSettingsTable('employees')} title="ตั้งค่าคอลัมน์ตาราง">
+                <Settings2 className="size-4" />
+                <span>คอลัมน์</span>
+              </button>
               <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 <span>โหลดใหม่</span>
@@ -5839,16 +6049,16 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             <table className="dashboard-employee-table">
               <thead>
                 <tr>
-                  <th>ชื่อพนักงาน</th>
-                  <th>บริษัท</th>
-                  <th>เพศ</th>
-                  <th>เสื้อ</th>
-                  <th>ไซส์</th>
-                  <th>จำนวน</th>
-                  <th>สถานะ</th>
-                  <th>สาขา</th>
-                  <th>เลขที่คำสั่ง</th>
-                  <th>วันที่เบิก</th>
+                  {isEmployeeColumnVisible('name') && <th>ชื่อพนักงาน</th>}
+                  {isEmployeeColumnVisible('company') && <th>บริษัท</th>}
+                  {isEmployeeColumnVisible('gender') && <th>เพศ</th>}
+                  {isEmployeeColumnVisible('type') && <th>เสื้อ</th>}
+                  {isEmployeeColumnVisible('size') && <th>ไซส์</th>}
+                  {isEmployeeColumnVisible('qty') && <th>จำนวน</th>}
+                  {isEmployeeColumnVisible('status') && <th>สถานะ</th>}
+                  {isEmployeeColumnVisible('branch') && <th>สาขา</th>}
+                  {isEmployeeColumnVisible('batchId') && <th>เลขที่คำสั่ง</th>}
+                  {isEmployeeColumnVisible('date') && <th>วันที่เบิก</th>}
                   <th>ดู</th>
                 </tr>
               </thead>
@@ -5857,23 +6067,23 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   const rowBatch = batchById.get(row.batchId);
                   return (
                     <tr key={row.id}>
-                      <td>{row.name || '-'}</td>
-                      <td>{row.companyName || '-'}</td>
-                      <td>{row.gender || '-'}</td>
-                      <td>{row.type || '-'}</td>
-                      <td>{row.size || '-'}</td>
-                      <td>{row.qty}</td>
-                      <td><StatusBadge status={row.itemStatus || row.status} /></td>
-                      <td>{row.branch || '-'}</td>
-                      <td>{row.batchId}</td>
-                      <td>{formatDashboardDate(row.submittedAt)}</td>
+                      {isEmployeeColumnVisible('name') && <td>{row.name || '-'}</td>}
+                      {isEmployeeColumnVisible('company') && <td>{row.companyName || '-'}</td>}
+                      {isEmployeeColumnVisible('gender') && <td>{row.gender || '-'}</td>}
+                      {isEmployeeColumnVisible('type') && <td>{row.type || '-'}</td>}
+                      {isEmployeeColumnVisible('size') && <td>{row.size || '-'}</td>}
+                      {isEmployeeColumnVisible('qty') && <td>{row.qty}</td>}
+                      {isEmployeeColumnVisible('status') && <td><StatusBadge status={row.itemStatus || row.status} /></td>}
+                      {isEmployeeColumnVisible('branch') && <td>{row.branch || '-'}</td>}
+                      {isEmployeeColumnVisible('batchId') && <td>{row.batchId}</td>}
+                      {isEmployeeColumnVisible('date') && <td>{formatDashboardDate(row.submittedAt)}</td>}
                       <td>
                         <button
-                          className="dashboard-icon-btn"
+                          className="dashboard-action-btn"
                           onClick={() => rowBatch && setSelectedBatch(rowBatch)}
                           disabled={!rowBatch}
                         >
-                          <ChevronDown className="size-4 -rotate-90" />
+                          รายละเอียด
                         </button>
                       </td>
                     </tr>
@@ -5951,7 +6161,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               <h3>สถานะที่ต้องติดตาม</h3>
             </div>
             <p><span className="dot red" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
-            <p><span className="dot amber" /> รอของ <strong>{countByStatus(ORDER_STATUS_BACKORDER)} รายการ</strong></p>
+            <p><span className="dot green" /> จัดส่งแล้ว <strong>{countByStatus(ORDER_STATUS_DELIVERED)} รายการ</strong></p>
           </div>
           <div className="dashboard-alert-card">
             <div className="dashboard-section-title">
@@ -5980,7 +6190,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             <div className="dashboard-panel-actions">
               <button onClick={() => onViewChange?.('orders')}>
                 <ClipboardList className="size-4" />
-                <span>กลับไปรายการคำสั่งเบิก</span>
+                <span>กลับไปรายการเบิก</span>
               </button>
             </div>
           </div>
@@ -6074,8 +6284,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <button onClick={() => handleBulkStatusChange(ORDER_STATUS_DELIVERED)}>
             <CheckSquare className="size-4" /> จัดส่งแล้ว
           </button>
-          <button onClick={() => handleBulkStatusChange(ORDER_STATUS_BACKORDER)}>
-            <Clock className="size-4" /> รอของ
+          <button onClick={() => handleBulkStatusChange(ORDER_STATUS_PENDING)}>
+            <RefreshCw className="size-4" /> รอจัดส่ง
           </button>
           <button onClick={() => setSelectedBatchIds(new Set())}>ยกเลิก</button>
         </div>
@@ -6085,10 +6295,12 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         batch={selectedBatch}
         onClose={() => setSelectedBatch(null)}
         onStatusChange={updateBatchStatus}
+        onItemStatusChange={updateSingleItemStatus}
         onDelete={requestDeleteBatch}
         statusLoadingId={statusLoadingId}
         deleteLoadingId={deleteLoadingId}
         onShipClick={() => setShipmentDialogOpen(true)}
+        clothingConfig={clothingConfig}
       />
       <PartialShipmentDialog
         open={shipmentDialogOpen}
@@ -6107,6 +6319,22 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         destructive
         onCancel={() => !deleteLoadingId && setDeleteConfirmBatchId('')}
         onConfirm={confirmDeleteBatch}
+      />
+      <ColumnSettingsDialog
+        open={columnSettingsTable === 'orders'}
+        title="ตั้งค่าคอลัมน์รายการเบิก"
+        columns={ORDER_TABLE_COLUMNS}
+        visibleColumns={visibleOrderColumns}
+        onChange={setVisibleOrderColumns}
+        onClose={() => setColumnSettingsTable('')}
+      />
+      <ColumnSettingsDialog
+        open={columnSettingsTable === 'employees'}
+        title="ตั้งค่าคอลัมน์ข้อมูลพนักงาน"
+        columns={EMPLOYEE_TABLE_COLUMNS}
+        visibleColumns={visibleEmployeeColumns}
+        onChange={setVisibleEmployeeColumns}
+        onClose={() => setColumnSettingsTable('')}
       />
     </>
   );
@@ -6129,26 +6357,70 @@ function MobileInfo({ label, value, compact = false, strong = false }) {
   );
 }
 
+function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onItemStatusChange }) {
+  const requested = Number(item.qty || 0);
+  const gender = order.gender || GENDERS[0];
+  const clothing = clothingConfig.find((configItem) => configItem.type === item.type);
+  const rows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
+  const stockRow = rows.find((row) => String(row.size) === String(item.size));
+  const currentStock = item.size === OTHER_SIZE ? requested : Number(stockRow?.qty || 0);
+  const currentStatus = item.status || ORDER_STATUS_PENDING;
+  const canShip =
+    currentStatus === ORDER_STATUS_DELIVERED || item.size === OTHER_SIZE || currentStock >= requested;
+
+  return (
+    <div className={cn('rounded-lg bg-[#F8FAFC] p-3', !canShip && 'bg-[#FEF2F2]')}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="break-words text-sm font-extrabold text-[#071638]">{item.type}</p>
+        <StatusBadge status={currentStatus} />
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+        <MobileInfo label="ไซส์" value={item.size || '-'} compact />
+        <MobileInfo label="จำนวน" value={item.qty} compact strong />
+      </div>
+      {!canShip && <p className="mt-2 text-xs font-black text-[#B91C1C]">สต๊อกไม่พอ (มี {currentStock})</p>}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
+          onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_DELIVERED)}
+          className="min-h-9 rounded-lg bg-[#DCFCE7] px-2 text-xs font-black text-[#166534] disabled:opacity-50"
+        >
+          จัดส่งแล้ว
+        </button>
+        <button
+          type="button"
+          disabled={isBusy || currentStatus === ORDER_STATUS_PENDING}
+          onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_PENDING)}
+          className="min-h-9 rounded-lg bg-[#FFEDD5] px-2 text-xs font-black text-[#9A3412] disabled:opacity-50"
+        >
+          รอจัดส่ง
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function StatusBadge({ status }) {
+  const displayStatus =
+    status === 'รอของ' || String(status || '').includes('บางส่วน')
+      ? ORDER_STATUS_PENDING
+      : status;
   let classes = 'bg-[#CBD5E1] text-[#334155]'; // default/gray
-  if (status === ORDER_STATUS_DELIVERED) {
+  if (displayStatus === ORDER_STATUS_DELIVERED) {
     classes = 'bg-[#DCFCE7] text-[#166534]'; // green
-  } else if (status === ORDER_STATUS_PENDING) {
+  } else if (displayStatus === ORDER_STATUS_PENDING) {
     classes = 'bg-[#FEE2E2] text-[#991B1B]'; // red (waiting shipment)
-  } else if (status === ORDER_STATUS_BACKORDER || status === 'รอของ') {
-    classes = 'bg-[#FFEDD5] text-[#9A3412]'; // orange (waiting stock)
-  } else if (status === 'จัดส่งบางส่วน (รอของ)' || status.includes('บางส่วน')) {
-    classes = 'bg-[#FEF9C3] text-[#854D0E]'; // yellow/brown (partial)
   }
   return (
     <span
-      data-status={status}
+      data-status={displayStatus}
       className={cn(
         'status-badge inline-flex shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold',
         classes
       )}
     >
-      {status}
+      {displayStatus}
     </span>
   );
 }
@@ -6173,7 +6445,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
         const clothing = clothingConfig.find((c) => c.type === item.type);
         const rows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
         const stockRow = rows.find((r) => r.size === item.size);
-        const currentStock = Number(stockRow?.qty || 0);
+        const currentStock = item.size === OTHER_SIZE ? Number(item.qty || 0) : Number(stockRow?.qty || 0);
 
         const isShipped = item.status === ORDER_STATUS_DELIVERED;
         const requestedQty = isShipped ? 0 : Number(item.qty || 0);
@@ -6194,7 +6466,8 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
   }, [batch, clothingConfig]);
 
   function handleShippedQtyChange(index, val) {
-    const nextVal = Math.max(0, Math.min(items[index].requestedQty, Number(val) || 0));
+    const maxShipped = Math.min(items[index].requestedQty, items[index].currentStock);
+    const nextVal = Math.max(0, Math.min(maxShipped, Number(val) || 0));
     setItems((current) =>
       current.map((item, idx) => {
         if (idx !== index) return item;
@@ -6238,10 +6511,10 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-4 py-3">
             <div>
               <Dialog.Title className="text-lg font-black text-[#071638]">
-                จัดการการจัดส่งสินค้า (Partial Approval)
+                จัดการการจัดส่งสินค้า
               </Dialog.Title>
               <p className="text-xs font-semibold text-[#64748B] mt-0.5">
-                ระบุจำนวนที่สามารถจัดส่งได้ในรอบนี้ ค้างส่งจะถูกแยกสถานะเป็น "รอของ"
+                ระบุจำนวนที่สามารถจัดส่งได้ในรอบนี้ ส่วนที่ยังไม่ส่งจะคงสถานะเป็น "รอจัดส่ง"
               </p>
             </div>
             <Dialog.Close
@@ -6311,7 +6584,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
                             <GridInput
                               type="number"
                               min={0}
-                              max={item.requestedQty}
+                              max={Math.min(item.requestedQty, item.currentStock)}
                               value={String(item.shippedQty)}
                               onChange={(value) => handleShippedQtyChange(index, value)}
                               className="h-9 w-16 text-center rounded-lg border border-[#CBD5E1] text-sm font-black text-[#002B5B] focus:border-[#002B5B] focus:ring-2 focus:ring-[#DCE8FF] outline-none"
@@ -6319,7 +6592,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
                           </div>
                         </div>
                         <div>
-                          <p className="text-[11px] font-bold text-[#64748B]">ค้างส่ง (รอของ)</p>
+                          <p className="text-[11px] font-bold text-[#64748B]">ยังไม่ส่ง</p>
                           <p
                             className={cn(
                               'text-base font-extrabold mt-1',
@@ -6361,10 +6634,12 @@ function BatchDetailDialog({
   batch,
   onClose,
   onStatusChange,
+  onItemStatusChange,
   onDelete,
   statusLoadingId = '',
   deleteLoadingId = '',
   onShipClick,
+  clothingConfig = [],
 }) {
   const isUpdatingStatus = Boolean(batch && statusLoadingId === batch.batchId);
   const isDeleting = Boolean(batch && deleteLoadingId === batch.batchId);
@@ -6528,22 +6803,16 @@ function BatchDetailDialog({
                         </span>
                       </div>
                       <div className="grid gap-2 p-3 sm:hidden">
-                        {order.items.map((item, itemIdx) => (
-                          <div
-                            key={`${order.name}-${item.type}-${item.size}-${itemIdx}`}
-                            className="rounded-lg bg-[#F8FAFC] p-3"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="break-words text-sm font-extrabold text-[#071638]">
-                                {item.type}
-                              </p>
-                              <StatusBadge status={item.status || ORDER_STATUS_PENDING} />
-                            </div>
-                            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                              <MobileInfo label="ไซส์" value={item.size || '-'} compact />
-                              <MobileInfo label="จำนวน" value={item.qty} compact strong />
-                            </div>
-                          </div>
+                          {order.items.map((item, itemIdx) => (
+                            <BatchItemMobileCard
+                              key={`${order.name}-${item.type}-${item.size}-${itemIdx}`}
+                              batch={batch}
+                              order={order}
+                              item={item}
+                              isBusy={isBusy}
+                              clothingConfig={clothingConfig}
+                              onItemStatusChange={onItemStatusChange}
+                            />
                         ))}
                       </div>
                       <table className="hidden w-full table-fixed text-left text-sm sm:table">
@@ -6556,10 +6825,26 @@ function BatchDetailDialog({
                           </tr>
                         </thead>
                         <tbody>
-                          {order.items.map((item) => (
+                          {order.items.map((item) => {
+                            const requested = Number(item.qty || 0);
+                            const gender = order.gender || GENDERS[0];
+                            const clothing = clothingConfig.find((c) => c.type === item.type);
+                            const rows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
+                            const stockRow = rows.find((row) => String(row.size) === String(item.size));
+                            const currentStock =
+                              item.size === OTHER_SIZE ? requested : Number(stockRow?.qty || 0);
+                            const currentStatus = item.status || ORDER_STATUS_PENDING;
+                            const canShip =
+                              currentStatus === ORDER_STATUS_DELIVERED ||
+                              item.size === OTHER_SIZE ||
+                              currentStock >= requested;
+                            return (
                             <tr
                               key={`${order.name}-${item.type}-${item.size}`}
-                              className="border-t border-[#E2E8F0]"
+                              className={cn(
+                                'border-t border-[#E2E8F0]',
+                                !canShip && currentStatus !== ORDER_STATUS_DELIVERED && 'bg-[#FEF2F2]'
+                              )}
                             >
                               <td className="break-words px-3 py-3 font-bold sm:px-4">
                                 {item.type}
@@ -6569,10 +6854,37 @@ function BatchDetailDialog({
                                 {item.qty}
                               </td>
                               <td className="px-3 py-3 text-center sm:px-4">
-                                <StatusBadge status={item.status || ORDER_STATUS_PENDING} />
+                                <div className="batch-item-status-cell">
+                                  <StatusBadge status={currentStatus} />
+                                  <div className="batch-item-status-actions">
+                                    <button
+                                      type="button"
+                                      disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
+                                      onClick={() =>
+                                        onItemStatusChange?.(batch, order, item, ORDER_STATUS_DELIVERED)
+                                      }
+                                      title={!canShip ? `สต๊อกไม่พอ (มี ${currentStock})` : 'อัปเดตเป็นจัดส่งแล้ว'}
+                                    >
+                                      จัดส่งแล้ว
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={isBusy || currentStatus === ORDER_STATUS_PENDING}
+                                      onClick={() =>
+                                        onItemStatusChange?.(batch, order, item, ORDER_STATUS_PENDING)
+                                      }
+                                    >
+                                      รอจัดส่ง
+                                    </button>
+                                  </div>
+                                  {!canShip && currentStatus !== ORDER_STATUS_DELIVERED && (
+                                    <span className="understock-flag">สต๊อกไม่พอ (มี {currentStock})</span>
+                                  )}
+                                </div>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -6720,9 +7032,6 @@ function buildDashboardMetrics(batches) {
     pendingPieces: rows
       .filter((row) => row.status === ORDER_STATUS_PENDING)
       .reduce((sum, row) => sum + Number(row.qty || 0), 0),
-    backorderPieces: rows
-      .filter((row) => row.status === ORDER_STATUS_BACKORDER || row.status === 'รอของ')
-      .reduce((sum, row) => sum + Number(row.qty || 0), 0),
     shippedPieces: rows
       .filter((row) => row.status === ORDER_STATUS_DELIVERED)
       .reduce((sum, row) => sum + Number(row.qty || 0), 0),
@@ -6752,11 +7061,8 @@ function Stat({ icon: Icon, value, label }) {
 function DashboardOverviewChart({ metrics }) {
   const rows = [
     { label: 'จัดส่งแล้ว', value: metrics.shippedPieces, color: '#10b981' },
-    { label: 'รอของ', value: metrics.backorderPieces, color: '#f59e0b' },
-    { label: 'รอดำเนินการ', value: metrics.pendingPieces, color: '#ef4444' },
+    { label: 'รอจัดส่ง', value: metrics.pendingPieces, color: '#ef4444' },
   ];
-  const maxValue = Math.max(...rows.map((row) => row.value), 1);
-
   const donutData = rows.map((r) => ({ label: r.label, value: r.value, color: r.color }));
   return (
     <div className="dashboard-overview-chart gi-card">
