@@ -14,6 +14,7 @@ export function CustomSelect({
   invalid = false,
   title,
   usePortal = true,
+  size = 'md',
 }) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState(null);
@@ -43,7 +44,8 @@ export function CustomSelect({
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     const gap = 6;
-    const menuWidth = Math.min(window.innerWidth - 16, Math.max(rect.width, compact ? 192 : 224));
+    const minWidth = size === 'xs' ? 96 : size === 'sm' ? 128 : (compact ? 192 : 224);
+    const menuWidth = Math.min(window.innerWidth - 16, Math.max(rect.width, minWidth));
     const left = Math.min(Math.max(8, rect.left), window.innerWidth - menuWidth - 8);
     const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
     const spaceAbove = rect.top - gap - 8;
@@ -60,7 +62,6 @@ export function CustomSelect({
   useEffect(() => {
     if (!open) return;
     updateMenuPosition();
-    // set active index to currently selected item or first
     const idx = normalizedValues.findIndex((i) => i.value === value);
     setActiveIndex(idx >= 0 ? idx : 0);
     function handlePointerDown(event) {
@@ -78,9 +79,8 @@ export function CustomSelect({
       window.removeEventListener('resize', handleViewportChange);
       window.removeEventListener('scroll', handleViewportChange, true);
     };
-  }, [open]);
+  }, [open, value, normalizedValues]);
 
-  // keyboard navigation for open menu
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e) {
@@ -110,7 +110,6 @@ export function CustomSelect({
         return;
       }
       if (e.key === 'Enter' || e.key === ' ') {
-        // select highlighted
         e.preventDefault();
         if (activeIndex >= 0 && normalizedValues[activeIndex]) {
           selectValue(normalizedValues[activeIndex].value);
@@ -121,7 +120,6 @@ export function CustomSelect({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open, normalizedValues, activeIndex, value]);
 
-  // scroll highlighted item into view
   useEffect(() => {
     if (!open || activeIndex < 0) return;
     const items = menuRef.current?.querySelectorAll('[role="option"]');
@@ -157,7 +155,12 @@ export function CustomSelect({
               selectValue(item.value);
             }}
             className={cn(
-              'flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-3 text-left text-sm font-semibold text-neutral-900 transition',
+              'flex w-full items-center justify-between gap-2 rounded-md text-left font-semibold text-neutral-900 transition',
+              size === 'xs'
+                ? 'min-h-7 px-2 text-[11px]'
+                : size === 'sm'
+                ? 'min-h-8 px-2.5 text-xs'
+                : 'min-h-9 px-3 text-sm',
               highlighted ? 'bg-neutral-100' : 'hover:bg-neutral-100',
               selected && 'bg-primary-600 text-white hover:bg-primary-700'
             )}
@@ -182,18 +185,28 @@ export function CustomSelect({
         title={title}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 text-left text-sm font-bold text-neutral-900 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500',
+          'flex w-full items-center justify-between gap-2 rounded-lg border bg-white text-left font-bold text-neutral-900 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500',
           invalid
             ? 'border-error focus:border-error focus:ring-2 focus:ring-error/15'
             : 'border-neutral-300 focus:border-primary-600 focus:ring-2 focus:ring-primary-400/15',
-          compact ? 'h-11' : 'h-11 sm:px-3.5 sm:text-base'
+          size === 'xs'
+            ? 'h-7 px-1.5 text-xs rounded-md'
+            : size === 'sm'
+            ? 'h-8 px-2 text-xs rounded-md'
+            : compact
+            ? 'h-11 px-3 text-sm'
+            : 'h-11 px-3.5 text-sm sm:text-base'
         )}
       >
         <span className={cn('min-w-0 truncate', !value && 'text-neutral-500')}>
           {selectedLabel}
         </span>
         <ChevronDown
-          className={cn('size-4 shrink-0 text-neutral-600 transition', open && 'rotate-180')}
+          className={cn(
+            'shrink-0 text-neutral-600 transition',
+            size === 'xs' || size === 'sm' ? 'size-3.5' : 'size-4',
+            open && 'rotate-180'
+          )}
         />
       </button>
 

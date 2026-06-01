@@ -501,25 +501,20 @@ function EmployeeItemSummary({ employee, onEdit, dispatch, invalid = false }) {
               )}
               
               {/* Inline Size Dropdown */}
-              <select
+              <Select
                 value={item.size}
-                onChange={(e) =>
+                onChange={(val) =>
                   dispatch({
                     type: 'patchItem',
                     id: employee.id,
                     itemType: item.type,
-                    patch: { size: e.target.value },
+                    patch: { size: val },
                   })
                 }
-                className="h-7 border border-[#CBD5E1] rounded bg-white px-1 text-xs font-black text-[#002B5B] focus:border-[#002B5B] cursor-pointer"
-              >
-                {!item.size && <option value="">ไซส์</option>}
-                {sizeOptions.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                placeholder="ไซส์"
+                values={sizeOptions}
+                size="xs"
+              />
 
               {/* customSize text input if OTHER_SIZE is selected */}
               {item.size === OTHER_SIZE && (
@@ -2918,9 +2913,9 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
               <th className="w-14 border-b border-[#D8DEEA] px-3 py-3 text-center">ลำดับ</th>
-              <th className="w-[16rem] border-b border-[#D8DEEA] px-3 py-3">ชื่อ-นามสกุล *</th>
-              <th className="w-36 border-b border-[#D8DEEA] px-3 py-3">เพศ *</th>
-              <th className="w-auto border-b border-[#D8DEEA] px-3 py-3">รายการเสื้อที่เบิก</th>
+              <th className="w-[14rem] border-b border-[#D8DEEA] px-3 py-3">ชื่อ-นามสกุล *</th>
+              <th className="w-28 border-b border-[#D8DEEA] px-3 py-3">เพศ *</th>
+              <th className="w-[26rem] border-b border-[#D8DEEA] px-3 py-3">รายการเสื้อที่เบิก</th>
               <th className="w-28 border-b border-[#D8DEEA] px-3 py-3 text-center">สถานะ</th>
               <th className="w-28 border-b border-[#D8DEEA] px-3 py-3 text-center">การจัดการ</th>
             </tr>
@@ -2961,25 +2956,20 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
 
                   {/* Gender Select */}
                   <td className="px-3 py-3">
-                    <select
+                    <Select
                       value={employee.gender}
-                      onChange={(e) =>
+                      placeholder="เลือกเพศ"
+                      onChange={(val) =>
                         dispatch({
                           type: 'patchEmployee',
                           id: employee.id,
-                          patch: { gender: e.target.value },
+                          patch: { gender: val },
                         })
                       }
-                      className={cn(
-                        'h-11 w-full border rounded-lg bg-white px-2.5 text-sm font-bold text-neutral-900 focus:border-[#002B5B] focus:ring-2 focus:ring-[#002B5B]/15 outline-none cursor-pointer',
-                        showErrors && !employee.gender ? 'border-red-500' : 'border-neutral-300'
-                      )}
-                    >
-                      <option value="" disabled>เลือกเพศ</option>
-                      {GENDERS.map((g) => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
+                      invalid={showErrors && !employee.gender}
+                      values={GENDERS}
+                      compact={true}
+                    />
                   </td>
 
                   {/* Scrollable Garment List Cell */}
@@ -2990,48 +2980,45 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                         return (
                           <div
                             key={`${item.type}-${itemIdx}`}
-                            className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs"
+                            className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs shrink-0"
                           >
                             {/* Clothing Type Select */}
-                            <select
-                              value={item.type}
-                              onChange={(e) =>
-                                dispatch({
-                                  type: 'patchItem',
-                                  id: employee.id,
-                                  itemType: item.type,
-                                  patch: { type: e.target.value },
-                                })
-                              }
-                              className="text-xs font-bold h-8 rounded border border-neutral-300 bg-white px-1.5 max-w-[12rem] cursor-pointer focus:border-[#002B5B] outline-none"
-                            >
-                              {clothingTypes.map((t) => (
-                                <option key={t} value={t}>{t}</option>
-                              ))}
-                            </select>
+                            <div className="max-w-[12rem] flex-1 min-w-[6.5rem] shrink-0">
+                              <Select
+                                value={item.type}
+                                onChange={(val) =>
+                                  dispatch({
+                                    type: 'patchItem',
+                                    id: employee.id,
+                                    itemType: item.type,
+                                    patch: { type: val },
+                                  })
+                                }
+                                values={clothingTypes}
+                                size="sm"
+                                placeholder="เลือกแบบเสื้อ"
+                              />
+                            </div>
 
                             {/* Size Select */}
-                            <select
-                              value={item.size}
-                              disabled={!employee.gender}
-                              onChange={(e) =>
-                                dispatch({
-                                  type: 'patchItem',
-                                  id: employee.id,
-                                  itemType: item.type,
-                                  patch: { size: e.target.value },
-                                })
-                              }
-                              className={cn(
-                                'text-xs font-bold h-8 rounded border bg-white px-1 cursor-pointer focus:border-[#002B5B] outline-none min-w-[4.5rem]',
-                                showErrors && !item.size ? 'border-red-500' : 'border-neutral-300'
-                              )}
-                            >
-                              <option value="" disabled>{employee.gender ? 'ไซส์' : 'เพศก่อน'}</option>
-                              {sizeOptions.map((s) => (
-                                <option key={s} value={s}>{s}</option>
-                              ))}
-                            </select>
+                            <div className="min-w-[4.5rem] shrink-0">
+                              <Select
+                                value={item.size}
+                                disabled={!employee.gender}
+                                onChange={(val) =>
+                                  dispatch({
+                                    type: 'patchItem',
+                                    id: employee.id,
+                                    itemType: item.type,
+                                    patch: { size: val },
+                                  })
+                                }
+                                invalid={showErrors && !item.size}
+                                values={sizeOptions}
+                                size="sm"
+                                placeholder={employee.gender ? 'ไซส์' : 'เพศ'}
+                              />
+                            </div>
 
                             {/* Quantity Input */}
                             <input
@@ -3045,7 +3032,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                   patch: { qty: digitsOnly(e.target.value) },
                                 })
                               }
-                              className="w-12 h-8 border border-neutral-300 rounded text-center font-bold text-xs focus:border-[#002B5B] outline-none"
+                              className="w-12 h-8 border border-neutral-300 rounded text-center font-bold text-xs focus:border-[#002B5B] outline-none shrink-0"
                               min="1"
                             />
 
@@ -3061,7 +3048,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                   },
                                 })
                               }
-                              className="text-neutral-400 hover:text-red-500 p-1 rounded hover:bg-neutral-100 transition ml-auto"
+                              className="text-neutral-400 hover:text-red-500 p-1 rounded hover:bg-neutral-100 transition ml-auto shrink-0"
                               title="ลบรายการเสื้อนี้"
                             >
                               <X className="size-3.5" />
