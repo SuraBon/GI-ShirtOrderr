@@ -1695,17 +1695,8 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           {!gasConfigured && <SetupWarning />}
           
           {/* Step Progress Bar */}
-          <div className="mb-4 rounded-2xl bg-white border border-[#E2E8F0] p-4 sm:p-5 shadow-sm">
-            <div className="relative flex items-center justify-between">
-              {/* Connection Line */}
-              <div className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-neutral-200 z-0">
-                <div 
-                  className="h-full bg-gradient-to-r from-[#002B5B] to-[#3b82f6] transition-all duration-500" 
-                  style={{ width: `${((activeStep - 1) / 2) * 100}%` }}
-                />
-              </div>
-              
-              {/* Step Items */}
+          <div className="mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
                 { number: 1, label: 'ข้อมูลผู้เบิก', desc: 'ผู้ติดต่อ & สถานที่จัดส่ง', icon: Users },
                 { number: 2, label: 'รายการเสื้อพนักงาน', desc: 'ระบุรายชื่อและไซส์เสื้อ', icon: Shirt },
@@ -1715,40 +1706,58 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                 const isCompleted = activeStep > step.number;
                 const StepIcon = step.icon;
                 return (
-                  <div key={step.number} className="relative z-10 flex flex-col items-center">
-                    <button
-                      type="button"
-                      disabled={step.number > activeStep && !isCompanyComplete}
-                      onClick={() => {
-                        if (step.number === 1) {
-                          setActiveStep(1);
-                        } else if (step.number === 2) {
-                          if (validateCompany()) setActiveStep(2);
-                        } else if (step.number === 3) {
-                          if (validateCompany() && validateEmployees()) setActiveStep(3);
-                        }
-                      }}
-                      className={cn(
-                        "flex size-11 items-center justify-center rounded-full font-bold transition-all duration-300 border-2 cursor-pointer",
-                        isCompleted 
-                          ? "bg-green-500 border-green-500 text-white shadow-[0_0_12px_rgba(34,197,94,0.35)]"
-                          : isActive
-                          ? "bg-gradient-to-tr from-[#002B5B] to-[#3b82f6] border-none text-white ring-4 ring-[#002B5B]/15 shadow-[0_0_15px_rgba(59,130,246,0.3)] scale-105 animate-pulse-subtle"
-                          : "bg-white border-neutral-300 text-neutral-400 hover:border-neutral-400"
-                      )}
-                    >
-                      {isCompleted ? <Check className="size-5" /> : <StepIcon className="size-5" />}
-                    </button>
-                    <span className={cn(
-                      "mt-2 text-xs sm:text-sm font-black whitespace-nowrap",
-                      isActive ? "text-[#002B5B]" : isCompleted ? "text-green-600" : "text-neutral-500"
+                  <button
+                    key={step.number}
+                    type="button"
+                    disabled={step.number > activeStep && !isCompanyComplete}
+                    onClick={() => {
+                      if (step.number === 1) setActiveStep(1);
+                      else if (step.number === 2 && validateCompany()) setActiveStep(2);
+                      else if (step.number === 3 && validateCompany() && validateEmployees()) setActiveStep(3);
+                    }}
+                    className={cn(
+                      "flex items-center gap-3.5 p-4 rounded-2xl border text-left transition-all duration-300 w-full cursor-pointer relative overflow-hidden shadow-xs",
+                      isCompleted 
+                        ? "bg-[#f0fdf4] border-green-200/80 text-green-950 hover:bg-[#e6fdf0]"
+                        : isActive
+                        ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10 scale-[1.01]"
+                        : "bg-white border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:border-neutral-300"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex size-10 items-center justify-center rounded-xl font-bold shrink-0 transition-all duration-300",
+                      isCompleted
+                        ? "bg-green-500 text-white"
+                        : isActive
+                        ? "bg-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.5)] animate-pulse-subtle"
+                        : "bg-neutral-100 text-neutral-400"
                     )}>
-                      {step.label}
-                    </span>
-                    <span className="hidden sm:inline mt-0.5 text-[10px] font-semibold text-neutral-400">
-                      {step.desc}
-                    </span>
-                  </div>
+                      {isCompleted ? <Check className="size-5" /> : <StepIcon className="size-5" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className={cn(
+                        "text-[10px] font-extrabold uppercase tracking-wider block leading-none",
+                        isActive ? "text-blue-400" : isCompleted ? "text-green-600" : "text-neutral-400"
+                      )}>
+                        ขั้นตอนที่ {step.number}
+                      </span>
+                      <h3 className={cn(
+                        "text-sm font-black mt-1 leading-tight",
+                        isActive ? "text-white" : isCompleted ? "text-green-900" : "text-neutral-800"
+                      )}>
+                        {step.label}
+                      </h3>
+                      <p className={cn(
+                        "text-[11px] font-semibold mt-0.5 truncate",
+                        isActive ? "text-slate-300" : isCompleted ? "text-green-700/80" : "text-neutral-400"
+                      )}>
+                        {step.desc}
+                      </p>
+                    </div>
+                    {isActive && (
+                      <div className="absolute right-0 top-0 h-full w-1.5 bg-blue-500 animate-pulse-subtle" />
+                    )}
+                  </button>
                 );
               })}
             </div>
@@ -1804,7 +1813,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
               {/* Step 2 Entry Tabs */}
               <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
                 {/* Tab Header Buttons */}
-                <div className="flex border-b border-neutral-200 bg-neutral-50/50 p-1.5 gap-1.5">
+                <div className="flex border-b border-neutral-200 bg-[#f8fafc] p-2 gap-2">
                   {[
                     { id: 'table', label: '📝 กรอกตาราง' },
                     { id: 'copy', label: '👥 คัดลอกแถว' },
@@ -1815,10 +1824,10 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
                       className={cn(
-                        "flex-1 py-2 px-3 text-xs sm:text-sm font-extrabold rounded-lg transition-all cursor-pointer",
+                        "flex-1 py-2 px-3 text-xs sm:text-sm font-extrabold rounded-xl transition-all cursor-pointer border sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] shadow-xs",
                         activeTab === tab.id 
-                          ? "bg-[#002B5B] text-white shadow-xs" 
-                          : "text-neutral-600 hover:bg-neutral-100"
+                          ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10" 
+                          : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800"
                       )}
                     >
                       {tab.label}
@@ -3759,7 +3768,7 @@ function DashboardApp({ demoMode, onOpenOrder }) {
   return (
     <>
       <DashboardHeader onOpenOrder={onOpenOrder} />
-      <main className="relative z-10 mx-auto flex w-full max-w-[1240px] flex-col gap-3 px-3 pb-10 pt-3 sm:px-5 lg:gap-4 lg:pt-5">
+      <main className="relative z-10 mx-auto flex w-full max-w-[1520px] flex-col gap-3 px-2 pb-10 pt-3 sm:px-4 lg:gap-4 lg:px-6 lg:pt-5">
         <Dashboard demoMode={demoMode} onAuthExpired={handleAuthExpired} />
       </main>
     </>
@@ -5558,6 +5567,370 @@ function Dashboard({ demoMode, onAuthExpired }) {
   }
 
   if (loading) return <SkeletonDashboard />;
+
+  const orderRows = filteredBatches.slice(0, 8);
+  const formatDashboardDate = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('th-TH', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+  const countByStatus = (status) => filteredBatches.filter((batch) => batch.status === status).length;
+  const inventoryRows = clothingConfig
+    .map((item) => {
+      const sizeRows = Object.values(item.genderSizeRows || {}).flat();
+      const total = sizeRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+      const sizes = Array.from(new Set(sizeRows.map((row) => row.size).filter(Boolean))).slice(0, 9);
+      return {
+        id: item.id,
+        type: item.type,
+        imageUrl: item.imageUrl,
+        colors: item.colors || [],
+        total,
+        sizes,
+      };
+    })
+    .slice(0, 6);
+  const lowStockRows = inventoryRows
+    .filter((item) => item.total <= 320)
+    .sort((a, b) => a.total - b.total)
+    .slice(0, 3);
+  const selectedPieces = Array.from(selectedBatchIds).reduce((sum, id) => {
+    const batch = batches.find((item) => item.batchId === id);
+    return sum + (batch ? getBatchPieces(batch) : 0);
+  }, 0);
+
+  return (
+    <>
+      <section className="dashboard-console">
+        <aside className="dashboard-filter-rail">
+          <div className="dashboard-panel-title">
+            <h2>ตัวกรอง</h2>
+            <button type="button" onClick={clearFilters} title="ล้างตัวกรอง">
+              <Eraser className="size-4" />
+            </button>
+          </div>
+          <Field label="สาขา">
+            <Select value={branchFilter} onChange={setBranchFilter} values={['ทุกสาขา', ...BRANCHES]} />
+          </Field>
+          <Field label="เดือน">
+            <Select value={monthFilter} onChange={setMonthFilter} values={monthFilterOptions} />
+          </Field>
+          <Field label="สถานะ">
+            <Select value={statusFilter} onChange={setStatusFilter} values={['ทุกสถานะ', ...ORDER_STATUSES]} />
+          </Field>
+          <Field label="ค้นหา">
+            <TextInput
+              value={query}
+              onChange={setQuery}
+              placeholder="เลขที่ออเดอร์, ผู้ขอ, เบอร์โทร"
+            />
+          </Field>
+          <button className="dashboard-primary-action" onClick={clearFilters}>
+            ค้นหา
+          </button>
+          <div className="dashboard-saved-filter">
+            <span>บันทึกตัวกรอง</span>
+            <strong>บันทึกไว้ 3 รายการ</strong>
+          </div>
+        </aside>
+
+        <section className="dashboard-orders-panel">
+          <div className="dashboard-panel-head">
+            <div>
+              <h2>รายการออเดอร์ (Batch)</h2>
+              <p>ทั้งหมด {filteredBatches.length} รายการ</p>
+            </div>
+            <div className="dashboard-panel-actions">
+              <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
+                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
+              </button>
+              <button onClick={() => setExportExpanded((value) => !value)}>
+                <Download className="size-4" />
+                <span>ส่งออก</span>
+              </button>
+              <button className="dark" onClick={exportCsv} disabled={!exportRows.length}>
+                <Plus className="size-4" />
+                <span>สร้างออเดอร์</span>
+              </button>
+            </div>
+          </div>
+
+          {exportExpanded && (
+            <div className="dashboard-export-strip">
+              <Field label="สาขา">
+                <Select value={exportBranchFilter} onChange={setExportBranchFilter} values={exportBranchOptions} />
+              </Field>
+              <Field label="ตั้งแต่เดือน">
+                <MonthInput value={exportStartMonth} onChange={setExportStartMonth} />
+              </Field>
+              <Field label="ถึงเดือน">
+                <MonthInput value={exportEndMonth} onChange={setExportEndMonth} />
+              </Field>
+              <button onClick={exportCsv} disabled={!exportRows.length}>
+                <Download className="size-4" /> CSV ({exportRows.length})
+              </button>
+            </div>
+          )}
+
+          <div className="dashboard-table-wrap">
+            <table className="dashboard-batch-table">
+              <thead>
+                <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredBatches.length > 0 &&
+                        filteredBatches.every((batch) => selectedBatchIds.has(batch.batchId))
+                      }
+                      onChange={() => {
+                        const allSelected = filteredBatches.every((batch) => selectedBatchIds.has(batch.batchId));
+                        setSelectedBatchIds((prev) => {
+                          const next = new Set(prev);
+                          filteredBatches.forEach((batch) => {
+                            if (allSelected) next.delete(batch.batchId);
+                            else next.add(batch.batchId);
+                          });
+                          return next;
+                        });
+                      }}
+                    />
+                  </th>
+                  <th>เลขที่ออเดอร์</th>
+                  <th>วันที่ออเดอร์</th>
+                  <th>สาขา</th>
+                  <th>ผู้ขอเบิก</th>
+                  <th>จำนวน</th>
+                  <th>สถานะ</th>
+                  <th>กำหนดส่ง</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderRows.map((batch) => (
+                  <tr key={batch.batchId}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedBatchIds.has(batch.batchId)}
+                        onChange={() => {
+                          setSelectedBatchIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(batch.batchId)) next.delete(batch.batchId);
+                            else next.add(batch.batchId);
+                            return next;
+                          });
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <button className="dashboard-link" onClick={() => setSelectedBatch(batch)}>
+                        {batch.batchId}
+                      </button>
+                    </td>
+                    <td>{formatDashboardDate(batch.submittedAt)}</td>
+                    <td>{batch.branch || '-'}</td>
+                    <td>{batch.supervisorName || batch.companyName || '-'}</td>
+                    <td>{getBatchPieces(batch)}</td>
+                    <td>
+                      <StatusBadge status={batch.status} />
+                    </td>
+                    <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>
+                    <td>
+                      <button className="dashboard-icon-btn" onClick={() => setSelectedBatch(batch)}>
+                        <ChevronDown className="size-4 -rotate-90" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="dashboard-mobile-orders">
+            {orderRows.map((batch) => (
+              <article
+                key={batch.batchId}
+                className="dashboard-mobile-order-card"
+                onClick={() => setSelectedBatch(batch)}
+              >
+                <div className="dashboard-mobile-order-top">
+                  <div>
+                    <strong>{batch.batchId}</strong>
+                    <span>{formatDashboardDate(batch.submittedAt)}</span>
+                  </div>
+                  <ChevronDown className="size-4 -rotate-90" />
+                </div>
+                <div className="dashboard-mobile-order-grid">
+                  <span>สาขา <strong>{batch.branch || '-'}</strong></span>
+                  <span>ผู้ขอ <strong>{batch.supervisorName || batch.companyName || '-'}</strong></span>
+                  <span>จำนวน <strong>{getBatchPieces(batch)} ตัว</strong></span>
+                  <span>กำหนดส่ง <strong>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</strong></span>
+                </div>
+                <div className="dashboard-mobile-order-bottom">
+                  <StatusBadge status={batch.status} />
+                  <button type="button">ดูรายละเอียด</button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="dashboard-panel-foot">
+            <span>แสดง 1 - {orderRows.length} จาก {filteredBatches.length} รายการ</span>
+            <div>
+              <button><ArrowLeft className="size-4" /></button>
+              <strong>1</strong>
+              <button><ArrowRight className="size-4" /></button>
+            </div>
+          </div>
+        </section>
+
+        <aside className="dashboard-insight-panel">
+          <div className="dashboard-panel-head slim">
+            <div>
+              <h2>ภาพรวมการดำเนินงาน</h2>
+              <p>ข้อมูล ณ {new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</p>
+            </div>
+          </div>
+          <div className="dashboard-kpi-grid">
+            <MiniMetric label="ออเดอร์ทั้งหมด" value={filteredBatches.length} />
+            <MiniMetric label="กำลังดำเนินการ" value={countByStatus(ORDER_STATUS_PENDING)} />
+            <MiniMetric label="จัดส่งแล้ว" value={countByStatus(ORDER_STATUS_DELIVERED)} />
+          </div>
+          <div className="dashboard-alert-card">
+            <div className="dashboard-section-title">
+              <h3>Backorder / ล่าช้า</h3>
+              <button>ดูทั้งหมด</button>
+            </div>
+            <p><span className="dot red" /> เกินกำหนดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
+            <p><span className="dot amber" /> ใกล้เกินกำหนด <strong>{countByStatus(ORDER_STATUS_BACKORDER)} รายการ</strong></p>
+            <p><span className="dot violet" /> รอข้อมูลเพิ่มเติม <strong>0 รายการ</strong></p>
+          </div>
+          <div className="dashboard-alert-card">
+            <div className="dashboard-section-title">
+              <h3>แจ้งเตือนสต็อกต่ำ</h3>
+              <button>ดูทั้งหมด</button>
+            </div>
+            {lowStockRows.length ? (
+              lowStockRows.map((item) => (
+                <p key={item.id}>
+                  {item.type} <strong>คงเหลือ {item.total} ชิ้น</strong>
+                </p>
+              ))
+            ) : (
+              <p>สต็อกอยู่ในระดับปกติ <strong>{inventoryRows.length} รายการ</strong></p>
+            )}
+          </div>
+        </aside>
+      </section>
+
+      <section className="dashboard-inventory-panel">
+        <div className="dashboard-panel-head">
+          <div>
+            <h2>จัดการแบบเสื้อและสต็อกไซส์</h2>
+            <p>แบบเสื้อ {clothingConfig.length} รายการ</p>
+          </div>
+          <div className="dashboard-panel-actions">
+            <button><Upload className="size-4" /><span>อัปโหลดรูปภาพ</span></button>
+            <button className="dark"><Plus className="size-4" /><span>เพิ่มแบบเสื้อ</span></button>
+          </div>
+        </div>
+        <div className="dashboard-table-wrap">
+          <table className="dashboard-inventory-table">
+            <thead>
+              <tr>
+                <th>รหัสสินค้า</th>
+                <th>แบบเสื้อ / รายละเอียด</th>
+                <th>สี</th>
+                <th>ขนาด</th>
+                <th>รวมคงเหลือ</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inventoryRows.map((item, index) => (
+                <tr key={item.id}>
+                  <td className="dashboard-code">SH-{String(index + 1).padStart(3, '0')}</td>
+                  <td>
+                    <div className="dashboard-product-cell">
+                      <div className="dashboard-product-thumb">
+                        {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <Shirt className="size-5" />}
+                      </div>
+                      <div>
+                        <strong>{item.type}</strong>
+                        <span>Stock profile</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="dashboard-swatches">
+                      {item.colors.slice(0, 4).map((color) => (
+                        <span key={`${item.id}-${color.name}`} style={{ backgroundColor: color.value }} />
+                      ))}
+                    </div>
+                  </td>
+                  <td>{item.sizes.join(' / ') || '-'}</td>
+                  <td>{item.total}</td>
+                  <td><span className="dashboard-green-pill">ใช้งาน</span></td>
+                  <td><button className="dashboard-icon-btn"><Pencil className="size-4" /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {selectedBatchIds.size > 0 && (
+        <div className="dashboard-bulk-bar">
+          <div>
+            <strong>{selectedBatchIds.size} รายการที่เลือก</strong>
+            <span>{selectedPieces} ชิ้น</span>
+          </div>
+          <button onClick={() => handleBulkStatusChange(ORDER_STATUS_DELIVERED)}>
+            <CheckSquare className="size-4" /> จัดส่งแล้ว
+          </button>
+          <button onClick={() => handleBulkStatusChange(ORDER_STATUS_BACKORDER)}>
+            <Clock className="size-4" /> รอของ
+          </button>
+          <button onClick={() => setSelectedBatchIds(new Set())}>ยกเลิก</button>
+        </div>
+      )}
+
+      <BatchDetailDialog
+        batch={selectedBatch}
+        onClose={() => setSelectedBatch(null)}
+        onStatusChange={updateBatchStatus}
+        onDelete={requestDeleteBatch}
+        statusLoadingId={statusLoadingId}
+        deleteLoadingId={deleteLoadingId}
+        onShipClick={() => setShipmentDialogOpen(true)}
+      />
+      <PartialShipmentDialog
+        open={shipmentDialogOpen}
+        onClose={() => setShipmentDialogOpen(false)}
+        batch={selectedBatch}
+        clothingConfig={clothingConfig}
+        onShipConfirm={shipBatchItems}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteConfirmBatch)}
+        title="ยืนยันลบคำสั่งเบิกเสื้อ"
+        description={deleteConfirmBatch ? `ลบคำสั่งเบิกเสื้อ ${deleteConfirmBatch.batchId}?` : ''}
+        confirmLabel="ลบคำสั่ง"
+        cancelLabel="ยกเลิก"
+        loading={Boolean(deleteConfirmBatch && deleteLoadingId === deleteConfirmBatch.batchId)}
+        destructive
+        onCancel={() => !deleteLoadingId && setDeleteConfirmBatchId('')}
+        onConfirm={confirmDeleteBatch}
+      />
+    </>
+  );
 
   return (
     <>
