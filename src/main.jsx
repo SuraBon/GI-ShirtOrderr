@@ -1882,10 +1882,14 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                             <div 
                               key={employee.id} 
                               data-quick-employee-card={employee.id}
+                              onClick={() => handleEdit(employee.id, 'full')}
                               className={cn(
-                                "p-4 rounded-xl border flex flex-col justify-between transition-all hover:shadow-md bg-white",
-                                complete ? "border-neutral-200" : "border-yellow-300 bg-yellow-50/10"
+                                "p-4 rounded-xl border flex flex-col justify-between transition-all hover:shadow-md bg-white cursor-pointer group",
+                                complete 
+                                  ? "border-neutral-200 hover:border-[#002B5B]" 
+                                  : "border-yellow-300 bg-yellow-50/10 hover:border-[#002B5B]"
                               )}
+                              title="คลิกเพื่อแก้ไขข้อมูลพนักงานคนนี้"
                             >
                               <div>
                                 <div className="flex items-start justify-between gap-2">
@@ -1897,8 +1901,9 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                                     {complete ? "✓ ครบ" : "⚠️ ไม่ครบ"}
                                   </span>
                                 </div>
-                                <h4 className="font-extrabold text-sm text-[#071638] mt-1.5 truncate">
-                                  {employee.name || <span className="text-neutral-400 italic">ไม่มีชื่อ</span>}
+                                <h4 className="font-extrabold text-sm text-[#071638] mt-1.5 truncate group-hover:text-[#002B5B] transition-colors flex items-center gap-1.5">
+                                  <span>{employee.name || <span className="text-neutral-400 italic">ไม่มีชื่อ</span>}</span>
+                                  <Pencil className="size-3 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                                 </h4>
                                 <p className="text-xs font-bold text-neutral-500 mt-0.5">เพศ: {employee.gender || '-'}</p>
                                 
@@ -1917,19 +1922,36 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-neutral-100">
+                              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   type="button"
-                                  onClick={() => dispatch({ type: 'cloneEmployee', id: employee.id })}
-                                  className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#44536A] hover:bg-neutral-50 text-xs font-extrabold transition cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(employee.id, 'full');
+                                  }}
+                                  className="flex-1 inline-flex items-center justify-center gap-1 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#002B5B] hover:bg-[#002B5B]/5 text-xs font-extrabold transition cursor-pointer"
+                                >
+                                  <Pencil className="size-3.5" />
+                                  <span>แก้ไข</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    dispatch({ type: 'cloneEmployee', id: employee.id });
+                                  }}
+                                  className="flex-1 inline-flex items-center justify-center gap-1 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#44536A] hover:bg-neutral-50 text-xs font-extrabold transition cursor-pointer"
                                 >
                                   <Copy className="size-3.5" />
-                                  <span>คัดลอกรายการนี้</span>
+                                  <span>คัดลอก</span>
                                 </button>
                                 <button
                                   type="button"
                                   disabled={state.employees.length <= 1}
-                                  onClick={() => dispatch({ type: 'delete', id: employee.id })}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    dispatch({ type: 'delete', id: employee.id });
+                                  }}
                                   className="grid size-9 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-50 transition hover:bg-[#FFE2E2] cursor-pointer"
                                 >
                                   <Trash2 className="size-3.5" />
