@@ -27,16 +27,16 @@ describe('order page mobile interactions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มแถว' }));
     await waitFor(() => {
-      expect(screen.getByText('แก้ไขข้อมูล ลำดับที่ 2')).toBeInTheDocument();
+      expect(document.querySelectorAll('[data-quick-employee-card]').length).toBeGreaterThan(1);
     });
 
-    const editorCard = screen.getByText('แก้ไขข้อมูล ลำดับที่ 2').closest('article');
+    const editorCard = document.querySelectorAll('[data-quick-employee-card]')[1];
     const editor = within(editorCard);
     fireEvent.click(editor.getAllByText('ชาย')[0]);
-    fireEvent.click(editor.getByRole('button', { name: 'เพิ่ม เสื้อโปโล' }));
-    fireEvent.click(editor.getByRole('button', { name: 'เสร็จสิ้น' }));
+    fireEvent.click(editor.getByRole('button', { name: 'เพิ่มแบบเสื้อ' }));
+    fireEvent.click(screen.getByRole('option', { name: 'เสื้อโปโล' }));
 
-    expect(screen.getAllByRole('button', { name: 'แก้ไข' }).length).toBeGreaterThan(0);
+    expect(editor.getByText('เสื้อโปโล')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   }, 10000);
 
