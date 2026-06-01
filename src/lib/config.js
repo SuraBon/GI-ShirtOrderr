@@ -273,22 +273,7 @@ export function getSizeOptions(type, gender) {
 
 export function getSizeOptionsWithLabels(type, gender) {
   if (!gender) return [];
-  const rows = getSizeRows(type, gender);
-  const clothing = findClothingConfig(type);
-  const sizeRows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
-  const options = rows.map(([size, label]) => {
-    const stockRow = sizeRows.find((r) => r.size === size);
-    const qty = stockRow ? Number(stockRow.qty ?? 0) : 0;
-    let descriptiveLabel = label;
-    if (stockRow) {
-      if (qty > 0) {
-        descriptiveLabel = `${size} (${label ? label + ' · ' : ''}คงเหลือ ${qty} ตัว)`;
-      } else {
-        descriptiveLabel = `${size} (${label ? label + ' · ' : ''}หมด - ค้างส่งเพื่อผลิตเพิ่ม)`;
-      }
-    }
-    return [size, descriptiveLabel];
-  });
+  const options = getSizeRows(type, gender).map(([size]) => [size, size]);
   return [...options, [OTHER_SIZE, OTHER_SIZE]];
 }
 

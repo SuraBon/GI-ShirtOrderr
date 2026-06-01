@@ -3,7 +3,7 @@ import { cn } from '../lib/utils';
 
 export function Field({ label, children, required = false, hint, error }) {
   return (
-    <label className="flex flex-col gap-1.5 sm:gap-2">
+    <div className="flex flex-col gap-1.5 sm:gap-2">
       <span className="text-xs font-bold text-neutral-700 sm:text-sm">
         {label}
         {required && <span className="text-error ml-1">*</span>}
@@ -11,7 +11,7 @@ export function Field({ label, children, required = false, hint, error }) {
       {children}
       {error && <p className="text-xs font-bold text-error">{error}</p>}
       {hint && !error && <p className="text-xs font-semibold text-neutral-500">{hint}</p>}
-    </label>
+    </div>
   );
 }
 

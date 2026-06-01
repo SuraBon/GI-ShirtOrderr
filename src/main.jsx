@@ -411,22 +411,7 @@ function getSizeOptions(type, gender) {
 
 function getSizeOptionsWithLabels(type, gender) {
   if (!gender) return [];
-  const rows = getSizeRows(type, gender);
-  const clothing = findClothingConfig(type);
-  const sizeRows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
-  const options = rows.map(([size, label]) => {
-    const stockRow = sizeRows.find((r) => r.size === size);
-    const qty = stockRow ? Number(stockRow.qty ?? 0) : 0;
-    let descriptiveLabel = label;
-    if (stockRow) {
-      if (qty > 0) {
-        descriptiveLabel = `${size} (${label ? label + ' · ' : ''}คงเหลือ ${qty} ตัว)`;
-      } else {
-        descriptiveLabel = `${size} (${label ? label + ' · ' : ''}หมด - ค้างส่งเพื่อผลิตเพิ่ม)`;
-      }
-    }
-    return [size, descriptiveLabel];
-  });
+  const options = getSizeRows(type, gender).map(([size]) => [size, size]);
   return [...options, [OTHER_SIZE, OTHER_SIZE]];
 }
 
@@ -1039,6 +1024,60 @@ function isGasConfigured() {
   return Boolean(APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('YOUR_SCRIPT_URL'));
 }
 
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('App render failed', error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="app-shadcn-theme min-h-screen bg-[#FAFAFA] px-4 py-8 text-[#09090B]">
+          <div className="mx-auto max-w-lg rounded-2xl border border-[#FECACA] bg-white p-5 shadow-sm">
+            <div className="mb-3 inline-flex size-10 items-center justify-center rounded-xl bg-[#FEF2F2] text-[#B91C1C]">
+              <AlertTriangle className="size-5" />
+            </div>
+            <h1 className="text-lg font-black text-[#071638]">หน้าจอมีข้อผิดพลาด</h1>
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">
+              ข้อมูลแบบร่างยังอยู่ในเครื่อง ลองกลับไปหน้าสั่งเบิกหรือโหลดหน้าใหม่อีกครั้ง
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ error: null });
+                  window.location.hash = '';
+                }}
+                className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg bg-[#002B5B] px-4 text-sm font-extrabold text-white"
+              >
+                กลับหน้าสั่งเบิก
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-[#CBD5E1] bg-white px-4 text-sm font-extrabold text-[#44536A]"
+              >
+                โหลดใหม่
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function getRoute() {
   const hashRoute = window.location.hash.replace(/^#/, '');
   if (hashRoute) return hashRoute;
@@ -1176,6 +1215,12 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   }, [state]);
 
   useEffect(() => {
+    if (activeTab === 'copy') {
+      setActiveTab('table');
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     function handleKeyDown(e) {
       if (e.altKey && (e.key === '1' || e.key === '2' || e.key === '3')) {
         const stepNum = parseInt(e.key, 10);
@@ -1266,7 +1311,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   function jumpToEmployee(employeeId) {
     setInvalidEmployeeId(employeeId);
     if (window.innerWidth < 1024) {
-      setMobileEmployeeId(employeeId);
+      setEditingCardId(employeeId);
     }
     window.setTimeout(() => {
       const target = document.querySelector(
@@ -1420,6 +1465,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       setQuery('');
       setShowIncompleteOnly(false);
       setMobileEmployeeId('');
+      setEditingCardId('');
     } catch {
       toast.error('ส่งคำสั่งเบิกเสื้อไม่สำเร็จ', {
         id: loadingToastId,
@@ -1696,7 +1742,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           
           {/* Step Progress Bar */}
           <div className="mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
               {[
                 { number: 1, label: 'ข้อมูลผู้เบิก', desc: 'ผู้ติดต่อ & สถานที่จัดส่ง', icon: Users },
                 { number: 2, label: 'รายการเสื้อพนักงาน', desc: 'ระบุรายชื่อและไซส์เสื้อ', icon: Shirt },
@@ -1716,7 +1762,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                       else if (step.number === 3 && validateCompany() && validateEmployees()) setActiveStep(3);
                     }}
                     className={cn(
-                      "flex items-center gap-3.5 p-4 rounded-2xl border text-left transition-all duration-300 w-full cursor-pointer relative overflow-hidden shadow-xs",
+                      "flex aspect-square items-center justify-center rounded-2xl border p-2 text-center transition-all duration-300 w-full cursor-pointer relative overflow-hidden shadow-xs md:aspect-auto md:justify-start md:gap-3.5 md:p-4 md:text-left",
                       isCompleted 
                         ? "bg-[#f0fdf4] border-green-200/80 text-green-950 hover:bg-[#e6fdf0]"
                         : isActive
@@ -1725,16 +1771,23 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                     )}
                   >
                     <div className={cn(
-                      "flex size-10 items-center justify-center rounded-xl font-bold shrink-0 transition-all duration-300",
+                        "flex size-9 items-center justify-center rounded-xl font-bold shrink-0 transition-all duration-300 md:size-10",
                       isCompleted
                         ? "bg-green-500 text-white"
                         : isActive
                         ? "bg-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.5)] animate-pulse-subtle"
                         : "bg-neutral-100 text-neutral-400"
                     )}>
-                      {isCompleted ? <Check className="size-5" /> : <StepIcon className="size-5" />}
+                      {isCompleted ? (
+                        <Check className="size-5" />
+                      ) : (
+                        <>
+                          <span className="text-sm font-black md:hidden">{step.number}</span>
+                          <StepIcon className="hidden size-5 md:block" />
+                        </>
+                      )}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="hidden min-w-0 flex-1 md:block">
                       <span className={cn(
                         "text-[10px] font-extrabold uppercase tracking-wider block leading-none",
                         isActive ? "text-blue-400" : isCompleted ? "text-green-600" : "text-neutral-400"
@@ -1755,7 +1808,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                       </p>
                     </div>
                     {isActive && (
-                      <div className="absolute right-0 top-0 h-full w-1.5 bg-blue-500 animate-pulse-subtle" />
+                      <div className="absolute bottom-0 left-0 h-1 w-full bg-blue-500 animate-pulse-subtle md:left-auto md:right-0 md:top-0 md:h-full md:w-1.5" />
                     )}
                   </button>
                 );
@@ -1815,8 +1868,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                 {/* Tab Header Buttons */}
                 <div className="flex border-b border-neutral-200 bg-[#f8fafc] p-2 gap-2">
                   {[
-                    { id: 'table', label: '📝 กรอกตาราง' },
-                    { id: 'copy', label: '👥 คัดลอกแถว' },
+                    { id: 'table', label: '📝 รายชื่อพนักงาน' },
                     { id: 'excel', label: '📥 นำเข้า CSV (Excel)' }
                   ].map((tab) => (
                     <button
@@ -1859,7 +1911,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                               const newId = crypto.randomUUID();
                               dispatch({ type: 'add', id: newId });
                               if (window.innerWidth < 1024) {
-                                handleEdit(newId, 'full');
+                                setEditingCardId(newId);
                               }
                             }}
                             className="inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] px-3.5 text-xs font-black transition shadow-xs cursor-pointer"
@@ -1905,10 +1957,12 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                       />
                       <QuickMobileList
                         employees={state.employees}
+                        dispatch={dispatch}
                         query={query}
                         showIncompleteOnly={showIncompleteOnly}
                         invalidEmployeeId={invalidEmployeeId}
-                        onEdit={(id) => handleEdit(id, 'full')}
+                        editingCardId={editingCardId}
+                        setEditingCardId={setEditingCardId}
                       />
                     </div>
                   )}
@@ -2715,7 +2769,7 @@ function QuickOrderSetupPanel({ state, dispatch, forceExpand = false }) {
       </div>
 
       {isExpanded && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mt-4 border-t border-neutral-100 pt-4">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:[&>*]:min-w-0 mt-4 border-t border-neutral-100 pt-4">
           <Field label="บริษัท / หน่วยงาน *">
             <TextInput
               id="setup-company-name"
@@ -3209,13 +3263,13 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
   return (
     <section className="hidden overflow-hidden rounded-xl border border-[#D8DEEA] bg-white lg:block shadow-sm">
       <div className="employee-scroll-region max-h-[58vh] overflow-auto">
-        <table className="w-full min-w-[980px] table-fixed text-left text-sm">
+        <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
               <th className="w-14 border-b border-[#D8DEEA] px-3 py-3 text-center">ลำดับ</th>
-              <th className="w-[14rem] border-b border-[#D8DEEA] px-3 py-3">ชื่อ-นามสกุล *</th>
-              <th className="w-28 border-b border-[#D8DEEA] px-3 py-3">เพศ *</th>
-              <th className="w-[26rem] border-b border-[#D8DEEA] px-3 py-3">รายการเสื้อที่เบิก</th>
+              <th className="w-[16rem] border-b border-[#D8DEEA] px-3 py-3">ชื่อ-นามสกุล *</th>
+              <th className="w-32 border-b border-[#D8DEEA] px-3 py-3">เพศ *</th>
+              <th className="w-[34rem] border-b border-[#D8DEEA] px-3 py-3">รายการเสื้อที่เบิก</th>
               <th className="w-28 border-b border-[#D8DEEA] px-3 py-3 text-center">สถานะ</th>
               <th className="w-28 border-b border-[#D8DEEA] px-3 py-3 text-center">การจัดการ</th>
             </tr>
@@ -3280,10 +3334,10 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                         return (
                           <div
                             key={`${item.type}-${itemIdx}`}
-                            className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs shrink-0"
+                            className="grid grid-cols-[minmax(12rem,1fr)_6rem_4.75rem_2rem] items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs shrink-0"
                           >
                             {/* Clothing Type Select */}
-                            <div className="max-w-[12rem] flex-1 min-w-[6.5rem] shrink-0">
+                            <div className="min-w-0">
                               <Select
                                 value={item.type}
                                 onChange={(val) =>
@@ -3301,7 +3355,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                             </div>
 
                             {/* Size Select */}
-                            <div className="min-w-[4.5rem] shrink-0">
+                            <div className="min-w-0">
                               <Select
                                 value={item.size}
                                 disabled={!employee.gender}
@@ -3332,7 +3386,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                   patch: { qty: digitsOnly(e.target.value) },
                                 })
                               }
-                              className="w-12 h-8 border border-neutral-300 rounded text-center font-bold text-xs focus:border-[#002B5B] outline-none shrink-0"
+                              className="h-9 w-full rounded-lg border border-neutral-300 bg-white text-center text-sm font-black text-[#071638] outline-none transition focus:border-[#002B5B] focus:ring-2 focus:ring-[#002B5B]/10"
                               min="1"
                             />
 
@@ -3348,7 +3402,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                   },
                                 })
                               }
-                              className="text-neutral-400 hover:text-red-500 p-1 rounded hover:bg-neutral-100 transition ml-auto shrink-0"
+                              className="grid size-8 place-items-center rounded-lg text-neutral-400 transition hover:bg-neutral-100 hover:text-red-500"
                               title="ลบรายการเสื้อนี้"
                             >
                               <X className="size-3.5" />
@@ -3452,44 +3506,227 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
   );
 }
 
-function QuickMobileList({ employees, query, showIncompleteOnly, invalidEmployeeId, onEdit }) {
+function QuickMobileList({
+  employees,
+  dispatch,
+  query,
+  showIncompleteOnly,
+  invalidEmployeeId,
+  editingCardId,
+  setEditingCardId,
+}) {
   const filteredEmployees = getFilteredEmployees(employees, query, showIncompleteOnly);
+  const canDelete = canDeleteEmployee(employees);
+  const clothingTypes = getClothingTypes();
+
   return (
     <section className="grid gap-2 lg:hidden">
       {filteredEmployees.map((employee) => {
         const index = employees.findIndex((item) => item.id === employee.id);
         const complete = isEmployeeComplete(employee);
         const pieces = employee.items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+        const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
+        const isEditing = editingCardId === employee.id;
         return (
-          <button
+          <article
             key={employee.id}
             data-quick-employee-card={employee.id}
-            onClick={() => onEdit(employee.id)}
             className={cn(
-              'rounded-lg border border-[#D8DEEA] bg-white p-3 text-left',
+              'rounded-xl border bg-white p-3 text-left shadow-xs transition',
+              isEditing
+                ? 'border-[#002B5B] ring-2 ring-[#002B5B]/10'
+                : 'border-[#D8DEEA]',
               invalidEmployeeId === employee.id &&
                 'employee-attention border-[#EF4444] bg-[#FFF7F7]'
             )}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-extrabold text-[#071638]">
-                  {index + 1}. {employee.name || 'ยังไม่ระบุชื่อ'}
-                </p>
-                <p className="mt-1 text-xs font-bold text-[#64748B]">
-                  {employee.gender || 'ยังไม่เลือกเพศ'} · {pieces} ชิ้น
-                </p>
+            {isEditing ? (
+              <div className="grid gap-3" onClick={(event) => event.stopPropagation()}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-[#002B5B]">แก้ไขข้อมูล ลำดับที่ {index + 1}</p>
+                    <p className="mt-0.5 text-[11px] font-bold text-[#64748B]">
+                      แก้ชื่อ เพศ เสื้อ ไซส์ และจำนวนตัวได้จากการ์ดนี้
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      'shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold',
+                      complete ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'
+                    )}
+                  >
+                    {complete ? 'ครบ' : 'ยังไม่ครบ'}
+                  </span>
+                </div>
+
+                <div className="grid gap-3 rounded-lg border border-[#E7EAF0] bg-[#F8FAFC] p-3">
+                  <Field label="ชื่อ-นามสกุล *">
+                    <TextInput
+                      value={employee.name}
+                      invalid={showErrors && !employee.name.trim()}
+                      onChange={(value) =>
+                        dispatch({ type: 'patchEmployee', id: employee.id, patch: { name: value } })
+                      }
+                      placeholder="ชื่อ-นามสกุล"
+                    />
+                  </Field>
+
+                  <Field label="เพศ *">
+                    <div className="grid grid-cols-2 gap-2">
+                      {GENDERS.map((gender) => (
+                        <button
+                          key={gender}
+                          type="button"
+                          onClick={() =>
+                            dispatch({ type: 'patchEmployee', id: employee.id, patch: { gender } })
+                          }
+                          className={cn(
+                            'h-10 rounded-lg border text-xs font-black transition active:scale-95',
+                            employee.gender === gender
+                              ? 'border-[#002B5B] bg-[#002B5B] text-white shadow-xs'
+                              : showErrors && !employee.gender
+                                ? 'border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C]'
+                                : 'border-[#CBD5E1] bg-white text-[#071638] hover:border-[#002B5B]'
+                          )}
+                        >
+                          {gender}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                </div>
+
+                <div className="grid gap-2 rounded-lg border border-[#E7EAF0] bg-white p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-black text-[#64748B]">เสื้อที่เบิก *</p>
+                    {showErrors && !employee.items.length && (
+                      <span className="text-[11px] font-bold text-[#B91C1C]">เลือกอย่างน้อย 1 รายการ</span>
+                    )}
+                  </div>
+                  <div className="grid gap-2">
+                    {clothingTypes.map((type) => (
+                      <QuickGarmentCellInline
+                        key={type}
+                        employee={employee}
+                        type={type}
+                        dispatch={dispatch}
+                        invalidEmployeeId={invalidEmployeeId}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[1fr_1fr_2.5rem] gap-2 border-t border-neutral-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCardId('')}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] text-xs font-extrabold text-white shadow-xs transition hover:bg-[#001f42]"
+                  >
+                    <Check className="size-3.5" />
+                    <span>เสร็จสิ้น</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'cloneEmployee', id: employee.id })}
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#44536A] transition hover:bg-neutral-50"
+                  >
+                    <Copy className="size-3.5" />
+                    <span>คัดลอก</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canDelete}
+                    onClick={() => {
+                      dispatch({ type: 'delete', id: employee.id });
+                      setEditingCardId('');
+                    }}
+                    className="grid h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] transition hover:bg-[#FFE2E2] disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="ลบ"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
               </div>
-              <span
-                className={cn(
-                  'shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold',
-                  complete ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'
-                )}
-              >
-                {complete ? 'ครบ' : 'แก้'}
-              </span>
-            </div>
-          </button>
+            ) : (
+              <div className="grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingCardId(employee.id)}
+                  className="w-full text-left"
+                  title="แก้ไขข้อมูลบนการ์ด"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-extrabold text-[#071638]">
+                        ลำดับที่ {index + 1}
+                      </p>
+                      <p className="mt-1 truncate text-sm font-extrabold text-[#071638]">
+                        {employee.name || 'ยังไม่ระบุชื่อ'}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-[#64748B]">
+                        เพศ: {employee.gender || 'ยังไม่เลือกเพศ'} · {pieces} ชิ้น
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        'shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold',
+                        complete ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'
+                      )}
+                    >
+                      {complete ? '✓ ครบ' : 'แก้'}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-1.5">
+                    <span className="text-[11px] font-black text-[#94A3B8]">เสื้อที่เบิก:</span>
+                    {employee.items.length ? (
+                      employee.items.map((item, itemIndex) => (
+                        <div
+                          key={`${item.type}-${itemIndex}`}
+                          className="flex items-center justify-between gap-2 rounded border border-neutral-100 bg-neutral-50 px-2 py-1 text-xs font-bold text-neutral-700"
+                        >
+                          <span className="min-w-0 truncate">{item.type}</span>
+                          <span className="shrink-0 font-black text-[#002B5B]">
+                            ไซส์ {item.size === OTHER_SIZE ? item.customSize || OTHER_SIZE : item.size || '-'} x {item.qty || 0} ตัว
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs font-semibold italic text-neutral-400">ไม่มีเสื้อ</p>
+                    )}
+                  </div>
+                </button>
+
+                <div className="flex items-center gap-2 border-t border-neutral-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCardId(employee.id)}
+                    className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#002B5B] transition hover:bg-[#002B5B]/5"
+                  >
+                    <Pencil className="size-3.5" />
+                    <span>แก้ไข</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'cloneEmployee', id: employee.id })}
+                    className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#44536A] transition hover:bg-neutral-50"
+                  >
+                    <Copy className="size-3.5" />
+                    <span>คัดลอก</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canDelete}
+                    onClick={() => dispatch({ type: 'delete', id: employee.id })}
+                    className="grid size-9 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] transition hover:bg-[#FFE2E2] disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="ลบ"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </article>
         );
       })}
       {!filteredEmployees.length && (
@@ -8158,7 +8395,11 @@ function SkeletonDashboard() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>
+);
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

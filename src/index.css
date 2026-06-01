@@ -266,7 +266,7 @@ select option:checked {
   }
 
   .form-input {
-    @apply w-full px-3 py-2 border border-neutral-300 rounded-lg;
+    @apply w-full min-h-11 px-3 py-2 border border-neutral-300 rounded-lg;
     @apply bg-white text-neutral-900 font-normal;
     @apply focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
     @apply focus:border-primary-400 transition-all duration-300;

@@ -3,3 +3,6 @@ import '@testing-library/jest-dom';
 if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
 	Element.prototype.scrollIntoView = function () {};
 }
+if (typeof window !== 'undefined') {
+	window.scrollTo = function () {};
+}
