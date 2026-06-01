@@ -18,9 +18,12 @@ import {
   Copy,
   Download,
   Eraser,
+  BookOpen,
   LayoutDashboard,
+  LogOut,
   Loader2,
   PackageCheck,
+  PackageSearch,
   Pencil,
   PieChart,
   Plus,
@@ -39,6 +42,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Printer,
+  RefreshCw,
   AlertTriangle,
   Edit3,
 } from 'lucide-react';
@@ -99,6 +103,10 @@ const BRANCHES = [
 ];
 const CLOTHING_TYPES = ['เสื้อโปโล', 'เสื้อช็อป', 'กางเกงช็อป'];
 const GENDERS = ['ชาย', 'หญิง'];
+
+function genderSymbol(gender) {
+  return gender === 'ชาย' ? '♂' : '♀';
+}
 const OTHER_SIZE = 'อื่นๆ';
 const PHONE_LENGTH = 10;
 
@@ -1213,16 +1221,16 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         const stepNum = parseInt(e.key, 10);
         if (stepNum === 1) {
           setActiveStep(1);
-          toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 1: ข้อมูลผู้เบิก');
+          toast.info('ไปยังขั้นตอนที่ 1: ข้อมูลผู้เบิก');
         } else if (stepNum === 2) {
           if (validateCompany()) {
             setActiveStep(2);
-            toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
+            toast.info('ไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
           }
         } else if (stepNum === 3) {
           if (validateCompany() && validateEmployees()) {
             setActiveStep(3);
-            toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 3: ตรวจสอบและส่ง');
+            toast.info('ไปยังขั้นตอนที่ 3: ตรวจสอบและส่ง');
           }
         }
       }
@@ -1231,21 +1239,21 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         if (activeStep === 1) {
           if (validateCompany()) {
             setActiveStep(2);
-            toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
+          toast.info('ไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
           }
         } else if (activeStep === 2) {
           if (validateCompany() && validateEmployees()) {
             setActiveStep(3);
-            toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 3: ตรวจสอบและส่ง');
+          toast.info('ไปยังขั้นตอนที่ 3: ตรวจสอบและส่ง');
           }
         }
       } else if (e.altKey && e.key === 'ArrowLeft') {
         if (activeStep === 2) {
           setActiveStep(1);
-          toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 1: ข้อมูลผู้เบิก');
+          toast.info('ไปยังขั้นตอนที่ 1: ข้อมูลผู้เบิก');
         } else if (activeStep === 3) {
           setActiveStep(2);
-          toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
+          toast.info('ไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
         }
       }
     }
@@ -1262,31 +1270,31 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
 
   function validateCompany() {
     if (!state.companyName.trim()) {
-      toast.error('⚠️ ยังไม่ได้ระบุบริษัท', { description: 'กรุณาระบุชื่อบริษัท/หน่วยงานของคุณ' });
+      toast.error('ยังไม่ได้ระบุบริษัท', { description: 'กรุณาระบุชื่อบริษัท/หน่วยงานของคุณ' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return false;
     }
     if (!state.branch) {
-      toast.error('⚠️ ยังไม่ได้เลือกสาขา', { description: 'โปรดเลือกสาขาที่จะจัดส่งเสื้อ' });
+      toast.error('ยังไม่ได้เลือกสาขา', { description: 'โปรดเลือกสาขาที่จะจัดส่งเสื้อ' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return false;
     }
     if (!state.supervisorName.trim()) {
-      toast.error('⚠️ ยังไม่ได้ระบุผู้รับผิดชอบ', {
+      toast.error('ยังไม่ได้ระบุผู้รับผิดชอบ', {
         description: 'กรุณาระบุชื่อ-นามสกุลของผู้รับผิดชอบสั่งซื้อ',
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return false;
     }
     if (!state.supervisorPhone.trim()) {
-      toast.error('⚠️ ยังไม่ได้ระบุเบอร์ติดต่อ', {
+      toast.error('ยังไม่ได้ระบุเบอร์ติดต่อ', {
         description: 'กรุณาระบุเบอร์โทรศัพท์มือถือของผู้รับผิดชอบ',
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return false;
     }
     if (state.supervisorPhone.length !== PHONE_LENGTH) {
-      toast.error('⚠️ เบอร์โทรศัพท์ไม่ถูกต้อง', {
+      toast.error('เบอร์โทรศัพท์ไม่ถูกต้อง', {
         description: `กรุณากรอกตัวเลขทั้งหมด ${PHONE_LENGTH} หลัก (เช่น 08XXXXXXXX)`,
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1370,7 +1378,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     if (invalidEmployee) {
       const index = state.employees.findIndex((employee) => employee.id === invalidEmployee.id) + 1;
       const missing = getEmployeeMissingFields(invalidEmployee).join(', ');
-      toast.error(`❌ พนักงานลำดับที่ ${index} ยังไม่ครบถ้วน`, { description: `ขาด: ${missing}` });
+      toast.error(`พนักงานลำดับที่ ${index} ยังไม่ครบถ้วน`, { description: `ขาด: ${missing}` });
       jumpToEmployee(invalidEmployee.id);
       return false;
     }
@@ -1594,7 +1602,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     if (!csvPreview.length) return;
     const validRows = csvPreview.filter((row) => row.isValid);
     if (!validRows.length) {
-      toast.error('❌ ไม่พบรายการพนักงานที่สมบูรณ์สำหรับนำเข้า');
+      toast.error('ไม่พบรายการพนักงานที่สมบูรณ์สำหรับนำเข้า');
       return;
     }
     
@@ -1614,7 +1622,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       dispatch({ type: 'patchBatch', patch: { employees: [...state.employees, ...newEmployees] } });
     }
     
-    toast.success(`✅ นำเข้ารายชื่อพนักงาน ${newEmployees.length} คนสำเร็จ!`);
+    toast.success(`นำเข้ารายชื่อพนักงาน ${newEmployees.length} คนแล้ว`);
     setCsvPreview([]);
     setCsvErrors([]);
     setActiveTab('table');
@@ -1808,23 +1816,27 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                 {/* Tab Header Buttons */}
                 <div className="flex border-b border-neutral-200 bg-[#f8fafc] p-2 gap-2">
                   {[
-                    { id: 'table', label: '📝 รายชื่อพนักงาน' },
-                    { id: 'excel', label: '📥 นำเข้า CSV (Excel)' }
-                  ].map((tab) => (
+                    { id: 'table', label: 'รายชื่อพนักงาน', icon: Users },
+                    { id: 'excel', label: 'นำเข้า CSV', icon: Upload }
+                  ].map((tab) => {
+                    const TabIcon = tab.icon;
+                    return (
                     <button
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
                       className={cn(
-                        "flex-1 py-2 px-3 text-xs sm:text-sm font-extrabold rounded-xl transition-all cursor-pointer border sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] shadow-xs",
+                        "flex flex-1 items-center justify-center gap-1.5 py-2 px-3 text-xs sm:text-sm font-extrabold rounded-xl transition-all cursor-pointer border sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] shadow-xs",
                         activeTab === tab.id 
                           ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10" 
                           : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800"
                       )}
-                    >
-                      {tab.label}
+                      >
+                        <TabIcon className="size-4" />
+                        <span>{tab.label}</span>
                     </button>
-                  ))}
+                  );
+                })}
                 </div>
 
                 {/* Tab Content */}
@@ -1960,7 +1972,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                                         "rounded-full px-2 py-0.5 text-[10px] font-black",
                                         complete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
                                       )}>
-                                        {complete ? "✓ ครบ" : "⚠️ ไม่ครบ"}
+                                         {complete ? "ครบ" : "ไม่ครบ"}
                                       </span>
                                     </div>
                                     
@@ -1996,7 +2008,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                                                   : 'border-[#CBD5E1] bg-white text-[#071638] hover:border-[#002B5B]'
                                               )}
                                             >
-                                              {gender === 'ชาย' ? '👨 ชาย' : '👩 หญิง'}
+                                              <span className="text-sm">{genderSymbol(gender)}</span> {gender}
                                             </button>
                                           ))}
                                         </div>
@@ -2146,7 +2158,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                                         "rounded-full px-2 py-0.5 text-[10px] font-black",
                                         complete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
                                       )}>
-                                        {complete ? "✓ ครบ" : "⚠️ ไม่ครบ"}
+                                         {complete ? "ครบ" : "ไม่ครบ"}
                                       </span>
                                     </div>
                                     <h4 className="font-extrabold text-sm text-[#071638] mt-1.5 truncate group-hover:text-[#002B5B] transition-colors flex items-center gap-1.5">
@@ -2395,7 +2407,10 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
 
               {/* Breakdown sorted by clothing types */}
               <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm">
-                <h3 className="text-sm sm:text-base font-extrabold text-[#071638] mb-3">📋 จำแนกรายการขอเบิกตามประเภทเสื้อ</h3>
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-[#071638] sm:text-base">
+                  <ClipboardList className="size-4 text-[#0A2A5E]" />
+                  จำแนกรายการขอเบิกตามประเภทเสื้อ
+                </h3>
                 <div className="space-y-4">
                   {Object.entries(employeesByGarmentType).map(([type, list]) => (
                     <div key={type} className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-3xs">
@@ -2436,7 +2451,10 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
 
               {/* Size summary cards */}
               <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm">
-                <h3 className="text-sm sm:text-base font-extrabold text-[#071638] mb-3">📏 สรุปไซส์ที่เบิกต่อประเภทเสื้อ</h3>
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-[#071638] sm:text-base">
+                  <Ruler className="size-4 text-[#0A2A5E]" />
+                  สรุปไซส์ที่เบิกต่อประเภทเสื้อ
+                </h3>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {Object.entries(garmentSizeBreakdowns).map(([type, sizes]) => (
                     <div key={type} className="p-3 border border-neutral-200 rounded-xl bg-neutral-50/40">
@@ -2519,7 +2537,7 @@ function SetupWarning() {
     <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 flex items-start gap-3 shadow-sm animate-fade-in">
       <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5" />
       <div>
-        <h4 className="text-sm font-extrabold text-yellow-800">⚠️ ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อมใช้งาน</h4>
+        <h4 className="text-sm font-extrabold text-yellow-800">ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อมใช้งาน</h4>
         <p className="text-xs text-yellow-700 font-semibold mt-1 leading-5">
           กรุณาตั้งค่าลิงก์ Web App URL ของ Google Apps Script ในไฟล์ .env (`VITE_GAS_URL`) ก่อนส่งคำขอเบิกเสื้อจริง คุณยังสามารถกรอกข้อมูลและทดสอบการใช้งานแบบร่างได้ปกติ
         </p>
@@ -2569,14 +2587,17 @@ function QuickOrderSetupPanel({ state, dispatch, forceExpand = false }) {
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-black text-[#071638]">📋 ข้อมูลผู้ติดต่อ / ผู้เบิก</h2>
+            <h2 className="flex items-center gap-2 text-base font-black text-[#071638]">
+              <ClipboardList className="size-4 text-[#0A2A5E]" />
+              ข้อมูลผู้ติดต่อ / ผู้เบิก
+            </h2>
             {complete ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-[#DCFCE7] px-2.5 py-0.5 text-xs font-bold text-[#166534]">
                 <Check className="size-3" /> ครบถ้วน
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-bold text-yellow-800 animate-pulse">
-                ⚠️ ยังไม่ครบ
+                <AlertTriangle className="size-3" /> ยังไม่ครบ
               </span>
             )}
           </div>
@@ -2588,8 +2609,8 @@ function QuickOrderSetupPanel({ state, dispatch, forceExpand = false }) {
           {isExpanded && (
             <p className="mt-1.5 text-[13px] font-semibold leading-5 text-[#52525B]">
               {complete
-                ? '✅ ข้อมูลผู้เบิกครบแล้ว - สามารถกดซ่อนเพื่อประหยัดพื้นที่หน้าจอ'
-                : '⚠️ กรุณากรอกข้อมูลให้ครบทั้ง 4 ช่อง เพื่อเตรียมการจัดส่ง'}
+                ? 'ข้อมูลผู้เบิกครบแล้ว สามารถกดซ่อนเพื่อประหยัดพื้นที่หน้าจอ'
+                : 'กรุณากรอกข้อมูลให้ครบทั้ง 4 ช่อง เพื่อเตรียมการจัดส่ง'}
             </p>
           )}
         </div>
@@ -2699,7 +2720,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
 
   function applyQuickOrder() {
     if (!names.length) {
-      toast.error('❌ ยังไม่มีรายชื่อพนักงาน', {
+      toast.error('ยังไม่มีรายชื่อพนักงาน', {
         description: 'โปรดวางรายชื่อพนักงานอย่างน้อย 1 คน (หนึ่งชื่อต่อบรรทัด)',
       });
       return;
@@ -2721,7 +2742,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
     setNamesText('');
     setReplaceConfirmOpen(false);
     setOpen(false);
-    toast.success(`✅ เพิ่มรายชื่อพนักงาน ${names.length} คนเรียบร้อยแล้ว`);
+    toast.success(`เพิ่มรายชื่อพนักงาน ${names.length} คนเรียบร้อยแล้ว`);
   }
 
   return (
@@ -2731,33 +2752,33 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
           <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45" />
           <Dialog.Content
             aria-describedby={undefined}
-            className="fixed inset-x-3 bottom-3 z-50 max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
+            className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(54rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
           >
-            <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
-              <div>
-                <Dialog.Title className="text-xl font-extrabold text-[#071638]">
-                  ➕ เพิ่มพนักงานหลายคน
+            <div className="flex items-center justify-between border-b border-[#E7EAF0] px-4 py-3">
+              <div className="min-w-0">
+                <Dialog.Title className="flex items-center gap-2 text-lg font-extrabold text-[#071638]">
+                  <UserPlus className="size-5 text-[#0A2A5E]" /> เพิ่มพนักงานหลายคน
                 </Dialog.Title>
-                <p className="text-sm font-semibold text-[#64748B] mt-1">
+                <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
                   วางรายชื่อและตั้งชุดเสื้อตั้งต้นเพื่อใช้ได้ทันที
                 </p>
               </div>
               <Dialog.Close
-                className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]"
+                className="grid size-9 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]"
                 aria-label="ปิด"
               >
-                <X />
+                <X className="size-5" />
               </Dialog.Close>
             </div>
-            <div className="employee-scroll-region max-h-[calc(90vh-5rem)] overflow-y-auto p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="employee-scroll-region max-h-[calc(88vh-4.5rem)] overflow-y-auto p-3 sm:p-4">
+              <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-extrabold text-[#071638] sm:text-xl">
-                    1️⃣ วางรายชื่อพนักงาน
+                  <h2 className="flex items-center gap-2 text-base font-extrabold text-[#071638]">
+                    <Users className="size-4 text-[#0A2A5E]" /> รายชื่อพนักงาน
                   </h2>
-                  <p className="text-sm font-semibold text-[#64748B] mt-1">หนึ่งชื่อต่อบรรทัด</p>
+                  <p className="mt-0.5 text-xs font-semibold text-[#64748B]">หนึ่งชื่อต่อบรรทัด</p>
                 </div>
-                <span className="hidden rounded-md bg-white px-3 py-2 text-sm font-bold text-[#002B5B] sm:block">
+                <span className="rounded-md bg-[#EEF4FF] px-2.5 py-1 text-xs font-black text-[#002B5B]">
                   {names.length} คน
                 </span>
               </div>
@@ -2767,37 +2788,37 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
                   onChange={setNamesText}
                   placeholder={'วันท์ สวนศักดิ์\nคิม ชมภูดิน\nจีจี บัวสวรรค์\nเพิ่มเติม...'}
                   title="วางรายชื่อพนักงานหนึ่งชื่อในแต่ละบรรทัด"
-                  rows={8}
+                  rows={6}
                 />
               </Field>
 
-              <div className="mt-6 border-t border-[#E7EAF0] pt-6">
-                <h2 className="text-lg font-extrabold text-[#071638] sm:text-xl">
-                  2️⃣ ตั้งชุดเสื้อตั้งต้น
+              <div className="mt-4 border-t border-[#E7EAF0] pt-4">
+                <h2 className="flex items-center gap-2 text-base font-extrabold text-[#071638]">
+                  <Ruler className="size-4 text-[#0A2A5E]" /> ชุดเสื้อตั้งต้น
                 </h2>
-                <p className="text-sm font-semibold text-[#64748B] mt-1">
+                <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
                   เลือกเพศ ไซส์ และประเภทเสื้อที่ต้องการให้ทุกคน
                 </p>
-                <div className="grid gap-4 mt-4 lg:grid-cols-[1fr_1fr]">
-                  <Field label="👨👩 เพศตั้งต้น">
+                <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr]">
+                  <Field label="เพศตั้งต้น">
                     <div className="grid grid-cols-2 gap-2">
                       {GENDERS.map((g) => (
                         <button
                           key={g}
                           onClick={() => setGender(g)}
                           className={cn(
-                            'min-h-11 rounded-lg border-2 font-bold transition',
+                            'min-h-10 rounded-lg border font-bold transition',
                             gender === g
                               ? 'border-[#002B5B] bg-[#002B5B] text-white'
                               : 'border-[#CBD5E1] bg-white text-[#071638]'
                           )}
                         >
-                          {g === 'ชาย' ? '👨' : '👩'} {g}
+                          <span className="text-base">{genderSymbol(g)}</span> {g}
                         </button>
                       ))}
                     </div>
                   </Field>
-                  <Field label="📏 ไซส์ตั้งต้น">
+                  <Field label="ไซส์ตั้งต้น">
                     <Select
                       value={defaultSizeValue}
                       values={quickSizes}
@@ -2809,18 +2830,18 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
                 </div>
               </div>
 
-              <div className="mt-6 border-t border-[#E7EAF0] pt-6">
-                <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="mt-4 border-t border-[#E7EAF0] pt-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
-                    <h2 className="text-lg font-extrabold text-[#071638] sm:text-xl">
-                      👕 เลือกประเภทเสื้อ
+                    <h2 className="flex items-center gap-2 text-base font-extrabold text-[#071638]">
+                      <Shirt className="size-4 text-[#0A2A5E]" /> ประเภทเสื้อ
                     </h2>
-                    <p className="text-sm font-semibold text-[#64748B] mt-1">
+                    <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
                       เลือกแบบเสื้อและระบุจำนวน
                     </p>
                   </div>
                 </div>
-                <div className="grid max-h-[20rem] gap-2 overflow-y-auto rounded-xl border border-[#D8DEEA] bg-white p-2">
+                <div className="grid max-h-[16rem] gap-2 overflow-y-auto rounded-xl border border-[#D8DEEA] bg-white p-2">
                   {clothingTypes.map((type, index) => {
                     return (
                       <div
@@ -2876,7 +2897,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
 
               <button
                 onClick={applyQuickOrder}
-                className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-4 font-bold text-white transition hover:bg-[#013A78] active:scale-95"
+                className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-4 font-bold text-white transition hover:bg-[#013A78] active:scale-95"
               >
                 <UserPlus /> ยืนยันเพิ่มเข้ารายการ
               </button>
@@ -2886,7 +2907,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
       </Dialog.Root>
       <ConfirmDialog
         open={replaceConfirmOpen}
-        title="⚠️ แทนที่รายการเดิม"
+        title="แทนที่รายการเดิม"
         description="มีข้อมูลพนักงานเดิมอยู่แล้ว ต้องการแทนที่ด้วยรายชื่อชุดใหม่หรือไม่?"
         confirmLabel="แทนที่"
         cancelLabel="ยกเลิก"
@@ -3560,7 +3581,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                 <div className="min-w-0">
                   <Dialog.Title className="font-extrabold text-[#071638]">
                     {editMode === 'garments-only' ? (
-                      `👕 จัดการเสื้อ: ${employee.name || 'ยังไม่ระบุชื่อ'}`
+                      `จัดการเสื้อ: ${employee.name || 'ยังไม่ระบุชื่อ'}`
                     ) : (
                       `${index + 1}. ${employee.name || 'ยังไม่ระบุชื่อ'}`
                     )}
@@ -3584,7 +3605,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                 {editMode !== 'garments-only' && (
                   <div className="bg-white rounded-lg border border-[#D8DEEA] p-3">
                     <p className="text-xs font-bold text-[#64748B] mb-2">
-                      📝 ขั้นตอนที่ 1: ชื่อและเพศ
+                      ขั้นตอนที่ 1: ชื่อและเพศ
                     </p>
                     <Field label="ชื่อ-นามสกุล *">
                       <TextInput
@@ -3615,7 +3636,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                             )}
                             title={`เลือก${gender}`}
                           >
-                            {gender === 'ชาย' ? '👨' : '👩'} {gender}
+                            <span className="text-base">{genderSymbol(gender)}</span> {gender}
                           </button>
                         ))}
                       </div>
@@ -3625,7 +3646,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
 
                 <div className="bg-white rounded-lg border border-[#D8DEEA] p-3">
                   <p className="text-xs font-bold text-[#64748B] mb-2">
-                    {editMode === 'garments-only' ? '👕 รายการเสื้อที่เบิก' : '👕 ขั้นตอนที่ 2: เลือกแบบเสื้อ'}
+                    {editMode === 'garments-only' ? 'รายการเสื้อที่เบิก' : 'ขั้นตอนที่ 2: เลือกแบบเสื้อ'}
                   </p>
                   <div className="grid gap-2.5">
                     {clothingTypes.map((type) => {
@@ -3699,7 +3720,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                     })}
                     {showErrors && !employee.items.length && (
                       <p className="text-xs font-bold text-[#B91C1C] mt-1">
-                        ⚠ ต้องเลือกแบบเสื้ออย่างน้อย 1 แบบ
+                        ต้องเลือกแบบเสื้ออย่างน้อย 1 แบบ
                       </p>
                     )}
                   </div>
@@ -3739,14 +3760,14 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                       const newId = crypto.randomUUID();
                       dispatch({ type: 'add', id: newId });
                       onNext(newId);
-                      toast.success('➕ เพิ่มพนักงานคนใหม่สำเร็จ', {
+                      toast.success('เพิ่มพนักงานคนใหม่แล้ว', {
                         description: 'กรุณากรอกข้อมูลสำหรับพนักงานคนถัดไป',
                       });
                     }}
                     className="min-h-11 rounded-lg bg-[#002B5B] text-xs sm:text-sm font-bold text-white transition hover:bg-[#013A78] active:scale-95"
                     title="เพิ่มพนักงานใหม่และแก้ไขต่อทันที"
                   >
-                    เพิ่มคนถัดไป ➕
+                    เพิ่มคนถัดไป
                   </button>
                 )}
               </div>
@@ -3761,18 +3782,9 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
 
 
 function ReviewMetric({ label, value }) {
-  const iconMap = {
-    สาขา: '🏢',
-    ผู้ติดต่อ: '👤',
-    พนักงาน: '👥',
-    จำนวนรวม: '📦',
-  };
-  const icon = iconMap[label] || '📋';
   return (
     <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3 border border-[#E2E8F0]">
-      <p className="text-xs font-bold text-[#64748B]">
-        {icon} {label}
-      </p>
+      <p className="text-xs font-bold text-[#64748B]">{label}</p>
       <p className="mt-1 break-words font-extrabold text-[#071638] text-sm">{value}</p>
     </div>
   );
@@ -3781,6 +3793,7 @@ function ReviewMetric({ label, value }) {
 function DashboardApp({ demoMode, onOpenOrder }) {
   const [adminToken, setDashboardToken] = useState(getAdminToken);
   const [dashboardView, setDashboardView] = useState('orders');
+  const [manualOpen, setManualOpen] = useState(false);
 
   function handleUnlock(token) {
     setAdminToken(token);
@@ -3788,6 +3801,11 @@ function DashboardApp({ demoMode, onOpenOrder }) {
   }
 
   function handleAuthExpired() {
+    setAdminToken('');
+    setDashboardToken('');
+  }
+
+  function handleLogout() {
     setAdminToken('');
     setDashboardToken('');
   }
@@ -3802,6 +3820,8 @@ function DashboardApp({ demoMode, onOpenOrder }) {
         activeView={dashboardView}
         onViewChange={setDashboardView}
         onOpenOrder={onOpenOrder}
+        onManualOpen={() => setManualOpen(true)}
+        onLogout={handleLogout}
       />
       <main className="relative z-10 mx-auto flex w-full max-w-[1520px] flex-col gap-3 px-2 pb-10 pt-3 sm:px-4 lg:gap-4 lg:px-6 lg:pt-5">
         <Dashboard
@@ -3811,6 +3831,7 @@ function DashboardApp({ demoMode, onOpenOrder }) {
           onViewChange={setDashboardView}
         />
       </main>
+      <AdminManualDialog open={manualOpen} setOpen={setManualOpen} />
     </>
   );
 }
@@ -4097,6 +4118,28 @@ function SizeReference({ open, setOpen }) {
   );
 }
 
+function ManualSection({ icon: Icon, title, children }) {
+  return (
+    <section className="manual-section">
+      <div className="manual-section-title">
+        <span><Icon className="size-4" /></span>
+        <h3>{title}</h3>
+      </div>
+      <div className="manual-section-body">{children}</div>
+    </section>
+  );
+}
+
+function ManualList({ items }) {
+  return (
+    <ul className="manual-list">
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
 function UserManualDialog({ open, setOpen }) {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -4106,99 +4149,134 @@ function UserManualDialog({ open, setOpen }) {
           aria-describedby={undefined}
           className="user-manual-dialog fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#DDE5F0] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(46rem,88vh)] sm:w-[min(48rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
         >
-          <div className="flex items-center justify-between border-b border-[#E7EAF0] bg-white px-4 py-3.5 sm:px-5">
+          <div className="manual-dialog-head">
             <div className="min-w-0">
-              <Dialog.Title className="text-lg font-black text-[#071638] sm:text-xl flex items-center gap-2">
-                <span>📖</span> คู่มือการใช้งานระบบเบิกเสื้อพนักงาน
+              <Dialog.Title className="manual-dialog-title">
+                <BookOpen className="size-5" /> คู่มือการเบิกเสื้อพนักงาน
               </Dialog.Title>
+              <p>สำหรับผู้กรอกคำขอเบิก ใช้ทำรายการให้ครบและลดการส่งข้อมูลผิด</p>
             </div>
-            <Dialog.Close
-              className="grid size-10 shrink-0 place-items-center rounded-full text-[#1F2937] transition hover:bg-[#F1F5F9] cursor-pointer"
-              aria-label="ปิด"
-            >
+            <Dialog.Close className="manual-close-button" aria-label="ปิด">
               <X className="size-5" />
             </Dialog.Close>
           </div>
-          
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 space-y-6 text-sm text-[#374151] leading-relaxed">
-            <p className="text-xs sm:text-sm font-semibold text-neutral-500">
-              ยินดีต้อนรับสู่ระบบเบิกเสื้อพนักงานรุ่นปรับปรุงใหม่! ระบบใช้กระบวนการกรอกข้อมูลแบบ <strong className="text-[#002B5B]">3 ขั้นตอน (3-Step Wizard Flow)</strong> เพื่อให้ง่าย ถูกต้อง และป้องกันความผิดพลาดในการส่งข้อมูล ดังนี้:
-            </p>
 
-            {/* Step 1 */}
-            <div className="rounded-xl border border-blue-100 bg-blue-50/20 p-4 space-y-2">
-              <h3 className="text-sm sm:text-base font-black text-[#002B5B] flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-full bg-[#002B5B] text-white text-xs font-bold">1</span>
-                <span>ขั้นตอนที่ 1: ข้อมูลผู้เบิก</span>
-              </h3>
-              <p className="text-xs sm:text-sm text-[#44536A] font-semibold pl-8">
-                กรอกข้อมูลผู้รับผิดชอบการขอเบิกเสื้อ ได้แก่ **ชื่อผู้ควบคุมงาน (Supervisor)**, **บริษัทในเครือ**, **สาขา/แผนก** และ **เบอร์โทรศัพท์** ให้ครบถ้วนสมบูรณ์ก่อนที่จะสามารถกดถัดไปเพื่อเริ่มกรอกข้อมูลพนักงาน
-              </p>
-            </div>
+          <div className="manual-dialog-body">
+            <ManualSection icon={UserCheck} title="ขั้นตอนที่ 1: ข้อมูลผู้เบิกและสถานที่จัดส่ง">
+              <ManualList
+                items={[
+                  'กรอกชื่อบริษัทหรือหน่วยงาน เลือกสาขาที่จัดส่ง ระบุชื่อผู้ติดต่อ และเบอร์ติดต่อให้ครบ',
+                  'ระบบจะตรวจรูปแบบเบอร์โทรศัพท์และจัดรูปแบบให้อ่านง่ายโดยอัตโนมัติ',
+                  'เมื่อข้อมูลครบแล้วจึงไปขั้นตอนรายการเสื้อพนักงานได้',
+                ]}
+              />
+            </ManualSection>
 
-            {/* Step 2 */}
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50/20 p-4 space-y-3">
-              <h3 className="text-sm sm:text-base font-black text-[#4F46E5] flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-full bg-[#4F46E5] text-white text-xs font-bold">2</span>
-                <span>ขั้นตอนที่ 2: รายการเสื้อพนักงาน</span>
-              </h3>
-              <p className="text-xs sm:text-sm text-[#44536A] font-semibold pl-8">
-                ระบุรายชื่อพนักงานและเลือกไซส์เสื้อผ่านแท็บเครื่องมือ 3 รูปแบบตามความสะดวก:
-              </p>
-              <div className="grid gap-3 sm:grid-cols-3 pl-8">
-                <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-1">
-                  <h4 className="font-bold text-xs text-neutral-800">📝 1. กรอกตาราง</h4>
-                  <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed">
-                    เพิ่มแถวพนักงานทีละคน หรือกด "เพิ่มพนักงานหลายคน" เพื่อวางลิสต์ชื่อ จากนั้นเลือกเพศ และกดปุ่ม <strong className="text-[#002B5B]">+</strong> ในคอลัมน์เสื้อเพื่อระบุประเภท ไซส์ และจำนวน (รองรับการขอเบิกเสื้อหลายแบบ/หลายตัวต่อคน)
-                  </p>
-                </div>
-                <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-1">
-                  <h4 className="font-bold text-xs text-neutral-800">👥 2. คัดลอกแถว</h4>
-                  <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed">
-                    ใช้เพื่อคัดลอกหรือจำลองรายชื่อพนักงานและข้อมูลเสื้อผ้าจากไฟล์ภายนอก หรือทำการโคลนรายการได้อย่างสะดวกรวดเร็ว
-                  </p>
-                </div>
-                <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-1">
-                  <h4 className="font-bold text-xs text-neutral-800">📥 3. นำเข้า CSV (Excel)</h4>
-                  <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed">
-                    ดาวน์โหลดเทมเพลตไฟล์ CSV ไปกรอกรายละเอียดพนักงานทั้งหมดใน Excel หรือ Google Sheets แล้วอัปโหลดกลับเข้าสู่ระบบทันที
-                  </p>
-                </div>
-              </div>
-              <div className="pl-8 text-xs text-neutral-500 space-y-1">
-                <p>💡 **ฟังก์ชันอำนวยความสะดวกเพิ่มเติม:**</p>
-                <ul className="list-disc pl-4 space-y-1 font-semibold">
-                  <li><strong className="text-[#071638]">คัดลอกข้อมูลคนแรกให้ทุกคน:</strong> นำเพศและเสื้อของคนแรกไปคัดลอกลงในพนักงานทุกคนในคลิกเดียว</li>
-                  <li><strong className="text-[#071638]">แสดงเฉพาะคนที่กรอกไม่ครบ:</strong> กรองแถวที่ยังไม่ได้ระบุไซส์หรือประเภทเสื้อเพื่อตรวจสอบความถูกต้อง</li>
-                </ul>
-              </div>
-            </div>
+            <ManualSection icon={Users} title="ขั้นตอนที่ 2: รายชื่อพนักงานและรายการเสื้อ">
+              <ManualList
+                items={[
+                  'เพิ่มพนักงานทีละคนหรือเพิ่มหลายแถวพร้อมกันได้',
+                  'เลือกเพศก่อน เพื่อให้ระบบแสดงไซส์ที่ตรงกับแบบเสื้อและเพศนั้น',
+                  'กดปุ่มเพิ่มเสื้อในคอลัมน์รายการเสื้อ เพื่อเลือกแบบเสื้อ ไซส์ และจำนวน',
+                  'ถ้าพนักงานหนึ่งคนเบิกหลายแบบ ให้เพิ่มรายการเสื้อในแถวเดียวกันได้',
+                  'ใช้ตัวกรองแสดงเฉพาะแถวที่ไม่ครบ เพื่อตรวจรายการที่ยังขาดชื่อ เพศ แบบเสื้อ หรือไซส์',
+                  'สามารถนำเข้า CSV จาก Excel ได้ โดยใช้หัวคอลัมน์ตามไฟล์ตัวอย่าง',
+                ]}
+              />
+            </ManualSection>
 
-            {/* Step 3 */}
-            <div className="rounded-xl border border-green-100 bg-green-50/20 p-4 space-y-2">
-              <h3 className="text-sm sm:text-base font-black text-green-700 flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-full bg-green-600 text-white text-xs font-bold">3</span>
-                <span>ขั้นตอนที่ 3: ตรวจสอบและส่งข้อมูล</span>
-              </h3>
-              <ul className="list-decimal pl-8 space-y-1.5 text-xs sm:text-sm text-[#44536A] font-semibold">
-                <li>
-                  <strong className="text-[#071638]">ตรวจสอบยอดรวมและสถิติ:</strong> ระบบจะสรุปจำนวนยอดสั่งรวมแยกตามไซส์และรูปแบบเสื้อให้อย่างชัดเจน
-                </li>
-                <li>
-                  <strong className="text-[#002B5B]">ส่งเบิกเสื้อ:</strong> กดปุ่มสีน้ำเงิน <strong className="text-[#002B5B]">"ส่งข้อมูลการเบิกเสื้อ"</strong> เพื่อบันทึกเข้าฐานข้อมูลหลักและรับรหัสคำสั่ง (Batch ID)
-                </li>
-              </ul>
-            </div>
-
+            <ManualSection icon={ClipboardList} title="ขั้นตอนที่ 3: ตรวจสอบและส่งคำขอ">
+              <ManualList
+                items={[
+                  'ตรวจชื่อพนักงาน เพศ แบบเสื้อ ไซส์ และจำนวนให้ถูกต้องก่อนส่ง',
+                  'ระบบสรุปจำนวนแยกตามแบบเสื้อและไซส์เพื่อให้ตรวจง่าย',
+                  'เมื่อส่งสำเร็จ ระบบจะสร้างรหัสคำสั่งเบิกสำหรับติดตามงาน',
+                  'ฝั่งผู้เบิกจะไม่เห็นรายละเอียดสต็อกคงเหลือ เพราะส่วนนี้เป็นหน้าที่ของแอดมิน',
+                ]}
+              />
+            </ManualSection>
           </div>
-          
-          <div className="flex justify-end gap-2 border-t border-[#E7EAF0] bg-[#F8FAFD] px-4 py-3 sm:px-5">
-            <button
-              onClick={() => setOpen(false)}
-              className="min-h-10 rounded-lg bg-[#002B5B] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#002144] cursor-pointer"
-            >
-              เข้าใจแล้ว
-            </button>
+
+          <div className="manual-dialog-foot">
+            <button onClick={() => setOpen(false)}>เข้าใจแล้ว</button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function AdminManualDialog({ open, setOpen }) {
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="user-manual-dialog fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#DDE5F0] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(47rem,88vh)] sm:w-[min(52rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
+        >
+          <div className="manual-dialog-head">
+            <div className="min-w-0">
+              <Dialog.Title className="manual-dialog-title">
+                <PackageSearch className="size-5" /> คู่มือแอดมินและการจัดการสต็อก
+              </Dialog.Title>
+              <p>สำหรับตรวจคำสั่งเบิก จัดส่ง และบันทึกสต็อกแบบมีประวัติ</p>
+            </div>
+            <Dialog.Close className="manual-close-button" aria-label="ปิด">
+              <X className="size-5" />
+            </Dialog.Close>
+          </div>
+
+          <div className="manual-dialog-body">
+            <ManualSection icon={ClipboardList} title="หน้ารายการเบิก">
+              <ManualList
+                items={[
+                  'ใช้ดูคำสั่งเบิกทั้งหมด ค้นหาตามรหัสคำสั่ง บริษัท ผู้ติดต่อ เบอร์โทร หรือชื่อพนักงาน',
+                  'กรองตามสาขา เดือน และสถานะ เพื่อจัดลำดับงานที่ต้องดำเนินการ',
+                  'กดรายการเพื่อดูรายละเอียดพนักงานและเสื้อที่เบิกในคำสั่งนั้น',
+                  'เปลี่ยนสถานะเป็นจัดส่งแล้วเมื่อจ่ายของจริง ระบบจะตัดสต็อกและเพิ่มยอดเบิกแล้วให้เอง',
+                  'ถ้าสต็อกไม่พอ ระบบจะแจ้งรายการที่ขาดและไม่ควรฝืนจัดส่งจนกว่าจะเติมสต็อก',
+                ]}
+              />
+            </ManualSection>
+
+            <ManualSection icon={BarChart3} title="หน้าภาพรวม">
+              <ManualList
+                items={[
+                  'ดูจำนวนคำสั่งเบิกทั้งหมด งานรอดำเนินการ งานรอของ และงานที่จัดส่งแล้ว',
+                  'ส่วนสรุปสต็อกเสื้อแสดงจำนวนที่เคยมี เบิกแล้ว และคงเหลือ แยกตามแบบเสื้อ เพศ และไซส์',
+                  'ใช้ส่วนนี้ตรวจแนวโน้มการใช้เสื้อ และดูว่าสต็อกแบบไหนลดเร็วหรือควรเติมก่อน',
+                ]}
+              />
+            </ManualSection>
+
+            <ManualSection icon={PackageSearch} title="หน้าแบบเสื้อ/สต็อก">
+              <ManualList
+                items={[
+                  'แท็บข้อมูลเสื้อใช้แก้ชื่อแบบเสื้อ รูปภาพ สี และรายละเอียดไซส์ เช่น อกหรือเอว',
+                  'รายละเอียดไซส์แยกตามเพศ หากแก้ค่าอก/เอวตรงนี้ ผู้เบิกจะเห็นค่าที่อัปเดตในหน้าข้อมูลเสื้อ',
+                  'แท็บสต็อกตามไซส์ใช้แก้เฉพาะจำนวนคงเหลือ เพื่อไม่ให้ข้อมูลอก/เอวปนกับงานคลัง',
+                  'ใส่เลขบวก เช่น 20 แล้วกดเพิ่ม เพื่อบันทึกรับสต็อกเข้า',
+                  'ใส่เลขลบ เช่น -2 แล้วกดเพิ่ม เพื่อปรับลดกรณีเคยกรอกผิดหรือต้องตัดยอดแก้ไข',
+                  'ไม่ต้องแก้เลขคงเหลือตรง ๆ เพราะระบบจะเก็บประวัติเป็นยอดตั้งต้น เพิ่มเข้า ปรับลด เบิกแล้ว และคงเหลือ',
+                ]}
+              />
+            </ManualSection>
+
+            <ManualSection icon={Download} title="การส่งออกและ Google Sheet">
+              <ManualList
+                items={[
+                  'ปุ่มส่งออก CSV ใช้ดาวน์โหลดข้อมูลคำสั่งเบิกตามตัวกรองที่เลือก',
+                  'ชีท Orders เก็บข้อมูลคำสั่งเบิกและสถานะ',
+                  'ชีท Stock สร้างและอัปเดตจากระบบโดยอัตโนมัติ แสดงยอดตั้งต้น เพิ่มเข้า ปรับลด เบิกแล้ว สต็อกทั้งหมด และคงเหลือ',
+                  'ไม่ควรแก้ตัวเลขในชีท Stock โดยตรง เพราะการ sync ครั้งถัดไปจะเขียนทับจากข้อมูลในระบบ',
+                ]}
+              />
+            </ManualSection>
+          </div>
+
+          <div className="manual-dialog-foot">
+            <button onClick={() => setOpen(false)}>เข้าใจแล้ว</button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
@@ -5590,11 +5668,11 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
           <div className="dashboard-overview-hero">
             <div>
               <h2>ภาพรวมการดำเนินงาน</h2>
-              <p>ติดตามสถานะออเดอร์และจุดที่ต้องจัดการต่อ</p>
+            <p>ติดตามสถานะคำสั่งเบิกและจุดที่ต้องจัดการต่อ</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
-                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
+                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 <span>โหลดข้อมูลใหม่</span>
               </button>
               <button className="dark" onClick={() => onViewChange?.('inventory')}>
@@ -5604,7 +5682,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
             </div>
           </div>
           <div className="dashboard-overview-stats">
-            <Stat icon={ClipboardList} value={filteredBatches.length} label="ออเดอร์ทั้งหมด" />
+            <Stat icon={ClipboardList} value={filteredBatches.length} label="คำสั่งเบิกทั้งหมด" />
             <Stat icon={Clock} value={countByStatus(ORDER_STATUS_PENDING)} label="รอดำเนินการ" />
             <Stat icon={Truck} value={`${metrics.backorderPieces} ชิ้น`} label="รอของ" />
             <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
@@ -5667,7 +5745,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
             <TextInput
               value={query}
               onChange={setQuery}
-              placeholder="เลขที่ออเดอร์, ผู้ขอ, เบอร์โทร"
+              placeholder="เลขที่คำสั่งเบิก, ผู้ขอ, เบอร์โทร"
             />
           </Field>
           <button className="dashboard-primary-action" onClick={clearFilters}>
@@ -5678,12 +5756,12 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
         <section className="dashboard-orders-panel">
           <div className="dashboard-panel-head">
             <div>
-              <h2>รายการออเดอร์ (Batch)</h2>
+              <h2>รายการคำสั่งเบิก</h2>
               <p>ทั้งหมด {filteredBatches.length} รายการ</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
-                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
+                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               </button>
               <button onClick={() => setExportExpanded((value) => !value)}>
                 <Download className="size-4" />
@@ -5733,8 +5811,8 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
                       }}
                     />
                   </th>
-                  <th>เลขที่ออเดอร์</th>
-                  <th>วันที่ออเดอร์</th>
+                  <th>เลขที่คำสั่งเบิก</th>
+                  <th>วันที่ทำรายการ</th>
                   <th>สาขา</th>
                   <th>ผู้ขอเบิก</th>
                   <th>จำนวน</th>
@@ -5837,7 +5915,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
             </div>
           </div>
           <div className="dashboard-kpi-grid">
-            <MiniMetric label="ออเดอร์ทั้งหมด" value={filteredBatches.length} />
+            <MiniMetric label="คำสั่งเบิกทั้งหมด" value={filteredBatches.length} />
             <MiniMetric label="กำลังดำเนินการ" value={countByStatus(ORDER_STATUS_PENDING)} />
             <MiniMetric label="จัดส่งแล้ว" value={countByStatus(ORDER_STATUS_DELIVERED)} />
           </div>
@@ -5875,7 +5953,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
             <div className="dashboard-panel-actions">
               <button onClick={() => onViewChange?.('orders')}>
                 <ClipboardList className="size-4" />
-                <span>กลับไปรายการออเดอร์</span>
+                <span>กลับไปรายการคำสั่งเบิก</span>
               </button>
             </div>
           </div>

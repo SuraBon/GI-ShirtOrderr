@@ -1800,6 +1800,128 @@ body {
   border-color: rgba(255, 255, 255, 0.28) !important;
 }
 
+.gi-dashboard-header .dashboard-logout-button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gi-dashboard-header .dashboard-logout-button:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.manual-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #e7eaf0;
+  background: #ffffff;
+  padding: 0.9rem 1rem;
+}
+
+.manual-dialog-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  color: #071638;
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.manual-dialog-head p {
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.manual-close-button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 999px;
+  color: #1f2937;
+}
+
+.manual-close-button:hover {
+  background: #f1f5f9;
+}
+
+.manual-dialog-body {
+  display: grid;
+  gap: 0.9rem;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.manual-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.95rem;
+}
+
+.manual-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.manual-section-title span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 8px;
+  background: #eef4ff;
+  color: #0a2a5e;
+}
+
+.manual-section-title h3 {
+  color: #071638;
+  font-size: 0.95rem;
+  font-weight: 950;
+}
+
+.manual-section-body {
+  margin-top: 0.75rem;
+}
+
+.manual-list {
+  display: grid;
+  gap: 0.45rem;
+  padding-left: 1.2rem;
+  color: #44536a;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.65;
+  list-style: disc;
+}
+
+.manual-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #e7eaf0;
+  background: #f8fafd;
+  padding: 0.8rem 1rem;
+}
+
+.manual-dialog-foot button {
+  min-height: 2.5rem;
+  border-radius: 8px;
+  background: #0a2a5e;
+  padding: 0 1.2rem;
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
 .gi-brand-mark {
   display: grid;
   width: 2.25rem;
@@ -2168,7 +2290,7 @@ body {
 .dashboard-inventory-table td {
   border-bottom: 1px solid var(--gi-border);
   padding: 0.68rem 0.72rem;
-  text-align: left;
+  text-align: center;
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -2186,6 +2308,13 @@ body {
   color: var(--gi-text) !important;
   font-size: 0.79rem !important;
   font-weight: 650;
+}
+
+.dashboard-batch-table td:nth-child(2),
+.dashboard-batch-table td:nth-child(5),
+.dashboard-inventory-table td:nth-child(2) {
+  text-align: left;
+  white-space: normal;
 }
 
 .dashboard-link,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { HelpCircle, LayoutDashboard, Ruler, Settings, Shirt, UserCheck } from 'lucide-react';
+import { BookOpen, HelpCircle, LayoutDashboard, LogOut, PackageSearch, Ruler, Shirt } from 'lucide-react';
 
 export function Logo({ surface = 'order' }) {
   const isDashboard = surface === 'dashboard';
@@ -63,7 +63,13 @@ export function OrderHeader({ onSizeOpen, onOpenDashboard, onManualOpen }) {
   );
 }
 
-export function DashboardHeader({ activeView = 'orders', onViewChange, onOpenOrder }) {
+export function DashboardHeader({
+  activeView = 'orders',
+  onViewChange,
+  onOpenOrder,
+  onManualOpen,
+  onLogout,
+}) {
   const navItems = [
     { id: 'orders', label: 'รายการเบิก' },
     { id: 'dashboard', label: 'ภาพรวม' },
@@ -74,7 +80,7 @@ export function DashboardHeader({ activeView = 'orders', onViewChange, onOpenOrd
     <header className="gi-dashboard-header relative z-10 border-b px-3 py-2 shadow-xs">
       <div className="mx-auto flex max-w-[1520px] items-center gap-3">
         <Logo surface="dashboard" />
-        <nav className="gi-dashboard-nav flex items-center gap-2" aria-label="Dashboard">
+        <nav className="gi-dashboard-nav flex items-center gap-2" aria-label="เมนูแอดมิน">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -96,22 +102,31 @@ export function DashboardHeader({ activeView = 'orders', onViewChange, onOpenOrd
             <span>เปิดหน้าสั่งเบิกเสื้อ</span>
           </button>
           <button
+            onClick={onManualOpen}
+            className="dashboard-header-icon hidden min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-black text-white/90 hover:bg-white/10 lg:flex"
+            title="คู่มือแอดมิน"
+            type="button"
+          >
+            <BookOpen size={18} />
+            <span>คู่มือ</span>
+          </button>
+          <button
             className="dashboard-header-icon hidden size-9 place-items-center rounded-lg text-white/90 hover:bg-white/10 lg:grid"
             onClick={() => onViewChange?.('inventory')}
             title="จัดการสต็อก"
             type="button"
           >
-            <Settings size={18} />
+            <PackageSearch size={18} />
           </button>
-          <span className="hidden min-h-9 items-center gap-2 rounded-lg px-2.5 text-sm font-bold text-white sm:flex">
-            <span className="grid size-8 place-items-center rounded-full bg-white text-[#0A2A5E]">
-              <UserCheck size={16} />
-            </span>
-            <span className="hidden leading-tight xl:block">
-              <span className="block text-xs font-black">Admin User</span>
-              <span className="block text-[10px] font-semibold text-white/70">Administrator</span>
-            </span>
-          </span>
+          <button
+            onClick={onLogout}
+            className="dashboard-logout-button flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-black text-white/90 hover:bg-white/10"
+            title="ออกจากระบบแอดมิน"
+            type="button"
+          >
+            <LogOut size={18} />
+            <span>ออกจากระบบ</span>
+          </button>
         </div>
       </div>
     </header>
