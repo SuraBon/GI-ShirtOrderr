@@ -1108,6 +1108,13 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const [query, setQuery] = useState('');
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
   const [mobileEmployeeId, setMobileEmployeeId] = useState('');
+  const [editMode, setEditMode] = useState('full'); // 'full' or 'garments-only'
+  
+  function handleEdit(id, mode = 'full') {
+    setEditMode(mode);
+    setMobileEmployeeId(id);
+  }
+
   const skipDraftSaveRef = useRef(false);
   const [state, dispatch] = useReducer(orderReducer, undefined, readOrderDraft);
 
@@ -1368,7 +1375,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
             onQuickOrder={() => setQuickOpen(true)}
             query={query}
             setQuery={setQuery}
-            onEdit={setMobileEmployeeId}
+            onEdit={(id) => handleEdit(id, 'full')}
           />
         </div>
         <QuickEmployeeTable
@@ -1377,14 +1384,14 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           query={query}
           showIncompleteOnly={showIncompleteOnly}
           invalidEmployeeId={invalidEmployeeId}
-          onEdit={setMobileEmployeeId}
+          onEdit={(id) => handleEdit(id, 'garments-only')}
         />
         <QuickMobileList
           employees={state.employees}
           query={query}
           showIncompleteOnly={showIncompleteOnly}
           invalidEmployeeId={invalidEmployeeId}
-          onEdit={setMobileEmployeeId}
+          onEdit={(id) => handleEdit(id, 'full')}
         />
       </main>
       <QuickSummaryBar
@@ -1402,8 +1409,9 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         employee={selectedMobileEmployee}
         employees={state.employees}
         dispatch={dispatch}
+        editMode={editMode}
         onClose={() => setMobileEmployeeId('')}
-        onNext={(employeeId) => setMobileEmployeeId(employeeId)}
+        onNext={(employeeId) => handleEdit(employeeId, editMode)}
         invalidEmployeeId={invalidEmployeeId}
       />
       <QuickOrderDialog open={quickOpen} setOpen={setQuickOpen} state={state} dispatch={dispatch} />
@@ -1430,75 +1438,111 @@ function QuickOrderSetupPanel({ state, dispatch }) {
     state.supervisorPhone.length === PHONE_LENGTH
   );
 
+  const [isExpanded, setIsExpanded] = useState(!complete);
+  const prevCompleteRef = useRef(complete);
+
+  useEffect(() => {
+    if (complete && !prevCompleteRef.current) {
+      setIsExpanded(false);
+    } else if (!complete && prevCompleteRef.current) {
+      setIsExpanded(true);
+    }
+    prevCompleteRef.current = complete;
+  }, [complete]);
+
   return (
     <section
       data-section="contact-info"
       className={cn(
-        'flex h-full flex-col rounded-xl border bg-white p-4 sm:p-5 transition-all',
+        'flex flex-col rounded-xl border bg-white p-4 sm:p-5 transition-all duration-300 shadow-sm w-full',
         complete
-          ? 'border-[#DCFCE7] bg-[#FBFDFC] shadow-sm'
-          : 'border-2 border-[#FDE68A] bg-[#FFFBF0] shadow-md'
+          ? 'border-green-200 bg-green-50/20'
+          : 'border-2 border-yellow-300 bg-yellow-50/20 shadow-md'
       )}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-black text-[#071638]">📋 ข้อมูลผู้ติดต่อ</h2>
-            {complete && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#DCFCE7] px-2.5 py-1 text-xs font-bold text-[#166534]">
-                <Check className="size-3.5" /> ครบถ้วน
+      <div
+        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-black text-[#071638]">📋 ข้อมูลผู้ติดต่อ / ผู้เบิก</h2>
+            {complete ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#DCFCE7] px-2.5 py-0.5 text-xs font-bold text-[#166534]">
+                <Check className="size-3" /> ครบถ้วน
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-bold text-yellow-800 animate-pulse">
+                ⚠️ ยังไม่ครบ
               </span>
             )}
           </div>
-          <p className="mt-1.5 text-[13px] font-semibold leading-5 text-[#52525B]">
-            {complete
-              ? '✅ ข้อมูลครบแล้ว - พร้อมสั่งเบิกเสื้อ'
-              : '⚠️ กรุณากรอกข้อมูลให้ครบทั้ง 4 ช่อง เพื่อเตรียมการจัดส่ง'}
-          </p>
+          {!isExpanded && complete && (
+            <p className="mt-1 text-xs sm:text-sm font-semibold text-[#64748B] truncate">
+              {state.companyName} ({state.branch}) · คุณ{state.supervisorName} ({formatPhone(state.supervisorPhone)})
+            </p>
+          )}
+          {isExpanded && (
+            <p className="mt-1.5 text-[13px] font-semibold leading-5 text-[#52525B]">
+              {complete
+                ? '✅ ข้อมูลผู้เบิกครบแล้ว - สามารถกดซ่อนเพื่อประหยัดพื้นที่หน้าจอ'
+                : '⚠️ กรุณากรอกข้อมูลให้ครบทั้ง 4 ช่อง เพื่อเตรียมการจัดส่ง'}
+            </p>
+          )}
         </div>
+        <button
+          type="button"
+          className="flex items-center gap-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1.5 text-xs font-black text-[#002B5B] transition shrink-0"
+        >
+          <span>{isExpanded ? 'ย่อไว้' : 'แก้ไขข้อมูล'}</span>
+          <ChevronDown className={cn('size-3.5 transition-transform duration-200', isExpanded && 'rotate-180')} />
+        </button>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="บริษัท / หน่วยงาน *">
-          <TextInput
-            id="setup-company-name"
-            value={state.companyName}
-            onChange={(value) => dispatch({ type: 'patchBatch', patch: { companyName: value } })}
-            placeholder="ชื่อบริษัท / สำนักงาน"
-            title="ระบุชื่อบริษัทหรือหน่วยงานของคุณ"
-          />
-        </Field>
-        <Field label="สาขาที่จัดส่ง *">
-          <Select
-            id="setup-branch"
-            value={state.branch}
-            onChange={(value) => dispatch({ type: 'patchBatch', patch: { branch: value } })}
-            values={BRANCHES}
-            placeholder="เลือกสาขา"
-          />
-        </Field>
-        <Field label="ชื่อผู้รับผิดชอบ *">
-          <TextInput
-            id="setup-supervisor-name"
-            value={state.supervisorName}
-            onChange={(value) => dispatch({ type: 'patchBatch', patch: { supervisorName: value } })}
-            placeholder="ชื่อ-นามสกุล"
-            title="ชื่อบุคคลที่เป็นผู้รับผิดชอบสั่งซื้อเสื้อ"
-          />
-        </Field>
-        <Field label="เบอร์ติดต่อ *">
-          <TextInput
-            id="setup-supervisor-phone"
-            value={state.supervisorPhone}
-            onChange={(value) =>
-              dispatch({ type: 'patchBatch', patch: { supervisorPhone: phoneDigitsOnly(value) } })
-            }
-            placeholder="08X-XXX-XXXX"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            title="เบอร์โทรศัพท์มือถือ 10 หลัก"
-          />
-        </Field>
-      </div>
+
+      {isExpanded && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mt-4 border-t border-neutral-100 pt-4">
+          <Field label="บริษัท / หน่วยงาน *">
+            <TextInput
+              id="setup-company-name"
+              value={state.companyName}
+              onChange={(value) => dispatch({ type: 'patchBatch', patch: { companyName: value } })}
+              placeholder="ชื่อบริษัท / สำนักงาน"
+              title="ระบุชื่อบริษัทหรือหน่วยงานของคุณ"
+            />
+          </Field>
+          <Field label="สาขาที่จัดส่ง *">
+            <Select
+              id="setup-branch"
+              value={state.branch}
+              onChange={(value) => dispatch({ type: 'patchBatch', patch: { branch: value } })}
+              values={BRANCHES}
+              placeholder="เลือกสาขา"
+            />
+          </Field>
+          <Field label="ชื่อผู้รับผิดชอบ *">
+            <TextInput
+              id="setup-supervisor-name"
+              value={state.supervisorName}
+              onChange={(value) => dispatch({ type: 'patchBatch', patch: { supervisorName: value } })}
+              placeholder="ชื่อ-นามสกุล"
+              title="ชื่อบุคคลที่เป็นผู้รับผิดชอบสั่งซื้อเสื้อ"
+            />
+          </Field>
+          <Field label="เบอร์ติดต่อ *">
+            <TextInput
+              id="setup-supervisor-phone"
+              value={state.supervisorPhone}
+              onChange={(value) =>
+                dispatch({ type: 'patchBatch', patch: { supervisorPhone: phoneDigitsOnly(value) } })
+              }
+              placeholder="08X-XXX-XXXX"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              title="เบอร์โทรศัพท์มือถือ 10 หลัก"
+            />
+          </Field>
+        </div>
+      )}
     </section>
   );
 }
@@ -1672,6 +1716,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
                       values={quickSizes}
                       onChange={setDefaultSizeValue}
                       placeholder="เลือกไซส์"
+                      usePortal={false}
                     />
                   </Field>
                 </div>
@@ -1731,6 +1776,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
                             placeholder="สี"
                             compact
                             disabled={!customItems[index]?.enabled}
+                            usePortal={false}
                             onChange={(color) =>
                               setCustomItems((items) =>
                                 items.map((item, itemIndex) =>
@@ -1846,26 +1892,26 @@ function QuickOrderActionsPanel({
         ) : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button
-          onClick={onQuickOrder}
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] px-3 text-xs font-black text-white sm:text-sm shadow-sm transition hover:bg-[#013A78] active:scale-95"
-          title="เพิ่มพนักงานหลายคน พร้อมกำหนดเสื้อชุดเดียวกัน"
-        >
-          <UserPlus className="size-4" />
-          <span>เพิ่มหลายคน</span>
-        </button>
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
         <button
           onClick={() => {
             const newId = crypto.randomUUID();
             dispatch({ type: 'add', id: newId });
             onEdit(newId);
           }}
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#002B5B] sm:text-sm shadow-sm transition hover:bg-[#F8FAFC] active:bg-[#EEF4FF]"
-          title="เพิ่มพนักงาน 1 คนเข้ารายการ"
+          className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl bg-[#002B5B] px-3 text-xs sm:text-sm font-extrabold text-white shadow-md transition hover:bg-[#013A78] active:scale-95 hover:shadow-lg"
+          title="เพิ่มพนักงาน 1 คน และเปิดหน้าต่างกรอกข้อมูลพนักงานใหม่ทันที"
         >
           <Plus className="size-4" />
-          <span>เพิ่ม 1 คน</span>
+          <span>เพิ่มรายการ</span>
+        </button>
+        <button
+          onClick={onQuickOrder}
+          className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl border-2 border-[#002B5B] bg-white px-3 text-xs sm:text-sm font-extrabold text-[#002B5B] shadow-sm transition hover:bg-[#EEF4FF] active:scale-95"
+          title="เพิ่มพนักงานหลายคนพร้อมกัน"
+        >
+          <UserPlus className="size-4" />
+          <span>หลายรายการ</span>
         </button>
       </div>
 
@@ -2012,6 +2058,7 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
           values={sizeOptions}
           compact
           invalid={showErrors && !item.size}
+          usePortal={false}
           onChange={(value) =>
             dispatch({
               type: 'patchItem',
@@ -2048,6 +2095,7 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
           values={colors}
           compact
           invalid={showErrors && !resolveItemColor(type, item.color || '')}
+          usePortal={false}
           onChange={(color) =>
             dispatch({ type: 'patchItem', id: employee.id, itemType: type, patch: { color } })
           }
@@ -2253,7 +2301,7 @@ function QuickMobileList({ employees, query, showIncompleteOnly, invalidEmployee
   );
 }
 
-function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, invalidEmployeeId }) {
+function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, invalidEmployeeId, editMode = 'full' }) {
   const canDelete = canDeleteEmployee(employees);
   const index = employee ? employees.findIndex((item) => item.id === employee.id) : -1;
   const nextEmployee = index >= 0 ? employees[index + 1] : null;
@@ -2275,10 +2323,18 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
               <div className="flex min-h-14 items-center justify-between border-b border-[#E7EAF0] bg-gradient-to-r from-[#F8FAFC] to-[#FFFFFF] px-4">
                 <div className="min-w-0">
                   <Dialog.Title className="font-extrabold text-[#071638]">
-                    {index + 1}. {employee.name || 'ยังไม่ระบุชื่อ'}
+                    {editMode === 'garments-only' ? (
+                      `👕 จัดการเสื้อ: ${employee.name || 'ยังไม่ระบุชื่อ'}`
+                    ) : (
+                      `${index + 1}. ${employee.name || 'ยังไม่ระบุชื่อ'}`
+                    )}
                   </Dialog.Title>
                   <p className="text-xs text-[#64748B] font-semibold mt-0.5">
-                    บรรทัดที่ {index + 1} จาก {employees.length}
+                    {editMode === 'garments-only' ? (
+                      'แก้ไขรายการเสื้อ ไซส์ และจำนวนตัว'
+                    ) : (
+                      `บรรทัดที่ ${index + 1} จาก ${employees.length}`
+                    )}
                   </p>
                 </div>
                 <Dialog.Close
@@ -2289,49 +2345,51 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                 </Dialog.Close>
               </div>
               <div className="employee-scroll-region grid gap-4 overflow-y-auto bg-[#F8FAFC] p-4">
-                <div className="bg-white rounded-lg border border-[#D8DEEA] p-3">
-                  <p className="text-xs font-bold text-[#64748B] mb-2">
-                    📝 ขั้นตอนที่ 1: ชื่อและเพศ
-                  </p>
-                  <Field label="ชื่อ-นามสกุล *">
-                    <TextInput
-                      value={employee.name}
-                      invalid={showErrors && !employee.name.trim()}
-                      onChange={(value) =>
-                        dispatch({ type: 'patchEmployee', id: employee.id, patch: { name: value } })
-                      }
-                      placeholder="เช่น สมชาย ใจดี"
-                      title="ระบุชื่อ-นามสกุลของพนักงาน"
-                    />
-                  </Field>
-                  <Field label="เพศ *">
-                    <div className="grid grid-cols-2 gap-3">
-                      {GENDERS.map((gender) => (
-                        <button
-                          key={gender}
-                          onClick={() =>
-                            dispatch({ type: 'patchEmployee', id: employee.id, patch: { gender } })
-                          }
-                          className={cn(
-                            'min-h-12 rounded-lg border-2 text-sm font-bold transition active:scale-95',
-                            employee.gender === gender
-                              ? 'border-[#002B5B] bg-[#002B5B] text-white shadow-md'
-                              : showErrors && !employee.gender
-                                ? 'border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C]'
-                                : 'border-[#CBD5E1] bg-white text-[#071638] hover:border-[#002B5B]'
-                          )}
-                          title={`เลือก${gender}`}
-                        >
-                          {gender === 'ชาย' ? '👨' : '👩'} {gender}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                </div>
+                {editMode !== 'garments-only' && (
+                  <div className="bg-white rounded-lg border border-[#D8DEEA] p-3">
+                    <p className="text-xs font-bold text-[#64748B] mb-2">
+                      📝 ขั้นตอนที่ 1: ชื่อและเพศ
+                    </p>
+                    <Field label="ชื่อ-นามสกุล *">
+                      <TextInput
+                        value={employee.name}
+                        invalid={showErrors && !employee.name.trim()}
+                        onChange={(value) =>
+                          dispatch({ type: 'patchEmployee', id: employee.id, patch: { name: value } })
+                        }
+                        placeholder="เช่น สมชาย ใจดี"
+                        title="ระบุชื่อ-นามสกุลของพนักงาน"
+                      />
+                    </Field>
+                    <Field label="เพศ *">
+                      <div className="grid grid-cols-2 gap-3">
+                        {GENDERS.map((gender) => (
+                          <button
+                            key={gender}
+                            onClick={() =>
+                              dispatch({ type: 'patchEmployee', id: employee.id, patch: { gender } })
+                            }
+                            className={cn(
+                              'min-h-12 rounded-lg border-2 text-sm font-bold transition active:scale-95',
+                              employee.gender === gender
+                                ? 'border-[#002B5B] bg-[#002B5B] text-white shadow-md'
+                                : showErrors && !employee.gender
+                                  ? 'border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C]'
+                                  : 'border-[#CBD5E1] bg-white text-[#071638] hover:border-[#002B5B]'
+                            )}
+                            title={`เลือก${gender}`}
+                          >
+                            {gender === 'ชาย' ? '👨' : '👩'} {gender}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
+                )}
 
                 <div className="bg-white rounded-lg border border-[#D8DEEA] p-3">
                   <p className="text-xs font-bold text-[#64748B] mb-2">
-                    👕 ขั้นตอนที่ 2: เลือกแบบเสื้อ
+                    {editMode === 'garments-only' ? '👕 รายการเสื้อที่เบิก' : '👕 ขั้นตอนที่ 2: เลือกแบบเสื้อ'}
                   </p>
                   <div className="grid gap-2.5">
                     {clothingTypes.map((type) => {
@@ -5888,6 +5946,7 @@ function BatchDetailDialog({
                         disabled={isBusy}
                         onChange={(status) => onStatusChange(batch.batchId, status)}
                         compact
+                        usePortal={false}
                       />
                     </div>
                   </div>

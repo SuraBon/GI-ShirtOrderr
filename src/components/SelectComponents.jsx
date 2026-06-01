@@ -13,6 +13,7 @@ export function CustomSelect({
   compact = false,
   invalid = false,
   title,
+  usePortal = true,
 }) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState(null);
@@ -38,6 +39,7 @@ export function CustomSelect({
   const selectedLabel = selectedItem ? selectedItem.label : value || placeholder;
 
   function updateMenuPosition() {
+    if (!usePortal) return;
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     const gap = 6;
@@ -131,8 +133,45 @@ export function CustomSelect({
     setOpen(false);
   }
 
+  const menuContent = (
+    <div
+      role="listbox"
+      aria-labelledby={id}
+      aria-activedescendant={
+        activeIndex >= 0 ? `${id || 'custom-select'}-option-${activeIndex}` : undefined
+      }
+      className="grid gap-0.5"
+    >
+      {normalizedValues.map((item, index) => {
+        const selected = item.value === value;
+        const highlighted = index === activeIndex;
+        return (
+          <button
+            id={`${id || 'custom-select'}-option-${index}`}
+            key={`${item.value}-${index}`}
+            type="button"
+            role="option"
+            aria-selected={selected}
+            onClick={() => {
+              setActiveIndex(index);
+              selectValue(item.value);
+            }}
+            className={cn(
+              'flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-3 text-left text-sm font-semibold text-neutral-900 transition',
+              highlighted ? 'bg-neutral-100' : 'hover:bg-neutral-100',
+              selected && 'bg-primary-600 text-white hover:bg-primary-700'
+            )}
+          >
+            <span className="min-w-0 truncate">{item.label || placeholder}</span>
+            {selected && <Check className="size-4 shrink-0" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div ref={rootRef} className="grid gap-1.5">
+    <div ref={rootRef} className="relative grid gap-1.5">
       <button
         id={id}
         ref={buttonRef}
@@ -159,56 +198,38 @@ export function CustomSelect({
       </button>
 
       {open &&
-        menuStyle &&
-        createPortal(
+        (usePortal ? (
+          menuStyle &&
+          createPortal(
+            <div
+              ref={menuRef}
+              id={menuId}
+              className="fixed z-[9999] overflow-hidden rounded-lg border border-neutral-300 bg-white p-1 shadow-lg"
+              style={{ left: menuStyle.left, top: menuStyle.top, width: menuStyle.width }}
+            >
+              <div
+                className="scrollbar-thin overflow-y-auto"
+                style={{ maxHeight: menuStyle.maxHeight }}
+              >
+                {menuContent}
+              </div>
+            </div>,
+            document.body
+          )
+        ) : (
           <div
             ref={menuRef}
             id={menuId}
-            className="fixed z-[9999] overflow-hidden rounded-lg border border-neutral-300 bg-white p-1 shadow-lg"
-            style={{ left: menuStyle.left, top: menuStyle.top, width: menuStyle.width }}
+            className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-neutral-300 bg-white p-1 shadow-lg"
+            style={{ top: '100%' }}
           >
             <div
-              className="scrollbar-thin overflow-y-auto"
-              style={{ maxHeight: menuStyle.maxHeight }}
+              className="scrollbar-thin overflow-y-auto max-h-[224px]"
             >
-              <div
-                role="listbox"
-                aria-labelledby={id}
-                aria-activedescendant={
-                  activeIndex >= 0 ? `${id || 'custom-select'}-option-${activeIndex}` : undefined
-                }
-                className="grid gap-0.5"
-              >
-                {normalizedValues.map((item, index) => {
-                  const selected = item.value === value;
-                  const highlighted = index === activeIndex;
-                  return (
-                    <button
-                      id={`${id || 'custom-select'}-option-${index}`}
-                      key={`${item.value}-${index}`}
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
-                      onClick={() => {
-                        setActiveIndex(index);
-                        selectValue(item.value);
-                      }}
-                      className={cn(
-                        'flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-3 text-left text-sm font-semibold text-neutral-900 transition',
-                        highlighted ? 'bg-neutral-100' : 'hover:bg-neutral-100',
-                        selected && 'bg-primary-600 text-white hover:bg-primary-700'
-                      )}
-                    >
-                      <span className="min-w-0 truncate">{item.label || placeholder}</span>
-                      {selected && <Check className="size-4 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
+              {menuContent}
             </div>
-          </div>,
-          document.body
-        )}
+          </div>
+        ))}
     </div>
   );
 }
@@ -217,28 +238,6 @@ export function Select(props) {
   return <CustomSelect {...props} />;
 }
 
-export function GridSelect({
-  id,
-  value,
-  values,
-  onChange,
-  placeholder = 'เลือกไซส์',
-  disabled = false,
-  compact = false,
-  invalid = false,
-  title,
-}) {
-  return (
-    <CustomSelect
-      id={id}
-      value={value}
-      values={values}
-      onChange={onChange}
-      placeholder={placeholder}
-      disabled={disabled}
-      compact={compact}
-      invalid={invalid}
-      title={title}
-    />
-  );
+export function GridSelect(props) {
+  return <CustomSelect {...props} />;
 }
