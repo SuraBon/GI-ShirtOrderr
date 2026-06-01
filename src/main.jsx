@@ -2841,13 +2841,13 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
                     </p>
                   </div>
                 </div>
-                <div className="grid max-h-[16rem] gap-2 overflow-y-auto rounded-xl border border-[#D8DEEA] bg-white p-2">
+                <div className="grid max-h-[16rem] grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-2 overflow-y-auto rounded-xl border border-[#D8DEEA] bg-white p-2">
                   {clothingTypes.map((type, index) => {
                     return (
                       <div
                         key={type}
                         className={cn(
-                          'grid gap-2 rounded-lg border p-2 text-sm font-bold text-[#071638] sm:grid-cols-[minmax(0,1fr)_5.5rem] sm:items-center',
+                          'grid gap-2 rounded-lg border p-2 text-sm font-bold text-[#071638] min-[460px]:grid-cols-[minmax(0,1fr)_5.25rem] min-[460px]:items-center',
                           customItems[index]?.enabled
                             ? 'border-[#BFD0EA] bg-[#F8FBFF]'
                             : 'border-[#EEF2F7] bg-white'
