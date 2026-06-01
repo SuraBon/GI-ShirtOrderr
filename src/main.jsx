@@ -741,15 +741,15 @@ function normalizeBatch(batch) {
   const normalizedOrders = Array.isArray(batch.orders)
     ? batch.orders
         .map((order) => ({
-          name: order.name || '-',
-          gender: order.gender || '-',
+          name: String(order?.name || '-'),
+          gender: String(order?.gender || '-'),
           items: Array.isArray(order.items)
             ? order.items
                 .map((item) => ({
-                  type: item.type || '-',
-                  size: item.size || '-',
-                  qty: Number(item.qty || 0),
-                  status: ORDER_STATUSES.includes(item.status)
+                  type: String(item?.type || '-'),
+                  size: String(item?.size || '-'),
+                  qty: Number(item?.qty || 0),
+                  status: ORDER_STATUSES.includes(item?.status)
                     ? item.status
                     : batch.status || ORDER_STATUS_PENDING,
                   statusUpdatedAt:
@@ -780,11 +780,11 @@ function normalizeBatch(batch) {
   }
 
   return {
-    batchId: batch.batchId || `ORD-${Date.now()}`,
-    companyName: batch.companyName || '',
-    branch: batch.branch || '-',
-    supervisorName: batch.supervisorName || '',
-    supervisorPhone: batch.supervisorPhone || '',
+    batchId: String(batch.batchId || `ORD-${Date.now()}`),
+    companyName: String(batch.companyName || ''),
+    branch: String(batch.branch || '-'),
+    supervisorName: String(batch.supervisorName || ''),
+    supervisorPhone: String(batch.supervisorPhone || ''),
     submittedAt: batch.submittedAt || new Date().toISOString(),
     status: batchStatus,
     statusUpdatedAt: batch.statusUpdatedAt || batch.submittedAt || new Date().toISOString(),
