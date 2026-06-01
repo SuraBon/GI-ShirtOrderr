@@ -2755,143 +2755,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
   );
 }
 
-function QuickOrderActionsPanel({
-  employees,
-  dispatch,
-  showIncompleteOnly,
-  setShowIncompleteOnly,
-  onQuickOrder,
-  query = '',
-  setQuery,
-  onEdit,
-}) {
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const canRemoveBlank =
-    employees.length > 1 && employees.some((employee) => !hasEmployeeData(employee));
-  const completedEmployees = employees.filter(isEmployeeComplete).length;
 
-  return (
-    <section className="flex flex-col rounded-xl border border-[#D8DEEA] bg-white p-3 sm:p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <div>
-          <h1 className="text-base font-extrabold text-[#071638]">👥 รายการพนักงาน</h1>
-          <p className="mt-1 text-sm font-semibold text-[#64748B]">
-            <span className="font-black text-[#166534]">{completedEmployees}</span>
-            <span className="text-[#94A3B8]">/{employees.length} คน</span>
-          </p>
-        </div>
-        <label className="flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 text-xs font-bold text-[#44536A] shadow-sm cursor-pointer select-none transition hover:bg-[#F8FAFC]">
-          <input
-            type="checkbox"
-            checked={showIncompleteOnly}
-            onChange={(event) => setShowIncompleteOnly(event.target.checked)}
-            className="size-4 accent-[#002B5B]"
-          />
-          <span>แสดงที่ยังไม่ครบ</span>
-        </label>
-      </div>
-
-      <div className="relative mt-3 min-w-0">
-        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#71717A]" />
-        <GridInput
-          value={query}
-          onChange={setQuery}
-          placeholder="ค้นหาชื่อ, ไซส์, หรือประเภทเสื้อ..."
-          className="h-10 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-8 text-xs font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#002B5B] focus:ring-2 focus:ring-[#002B5B]/10"
-          title="ค้นหาข้อมูลพนักงาน เช่น ชื่อ ไซส์ หรือประเภทเสื้อ"
-        />
-        {query ? (
-          <button
-            onClick={() => setQuery('')}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-[#071638] transition"
-            title="ล้างข้อความค้นหา"
-          >
-            <X className="size-3.5" />
-          </button>
-        ) : null}
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2.5">
-        <button
-          onClick={() => {
-            const newId = crypto.randomUUID();
-            dispatch({ type: 'add', id: newId });
-            onEdit(newId);
-          }}
-          className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl bg-[#002B5B] px-3 text-xs sm:text-sm font-extrabold text-white shadow-md transition hover:bg-[#013A78] active:scale-95 hover:shadow-lg"
-          title="เพิ่มพนักงาน 1 คน และเปิดหน้าต่างกรอกข้อมูลพนักงานใหม่ทันที"
-        >
-          <Plus className="size-4" />
-          <span>เพิ่มรายการ</span>
-        </button>
-        <button
-          onClick={onQuickOrder}
-          className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl border-2 border-[#002B5B] bg-white px-3 text-xs sm:text-sm font-extrabold text-[#002B5B] shadow-sm transition hover:bg-[#EEF4FF] active:scale-95"
-          title="เพิ่มพนักงานหลายคนพร้อมกัน"
-        >
-          <UserPlus className="size-4" />
-          <span>หลายรายการ</span>
-        </button>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-[#E7EAF0] bg-[#F8FAFC] p-3 text-sm font-semibold text-[#44536A]">
-        <div>เครื่องมือช่วยจัดการรายชื่อ</div>
-        <button
-          onClick={() => setToolsOpen((prev) => !prev)}
-          className="inline-flex items-center gap-1 text-[#002B5B] hover:text-[#071638] transition"
-        >
-          {toolsOpen ? 'ซ่อน' : 'แสดง'}
-          <ChevronDown className={cn('size-4 transition', toolsOpen && 'rotate-180')} />
-        </button>
-      </div>
-      {toolsOpen && (
-        <div className="mt-3 grid gap-2">
-          <button
-            onClick={() => dispatch({ type: 'copyFirstSetupToAll' })}
-            disabled={!employees[0]?.items.length}
-            className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-[#EAF2FF] px-2.5 text-xs font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-45 sm:text-sm shadow-sm transition hover:bg-[#D5E6FF] active:bg-[#C5DEFF]"
-            title="คัดลอกเพศและรายการเสื้อของคนแรก ไปยังพนักงานคนอื่นๆ ทั้งหมด (อัปเดต: ชื่อจะเหลือไว้)"
-          >
-            <Copy className="size-3.5" />
-            <span>ใช้เหมือนคนแรก</span>
-          </button>
-          <button
-            onClick={() => dispatch({ type: 'removeBlankEmployees' })}
-            disabled={!canRemoveBlank}
-            className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-2.5 text-xs font-bold text-[#92400E] disabled:cursor-not-allowed disabled:opacity-45 sm:text-sm shadow-sm transition hover:bg-[#FFF3CD] active:bg-[#FFED99]"
-            title="ลบแถวที่ว่างเปล่า (ไม่มีข้อมูล)"
-          >
-            <Eraser className="size-3.5" />
-            <span>ล้บแถวว่าง</span>
-          </button>
-        </div>
-      )}
-
-      <button
-        onClick={() => setResetConfirmOpen(true)}
-        className="mt-3 flex min-h-8 w-full items-center justify-center gap-1.5 text-[11px] font-bold text-[#94A3B8] transition hover:text-[#B91C1C]"
-        title="ล้างข้อมูลผู้ติดต่อและรายชื่อพนักงานทั้งหมด เพื่อเริ่มใหม่"
-      >
-        <Trash2 className="size-3.5" /> ล้างทั้งหมด
-      </button>
-      <ConfirmDialog
-        open={resetConfirmOpen}
-        title="ล้างข้อมูลทั้งหมด"
-        description="คุณต้องการล้างข้อมูลผู้ติดต่อและรายชื่อพนักงานทั้งหมด เพื่อเริ่มลงทะเบียนใหม่ใช่หรือไม่?"
-        confirmLabel="ล้างทั้งหมด"
-        cancelLabel="ยกเลิก"
-        destructive
-        onCancel={() => setResetConfirmOpen(false)}
-        onConfirm={() => {
-          dispatch({ type: 'reset' });
-          setQuery('');
-          setResetConfirmOpen(false);
-        }}
-      />
-    </section>
-  );
-}
 
 function getFilteredEmployees(employees, query, showIncompleteOnly) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -3577,210 +3441,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
   );
 }
 
-function QuickSummaryBar({
-  totalPieces,
-  completedEmployees,
-  totalEmployees,
-  hasIncompleteEmployee,
-  isSubmitting,
-  onJumpIncomplete,
-  onSubmit,
-}) {
-  const progressPercent =
-    totalEmployees > 0 ? Math.round((completedEmployees / totalEmployees) * 100) : 0;
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#D8DEEA] bg-white/98 px-3 py-3 shadow-[0_-12px_32px_rgba(15,23,42,0.12)] backdrop-blur-sm">
-      <div className="mx-auto flex max-w-[1280px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2 sm:px-4">
-        <div className="flex items-center justify-between gap-4 sm:gap-6 sm:justify-start">
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">
-              📋 ความคืบหน้า
-            </p>
-            <p className="mt-1 text-lg font-black text-[#071638]">
-              <span className={progressPercent === 100 ? 'text-green-600' : 'text-[#166534]'}>
-                {completedEmployees}
-              </span>
-              <span className="text-[#94A3B8]">/{totalEmployees}</span>
-              <span className="text-sm text-[#64748B] font-semibold">
-                {' '}
-                คน {progressPercent === 100 && '✅'}
-              </span>
-            </p>
-          </div>
-          <div className="h-8 w-px bg-[#E2E8F0] hidden sm:block" />
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wide">
-              👕 เบิกเสื้อรวม
-            </p>
-            <p className="mt-1 text-lg font-black text-[#002B5B]">
-              {totalPieces}
-              <span className="text-sm text-[#64748B] font-semibold"> ชิ้น</span>
-            </p>
-          </div>
-        </div>
 
-        <div className="flex gap-2 w-full sm:w-auto">
-          {hasIncompleteEmployee && (
-            <button
-              onClick={onJumpIncomplete}
-              type="button"
-              title="กดเพื่อเลื่อนหน้าจอไปยังพนักงานที่ข้อมูลยังไม่ครบเพื่อแก้ไข"
-              className="flex min-h-11 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg border-2 border-[#FDE68A] bg-[#FFFBEB] px-3 text-xs font-black text-[#92400E] transition hover:bg-[#FFF9E6] active:scale-95 sm:text-sm"
-            >
-              <AlertCircle className="size-4" />
-              <span>ตรวจจุดที่ยังไม่ครบ</span>
-            </button>
-          )}
-          <button
-            onClick={onSubmit}
-            disabled={isSubmitting}
-            title={
-              hasIncompleteEmployee
-                ? 'มีข้อมูลบางอย่างยังไม่ครบ กดเพื่อตรวจสอบและแก้ไข'
-                : 'ตรวจสอบสรุปและส่งใบเบิกเสื้อ'
-            }
-            className="flex min-h-11 flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-5 text-sm font-black text-white shadow-md transition hover:bg-[#013A78] disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                <span>กำลังส่ง...</span>
-              </>
-            ) : (
-              <>
-                <Send className="size-4" />
-                <span>ส่งเบิก</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function QuickOrderSummaryDialog({
-  open,
-  setOpen,
-  state,
-  rows,
-  totalPieces,
-  isSubmitting,
-  onConfirm,
-}) {
-  const totals = buildTotalSummary(rows);
-  return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45" />
-        <Dialog.Content
-          aria-describedby={undefined}
-          className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(46rem,94vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
-        >
-          <div className="flex items-center justify-between border-b border-[#E7EAF0] px-5 py-4">
-            <Dialog.Title className="text-xl font-extrabold text-[#071638]">
-              สรุปก่อนส่ง
-            </Dialog.Title>
-            <Dialog.Close
-              className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]"
-              aria-label="ปิด"
-            >
-              <X />
-            </Dialog.Close>
-          </div>
-          <div className="employee-scroll-region max-h-[64vh] overflow-y-auto bg-[#F7F9FC] p-4">
-            <div className="rounded-2xl border border-[#E7EAF0] bg-white p-4">
-              <div className="grid gap-2 sm:grid-cols-4">
-                <ReviewMetric label="สาขา" value={state.branch || '-'} />
-                <ReviewMetric label="ผู้ติดต่อ" value={state.supervisorName || '-'} />
-                <ReviewMetric label="พนักงาน" value={`${state.employees.length} คน`} />
-                <ReviewMetric label="จำนวนรวม" value={`${totalPieces} ชิ้น`} />
-              </div>
-              <div className="mt-4 grid gap-2 sm:hidden">
-                {totals.length ? (
-                  totals.map((row) => (
-                    <SummaryMobileRow key={`${row.type}-${row.color}-${row.size}`} row={row} />
-                  ))
-                ) : (
-                  <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">
-                    ยังไม่มีรายการ
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 hidden overflow-hidden rounded-lg border border-[#E2E8F0] sm:block">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
-                    <tr>
-                      <th className="px-4 py-3">ประเภท</th>
-                      <th className="px-4 py-3">สี</th>
-                      <th className="px-4 py-3">ไซส์</th>
-                      <th className="px-4 py-3 text-right">จำนวน</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {totals.length ? (
-                      totals.map((row) => (
-                        <tr key={`${row.type}-${row.size}`} className="border-t border-[#E2E8F0]">
-                          <td className="px-4 py-3 font-bold">{row.type}</td>
-                          <td className="px-4 py-3">{row.color || '-'}</td>
-                          <td className="px-4 py-3">{row.size}</td>
-                          <td className="px-4 py-3 text-right font-extrabold">{row.qty}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center font-bold text-[#64748B]">
-                          ยังไม่มีรายการ
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 border-t border-[#E7EAF0] p-3 sm:grid-cols-[1fr_1.25fr] sm:gap-3 sm:p-4">
-            <Dialog.Close className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white font-bold text-[#071638]">
-              กลับไปแก้
-            </Dialog.Close>
-            <button
-              onClick={onConfirm}
-              disabled={isSubmitting || !rows.length}
-              className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] font-bold text-white disabled:opacity-60"
-            >
-              {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageCheck />}{' '}
-              ยืนยันส่งคำสั่งเบิกเสื้อ
-            </button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
-function SummaryMobileRow({ row }) {
-  return (
-    <div className="rounded-lg border border-[#D8DEEA] bg-white p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="break-words text-sm font-extrabold text-[#071638]">
-            {row.name || row.type || '-'}
-          </p>
-          {row.name && (
-            <p className="mt-1 break-words text-xs font-bold text-[#64748B]">{row.type || '-'}</p>
-          )}
-        </div>
-        <span className="shrink-0 rounded-full bg-[#E5EFFD] px-3 py-1 text-sm font-black text-[#002B5B]">
-          {row.qty} ชิ้น
-        </span>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <MobileInfo label="สี" value={row.color || '-'} compact />
-        <MobileInfo label="ไซส์" value={row.size || '-'} compact />
-      </div>
-    </div>
-  );
-}
 
 function ReviewMetric({ label, value }) {
   const iconMap = {
@@ -4117,16 +3778,16 @@ function UserManualDialog({ open, setOpen }) {
         <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
         <Dialog.Content
           aria-describedby={undefined}
-          className="user-manual-dialog fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#DDE5F0] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(44rem,88vh)] sm:w-[min(46rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
+          className="user-manual-dialog fixed inset-x-3 bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-[#DDE5F0] bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:h-[min(46rem,88vh)] sm:w-[min(48rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
         >
-          <div className="flex items-center justify-between border-b border-[#E7EAF0] bg-white px-4 py-3 sm:px-5">
+          <div className="flex items-center justify-between border-b border-[#E7EAF0] bg-white px-4 py-3.5 sm:px-5">
             <div className="min-w-0">
-              <Dialog.Title className="text-lg font-black text-[#071638] sm:text-xl">
-                📖 คู่มือการใช้งานระบบเบิกเสื้อพนักงาน
+              <Dialog.Title className="text-lg font-black text-[#071638] sm:text-xl flex items-center gap-2">
+                <span>📖</span> คู่มือการใช้งานระบบเบิกเสื้อพนักงาน
               </Dialog.Title>
             </div>
             <Dialog.Close
-              className="grid size-10 shrink-0 place-items-center rounded-full text-[#1F2937] transition hover:bg-[#F1F5F9]"
+              className="grid size-10 shrink-0 place-items-center rounded-full text-[#1F2937] transition hover:bg-[#F1F5F9] cursor-pointer"
               aria-label="ปิด"
             >
               <X className="size-5" />
@@ -4134,63 +3795,87 @@ function UserManualDialog({ open, setOpen }) {
           </div>
           
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 space-y-6 text-sm text-[#374151] leading-relaxed">
-            <section className="space-y-3">
-              <h3 className="text-base font-extrabold text-[#002B5B] flex items-center gap-2">
-                <span>💡</span> เริ่มต้นใช้งานได้ 2 วิธี
+            <p className="text-xs sm:text-sm font-semibold text-neutral-500">
+              ยินดีต้อนรับสู่ระบบเบิกเสื้อพนักงานรุ่นปรับปรุงใหม่! ระบบใช้กระบวนการกรอกข้อมูลแบบ <strong className="text-[#002B5B]">3 ขั้นตอน (3-Step Wizard Flow)</strong> เพื่อให้ง่าย ถูกต้อง และป้องกันความผิดพลาดในการส่งข้อมูล ดังนี้:
+            </p>
+
+            {/* Step 1 */}
+            <div className="rounded-xl border border-blue-100 bg-blue-50/20 p-4 space-y-2">
+              <h3 className="text-sm sm:text-base font-black text-[#002B5B] flex items-center gap-2">
+                <span className="flex size-6 items-center justify-center rounded-full bg-[#002B5B] text-white text-xs font-bold">1</span>
+                <span>ขั้นตอนที่ 1: ข้อมูลผู้เบิก</span>
               </h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-primary-100 bg-[#EAF2FF]/20 p-3.5 space-y-2">
-                  <h4 className="font-bold text-[#002B5B]">1. วิธีรวดเร็ว (เพิ่มหลายคนพร้อมกัน)</h4>
-                  <p className="text-xs text-[#44536A]">
-                    กดปุ่ม <strong className="text-[#002B5B]">"เพิ่มหลายคน"</strong> จากนั้นวางรายชื่อพนักงานทั้งหมด (คั่นด้วยบรรทัดใหม่) 
-                    และสามารถตั้งเพศ ขนาดเสื้อ และจำนวนเริ่มต้นให้ทุกคนได้ในคลิกเดียว
+              <p className="text-xs sm:text-sm text-[#44536A] font-semibold pl-8">
+                กรอกข้อมูลผู้รับผิดชอบการขอเบิกเสื้อ ได้แก่ **ชื่อผู้ควบคุมงาน (Supervisor)**, **บริษัทในเครือ**, **สาขา/แผนก** และ **เบอร์โทรศัพท์** ให้ครบถ้วนสมบูรณ์ก่อนที่จะสามารถกดถัดไปเพื่อเริ่มกรอกข้อมูลพนักงาน
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/20 p-4 space-y-3">
+              <h3 className="text-sm sm:text-base font-black text-[#4F46E5] flex items-center gap-2">
+                <span className="flex size-6 items-center justify-center rounded-full bg-[#4F46E5] text-white text-xs font-bold">2</span>
+                <span>ขั้นตอนที่ 2: รายการเสื้อพนักงาน</span>
+              </h3>
+              <p className="text-xs sm:text-sm text-[#44536A] font-semibold pl-8">
+                ระบุรายชื่อพนักงานและเลือกไซส์เสื้อผ่านแท็บเครื่องมือ 3 รูปแบบตามความสะดวก:
+              </p>
+              <div className="grid gap-3 sm:grid-cols-3 pl-8">
+                <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-1">
+                  <h4 className="font-bold text-xs text-neutral-800">📝 1. กรอกตาราง</h4>
+                  <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed">
+                    เพิ่มแถวพนักงานทีละคน หรือกด "เพิ่มพนักงานหลายคน" เพื่อวางลิสต์ชื่อ จากนั้นเลือกเพศ และกดปุ่ม <strong className="text-[#002B5B]">+</strong> ในคอลัมน์เสื้อเพื่อระบุประเภท ไซส์ และจำนวน (รองรับการขอเบิกเสื้อหลายแบบ/หลายตัวต่อคน)
                   </p>
                 </div>
-                <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-3.5 space-y-2">
-                  <h4 className="font-bold text-neutral-700">2. วิธีช้าๆ (เพิ่มทีละคน)</h4>
-                  <p className="text-xs text-[#44536A]">
-                    กดปุ่ม <strong className="text-neutral-700">"เพิ่ม 1 คน"</strong> เพื่อเปิดกล่องกรอกข้อมูลทีละคน 
-                    เหมาะสำหรับรายชื่อที่ต้องการความละเอียดแตกต่างกัน
+                <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-1">
+                  <h4 className="font-bold text-xs text-neutral-800">👥 2. คัดลอกแถว</h4>
+                  <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed">
+                    ใช้เพื่อคัดลอกหรือจำลองรายชื่อพนักงานและข้อมูลเสื้อผ้าจากไฟล์ภายนอก หรือทำการโคลนรายการได้อย่างสะดวกรวดเร็ว
+                  </p>
+                </div>
+                <div className="rounded-lg border border-neutral-200 bg-white p-3 space-y-1">
+                  <h4 className="font-bold text-xs text-neutral-800">📥 3. นำเข้า CSV (Excel)</h4>
+                  <p className="text-[11px] text-neutral-500 font-semibold leading-relaxed">
+                    ดาวน์โหลดเทมเพลตไฟล์ CSV ไปกรอกรายละเอียดพนักงานทั้งหมดใน Excel หรือ Google Sheets แล้วอัปโหลดกลับเข้าสู่ระบบทันที
                   </p>
                 </div>
               </div>
-            </section>
+              <div className="pl-8 text-xs text-neutral-500 space-y-1">
+                <p>💡 **ฟังก์ชันอำนวยความสะดวกเพิ่มเติม:**</p>
+                <ul className="list-disc pl-4 space-y-1 font-semibold">
+                  <li><strong className="text-[#071638]">คัดลอกข้อมูลคนแรกให้ทุกคน:</strong> นำเพศและเสื้อของคนแรกไปคัดลอกลงในพนักงานทุกคนในคลิกเดียว</li>
+                  <li><strong className="text-[#071638]">แสดงเฉพาะคนที่กรอกไม่ครบ:</strong> กรองแถวที่ยังไม่ได้ระบุไซส์หรือประเภทเสื้อเพื่อตรวจสอบความถูกต้อง</li>
+                </ul>
+              </div>
+            </div>
 
-            <section className="space-y-2">
-              <h3 className="text-base font-extrabold text-[#002B5B] flex items-center gap-2">
-                <span>🔄</span> เครื่องมือช่วยเบิกเสื้อผ้าให้รวดเร็วขึ้น
+            {/* Step 3 */}
+            <div className="rounded-xl border border-green-100 bg-green-50/20 p-4 space-y-2">
+              <h3 className="text-sm sm:text-base font-black text-green-700 flex items-center gap-2">
+                <span className="flex size-6 items-center justify-center rounded-full bg-green-600 text-white text-xs font-bold">3</span>
+                <span>ขั้นตอนที่ 3: ตรวจสอบและส่งข้อมูล</span>
               </h3>
-              <ul className="list-disc pl-5 space-y-2.5 text-[#44536A]">
+              <ul className="list-decimal pl-8 space-y-1.5 text-xs sm:text-sm text-[#44536A] font-semibold">
                 <li>
-                  <strong className="text-[#071638]">คัดลอกข้อมูลคนแรกไปให้ทุกคน:</strong> หากพนักงานส่วนใหญ่เบิกของในสเปกเดียวกัน (เช่น เพศเดียวกัน หรือได้ของประเภทเดียวกัน) 
-                  ให้ตั้งค่าคนแรกให้เรียบร้อยแล้วกดปุ่มนี้ ระบบจะนำเพศและรายการเบิกของคนแรกไปใส่ให้ทุกคนทันที
+                  <strong className="text-[#071638]">ตรวจสอบยอดรวมและสถิติ:</strong> ระบบจะสรุปจำนวนยอดสั่งรวมแยกตามไซส์และรูปแบบเสื้อให้อย่างชัดเจน
                 </li>
                 <li>
-                  <strong className="text-[#071638]">คัดลอกการตั้งค่ารายบุคคล:</strong> สามารถกดปุ่มเครื่องมือที่มุมขวาบนของพนักงานแต่ละคน เพื่อคัดลอกข้อมูลพนักงานคนใดคนหนึ่งไปใช้กับอีกคนหนึ่งได้
+                  <strong className="text-[#071638]">เช็กยอดคลังสินค้า:</strong> ระบบเปรียบเทียบยอดขอกับสต็อกใน Google Sheets แบบเรียลไทม์ โดยจะแสดงป้ายกำกับ <span className="inline-block rounded-sm bg-green-100 text-green-800 px-1 text-[10px] font-black">พร้อมส่ง</span> หรือ <span className="inline-block rounded-sm bg-yellow-100 text-[#D97706] px-1 text-[10px] font-black">รอผลิต</span>
                 </li>
                 <li>
-                  <strong className="text-[#071638]">กรองเฉพาะคนที่กรอกไม่ครบ:</strong> หากมีพนักงานหลายคน ให้เปิดใช้สวิตช์ <strong className="text-[#071638]">"แสดงเฉพาะคนที่กรอกไม่ครบ"</strong> เพื่อตรวจดูว่าคนไหนลืมกรอกขนาด สี หรือจำนวนเสื้อผ้า
+                  <strong className="text-[#071638]">ยอมรับข้อตกลง:</strong> ทำเครื่องหมายถูกที่กล่องยืนยันทั้ง 3 ข้อเพื่อปลดล็อกปุ่มส่งข้อมูล
+                </li>
+                <li>
+                  <strong className="text-[#002B5B]">ส่งเบิกเสื้อ:</strong> กดปุ่มสีน้ำเงิน <strong className="text-[#002B5B]">"ส่งข้อมูลการเบิกเสื้อ"</strong> เพื่อบันทึกเข้าฐานข้อมูลหลักและรับรหัสคำสั่ง (Batch ID)
                 </li>
               </ul>
-            </section>
+            </div>
 
-            <section className="space-y-2">
-              <h3 className="text-base font-extrabold text-[#002B5B] flex items-center gap-2">
-                <span>📬</span> ขั้นตอนการส่งคำสั่งเบิก
+            <section className="space-y-2 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+              <h3 className="text-xs sm:text-sm font-extrabold text-neutral-700 flex items-center gap-1.5">
+                <span>⚡</span> ข้อมูลการบันทึกดราฟต์อัตโนมัติ
               </h3>
-              <ol className="list-decimal pl-5 space-y-2 text-[#44536A]">
-                <li>ระบุ <strong className="text-[#071638]">ชื่อผู้ควบคุมงาน (Supervisor)</strong> และ <strong className="text-[#071638]">เบอร์โทรศัพท์</strong> ในแถบด้านขวา</li>
-                <li>ตรวจสอบข้อมูลความถูกต้องของขนาด สี และจำนวนเสื้อของพนักงานแต่ละท่าน</li>
-                <li>กดปุ่มสีน้ำเงิน <strong className="text-[#002B5B]">"บันทึกและส่งข้อมูล"</strong> ด้านล่างขวาเพื่อบันทึกข้อมูลเข้าสู่ฐานข้อมูลหลัก</li>
-              </ol>
-            </section>
-
-            <section className="space-y-2">
-              <h3 className="text-base font-extrabold text-[#002B5B] flex items-center gap-2">
-                <span>📊</span> ระบบบันทึกดราฟต์และแดชบอร์ด
-              </h3>
-              <p className="text-[#44536A]">
-                ตัวระบบมีการบันทึกดราฟต์ไว้ในเครื่องโดยอัตโนมัติ (LocalStorage) หากเบราว์เซอร์เผลอปิดหรืออินเทอร์เน็ตหลุด ข้อมูลจะยังไม่หาย สามารถทำต่อได้ทันทีเมื่อเปิดหน้าเว็บใหม่ นอกจากนี้ หากเป็นผู้ดูแลระบบ สามารถกดปุ่ม <strong className="text-[#071638]">"แดชบอร์ด"</strong> ที่หัวเว็บเพื่อเข้าไปจัดการสถานะจัดส่งและดาวน์โหลดสรุปได้
+              <p className="text-xs text-neutral-500 font-semibold leading-relaxed">
+                ระบบเปิดใช้การบันทึกดราฟต์ข้อมูลอัตโนมัติ (Auto-Save) ลงเครื่องของคุณตลอดเวลา หากเบราว์เซอร์เผลอปิดหรือปิดเครื่อง ข้อมูลในขั้นตอนล่าสุดจะยังคงอยู่และสามารถทำรายการต่อได้ทันทีเมื่อเปิดหน้าเว็บนี้ขึ้นมาใหม่
               </p>
             </section>
           </div>
@@ -4198,7 +3883,7 @@ function UserManualDialog({ open, setOpen }) {
           <div className="flex justify-end gap-2 border-t border-[#E7EAF0] bg-[#F8FAFD] px-4 py-3 sm:px-5">
             <button
               onClick={() => setOpen(false)}
-              className="min-h-10 rounded-lg bg-[#002B5B] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#002144]"
+              className="min-h-10 rounded-lg bg-[#002B5B] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#002144] cursor-pointer"
             >
               เข้าใจแล้ว
             </button>
@@ -6658,13 +6343,13 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
 
         <div className="mt-4 border-t border-[#E7EAF0] pt-3">
           <h3 className="text-sm font-extrabold text-[#071638]">
-            รายละเอียดตามแบบเสื้อ สี และไซส์
+            รายละเอียดตามแบบเสื้อ และไซส์
           </h3>
         </div>
         <div className="mt-3 grid gap-2 sm:hidden">
           {summaryRows.length ? (
             summaryRows.map((row) => (
-              <SummaryMobileRow key={`${row.type}-${row.color}-${row.size}`} row={row} />
+              <SummaryMobileRow key={`${row.type}-${row.size}`} row={row} />
             ))
           ) : (
             <EmptyDashboardState text="ยังไม่มีข้อมูล" compact />
@@ -6675,7 +6360,6 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
             <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
               <tr>
                 <th className="px-4 py-2.5 text-center align-middle">ประเภท</th>
-                <th className="px-4 py-2.5 text-center align-middle">สี</th>
                 <th className="px-4 py-2.5 text-center align-middle">ไซส์</th>
                 <th className="px-4 py-2.5 text-center align-middle">จำนวน</th>
               </tr>
@@ -6684,14 +6368,11 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
               {summaryRows.length ? (
                 summaryRows.map((row) => (
                   <tr
-                    key={`${row.type}-${row.color}-${row.size}`}
+                    key={`${row.type}-${row.size}`}
                     className="border-t border-[#E2E8F0]"
                   >
                     <td className="break-words px-4 py-3 text-center align-middle font-bold">
                       {row.type}
-                    </td>
-                    <td className="break-words px-4 py-3 text-center align-middle">
-                      {row.color || '-'}
                     </td>
                     <td className="px-4 py-3 text-center align-middle font-bold">{row.size}</td>
                     <td className="px-4 py-3 text-center align-middle font-extrabold">{row.qty}</td>
@@ -6708,6 +6389,29 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
           </table>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function SummaryMobileRow({ row }) {
+  return (
+    <div className="rounded-lg border border-[#D8DEEA] bg-white p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-extrabold text-[#071638]">
+            {row.name || row.type || '-'}
+          </p>
+          {row.name && (
+            <p className="mt-1 break-words text-xs font-bold text-[#64748B]">{row.type || '-'}</p>
+          )}
+        </div>
+        <span className="shrink-0 rounded-full bg-[#E5EFFD] px-3 py-1 text-sm font-black text-[#002B5B]">
+          {row.qty} ชิ้น
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-2 text-xs">
+        <MobileInfo label="ไซส์" value={row.size || '-'} compact />
+      </div>
     </div>
   );
 }
