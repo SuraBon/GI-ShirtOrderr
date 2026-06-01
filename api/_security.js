@@ -16,7 +16,14 @@ function sign(value) {
 }
 
 function getSessionSecret() {
-  return process.env.DASHBOARD_SESSION_SECRET || process.env.ADMIN_SHARED_SECRET || process.env.DASHBOARD_PASSCODE || "";
+  return (
+    process.env.DASHBOARD_SESSION_SECRET ||
+    process.env.VITE_DASHBOARD_SESSION_SECRET ||
+    process.env.ADMIN_SHARED_SECRET ||
+    process.env.DASHBOARD_PASSCODE ||
+    process.env.VITE_DASHBOARD_PASSCODE ||
+    ""
+  );
 }
 
 function safeEqual(left, right) {
@@ -102,7 +109,12 @@ export function requireAdmin(request, response) {
 }
 
 export function getGasAdminToken() {
-  return process.env.GAS_ADMIN_TOKEN || process.env.ADMIN_SHARED_SECRET || "";
+  return (
+    process.env.GAS_ADMIN_TOKEN ||
+    process.env.VITE_GAS_ADMIN_TOKEN ||
+    process.env.ADMIN_SHARED_SECRET ||
+    ""
+  );
 }
 
 export function sendError(response, status, message = "Request failed") {

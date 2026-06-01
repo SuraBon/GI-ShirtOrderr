@@ -7,8 +7,13 @@ Deploy & GAS setup (quick)
 
 2) Vercel deployment
 - In Vercel project settings, add an Environment Variable named `VITE_GAS_URL` with the GAS web app URL.
+- Also add server-side environment variables for the dashboard and GAS access:
+  - `DASHBOARD_PASSCODE`
+  - `DASHBOARD_SESSION_SECRET`
+  - `GAS_ADMIN_TOKEN` (or `ADMIN_SHARED_SECRET`)
 - Deploy the repository (Vercel will run `npm run build` and serve the `dist` directory).
 - `vercel.json` is included and configured for Vite.
+- Important: this app depends on server-side `/api/*` routes for admin auth and Google Sheets proxying. GitHub Pages static hosting cannot serve these API endpoints, so use Vercel or another serverless host.
 
 3) Local test
 - Set the env locally when building:

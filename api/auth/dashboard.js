@@ -16,9 +16,12 @@ export default async function handler(request, response) {
   }
 
   try {
-    const configuredPasscode = process.env.DASHBOARD_PASSCODE || "";
+    const configuredPasscode =
+      process.env.DASHBOARD_PASSCODE ||
+      process.env.VITE_DASHBOARD_PASSCODE ||
+      "";
     if (!configuredPasscode) {
-      console.error("Missing DASHBOARD_PASSCODE");
+      console.error("Missing DASHBOARD_PASSCODE or VITE_DASHBOARD_PASSCODE");
       sendError(response, 500, "Dashboard auth is not configured");
       return;
     }
