@@ -1126,6 +1126,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
   const [mobileEmployeeId, setMobileEmployeeId] = useState('');
   const [editMode, setEditMode] = useState('full'); // 'full' or 'garments-only'
+  const [editingCardId, setEditingCardId] = useState('');
   
   // Wizard and UI step states
   const [activeStep, setActiveStep] = useState(1);
@@ -1864,9 +1865,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                           onClick={() => {
                             const newId = crypto.randomUUID();
                             dispatch({ type: 'add', id: newId });
-                            if (window.innerWidth < 1024) {
-                              handleEdit(newId, 'full');
-                            }
+                            setEditingCardId(newId);
                           }}
                           className="inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] px-3.5 text-xs font-black transition shadow-xs cursor-pointer"
                         >
@@ -1878,85 +1877,282 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-thin">
                         {state.employees.map((employee, index) => {
                           const complete = isEmployeeComplete(employee);
+                          const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
                           return (
                             <div 
                               key={employee.id} 
                               data-quick-employee-card={employee.id}
-                              onClick={() => handleEdit(employee.id, 'full')}
                               className={cn(
-                                "p-4 rounded-xl border flex flex-col justify-between transition-all hover:shadow-md bg-white cursor-pointer group",
-                                complete 
-                                  ? "border-neutral-200 hover:border-[#002B5B]" 
-                                  : "border-yellow-300 bg-yellow-50/10 hover:border-[#002B5B]"
+                                "p-4 rounded-xl border flex flex-col justify-between transition-all bg-white shadow-xs",
+                                editingCardId === employee.id
+                                  ? "border-[#002B5B] ring-2 ring-[#002B5B]/10"
+                                  : complete 
+                                    ? "border-neutral-200 hover:border-[#002B5B] cursor-pointer group hover:shadow-md" 
+                                    : "border-yellow-300 bg-yellow-50/10 hover:border-[#002B5B] cursor-pointer group hover:shadow-md"
                               )}
-                              title="คลิกเพื่อแก้ไขข้อมูลพนักงานคนนี้"
+                              onClick={() => {
+                                if (editingCardId !== employee.id) {
+                                  setEditingCardId(employee.id);
+                                }
+                              }}
+                              title={editingCardId !== employee.id ? "คลิกเพื่อแก้ไขข้อมูลพนักงานคนนี้" : undefined}
                             >
-                              <div>
-                                <div className="flex items-start justify-between gap-2">
-                                  <span className="text-xs font-bold text-[#64748B]">ลำดับที่ {index + 1}</span>
-                                  <span className={cn(
-                                    "rounded-full px-2 py-0.5 text-[10px] font-black",
-                                    complete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                                  )}>
-                                    {complete ? "✓ ครบ" : "⚠️ ไม่ครบ"}
-                                  </span>
-                                </div>
-                                <h4 className="font-extrabold text-sm text-[#071638] mt-1.5 truncate group-hover:text-[#002B5B] transition-colors flex items-center gap-1.5">
-                                  <span>{employee.name || <span className="text-neutral-400 italic">ไม่มีชื่อ</span>}</span>
-                                  <Pencil className="size-3 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                                </h4>
-                                <p className="text-xs font-bold text-neutral-500 mt-0.5">เพศ: {employee.gender || '-'}</p>
-                                
-                                <div className="mt-3 space-y-1">
-                                  <span className="text-[11px] font-black text-neutral-400">เสื้อที่เบิก:</span>
-                                  {employee.items.length === 0 ? (
-                                    <p className="text-xs text-neutral-400 italic">ไม่มีเสื้อ</p>
-                                  ) : (
-                                    employee.items.map((item, itemIdx) => (
-                                      <div key={itemIdx} className="text-xs font-bold text-neutral-700 bg-neutral-50 border border-neutral-100 rounded px-2 py-1 flex items-center justify-between animate-fade-in">
-                                        <span className="truncate">{item.type}</span>
-                                        <span className="shrink-0 text-[#002B5B] ml-2 font-black">ไซส์ {item.size} x {item.qty} ตัว</span>
+                              {editingCardId === employee.id ? (
+                                <div className="space-y-3 flex-1 flex flex-col justify-between animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                                  <div>
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <span className="text-xs font-black text-[#002B5B]">แก้ไขข้อมูล ลำดับที่ {index + 1}</span>
+                                      <span className={cn(
+                                        "rounded-full px-2 py-0.5 text-[10px] font-black",
+                                        complete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                                      )}>
+                                        {complete ? "✓ ครบ" : "⚠️ ไม่ครบ"}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                      {/* Name input */}
+                                      <div className="space-y-1">
+                                        <label className="text-[11px] font-black text-[#64748B]">ชื่อ-นามสกุล *</label>
+                                        <TextInput
+                                          value={employee.name}
+                                          invalid={showErrors && !employee.name.trim()}
+                                          onChange={(value) =>
+                                            dispatch({ type: 'patchEmployee', id: employee.id, patch: { name: value } })
+                                          }
+                                          placeholder="เช่น สมชาย ใจดี"
+                                        />
                                       </div>
-                                    ))
-                                  )}
+
+                                      {/* Gender input */}
+                                      <div className="space-y-1">
+                                        <label className="text-[11px] font-black text-[#64748B]">เพศ *</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {GENDERS.map((gender) => (
+                                            <button
+                                              key={gender}
+                                              type="button"
+                                              onClick={() =>
+                                                dispatch({ type: 'patchEmployee', id: employee.id, patch: { gender } })
+                                              }
+                                              className={cn(
+                                                'h-9 rounded-lg border text-xs font-bold transition active:scale-95 cursor-pointer',
+                                                employee.gender === gender
+                                                  ? 'border-[#002B5B] bg-[#002B5B] text-white font-extrabold shadow-xs'
+                                                  : 'border-[#CBD5E1] bg-white text-[#071638] hover:border-[#002B5B]'
+                                              )}
+                                            >
+                                              {gender === 'ชาย' ? '👨 ชาย' : '👩 หญิง'}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Clothing items list */}
+                                      <div className="space-y-2 pt-2 border-t border-neutral-100">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[11px] font-black text-[#64748B]">เสื้อที่เบิก *</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (!clothingTypes.length) return;
+                                              const nextType =
+                                                clothingTypes.find(
+                                                  (t) => !employee.items.some((item) => item.type === t)
+                                                ) || clothingTypes[0];
+                                              const defaultSizeVal =
+                                                getSizeOptions(nextType, employee.gender)[0] || 'M';
+                                              dispatch({
+                                                type: 'patchEmployee',
+                                                id: employee.id,
+                                                patch: {
+                                                  items: [
+                                                    ...employee.items,
+                                                    {
+                                                      type: nextType,
+                                                      size: defaultSizeVal,
+                                                      customSize: '',
+                                                      color: '',
+                                                      qty: 1,
+                                                    },
+                                                  ],
+                                                },
+                                              });
+                                            }}
+                                            className="inline-flex items-center gap-1 text-[11px] font-black text-[#002B5B] hover:text-[#001f42] cursor-pointer"
+                                          >
+                                            <Plus className="size-3" />
+                                            <span>เพิ่มเสื้อ</span>
+                                          </button>
+                                        </div>
+
+                                        {employee.items.length === 0 ? (
+                                          <p className="text-xs text-neutral-400 italic">ไม่มีเสื้อ</p>
+                                        ) : (
+                                          <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
+                                            {employee.items.map((item, itemIdx) => {
+                                              const sizeOptions = getSizeOptions(item.type, employee.gender);
+                                              return (
+                                                <div key={itemIdx} className="p-2 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2 animate-fade-in">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <div className="flex-1 min-w-0">
+                                                      <Select
+                                                        value={item.type}
+                                                        onChange={(val) =>
+                                                          dispatch({
+                                                            type: 'patchItem',
+                                                            id: employee.id,
+                                                            itemType: item.type,
+                                                            patch: { type: val },
+                                                          })
+                                                        }
+                                                        values={clothingTypes}
+                                                        size="xs"
+                                                        placeholder="เลือกแบบเสื้อ"
+                                                      />
+                                                    </div>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        dispatch({
+                                                          type: 'patchEmployee',
+                                                          id: employee.id,
+                                                          patch: {
+                                                            items: employee.items.filter((it, idx) => idx !== itemIdx),
+                                                          },
+                                                        })
+                                                      }
+                                                      className="size-7 rounded border border-red-200 bg-red-50 text-[#B91C1C] hover:bg-red-100 hover:text-red-700 transition shrink-0 flex items-center justify-center cursor-pointer"
+                                                      title="ลบเสื้อรายการนี้"
+                                                    >
+                                                      <X className="size-3.5" />
+                                                    </button>
+                                                  </div>
+
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="flex-1">
+                                                      <Select
+                                                        value={item.size}
+                                                        disabled={!employee.gender}
+                                                        onChange={(val) =>
+                                                          dispatch({
+                                                            type: 'patchItem',
+                                                            id: employee.id,
+                                                            itemType: item.type,
+                                                            patch: { size: val },
+                                                          })
+                                                        }
+                                                        invalid={showErrors && !item.size}
+                                                        values={sizeOptions}
+                                                        size="xs"
+                                                        placeholder={employee.gender ? 'ไซส์' : 'เพศ'}
+                                                      />
+                                                    </div>
+                                                    <input
+                                                      type="number"
+                                                      value={item.qty}
+                                                      onChange={(e) =>
+                                                        dispatch({
+                                                          type: 'patchItem',
+                                                          id: employee.id,
+                                                          itemType: item.type,
+                                                          patch: { qty: digitsOnly(e.target.value) },
+                                                        })
+                                                      }
+                                                      className="w-14 h-7 border border-neutral-300 rounded text-center font-bold text-xs focus:border-[#002B5B] outline-none shrink-0"
+                                                      min="1"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 mt-4 pt-3 border-t border-neutral-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingCardId('')}
+                                      className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] text-xs font-extrabold transition cursor-pointer shadow-xs"
+                                    >
+                                      <Check className="size-3.5" />
+                                      <span>เสร็จสิ้น</span>
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEdit(employee.id, 'full');
-                                  }}
-                                  className="flex-1 inline-flex items-center justify-center gap-1 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#002B5B] hover:bg-[#002B5B]/5 text-xs font-extrabold transition cursor-pointer"
-                                >
-                                  <Pencil className="size-3.5" />
-                                  <span>แก้ไข</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    dispatch({ type: 'cloneEmployee', id: employee.id });
-                                  }}
-                                  className="flex-1 inline-flex items-center justify-center gap-1 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#44536A] hover:bg-neutral-50 text-xs font-extrabold transition cursor-pointer"
-                                >
-                                  <Copy className="size-3.5" />
-                                  <span>คัดลอก</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={state.employees.length <= 1}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    dispatch({ type: 'delete', id: employee.id });
-                                  }}
-                                  className="grid size-9 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-50 transition hover:bg-[#FFE2E2] cursor-pointer"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </button>
-                              </div>
+                              ) : (
+                                <div className="flex flex-col justify-between flex-1">
+                                  <div>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <span className="text-xs font-bold text-[#64748B]">ลำดับที่ {index + 1}</span>
+                                      <span className={cn(
+                                        "rounded-full px-2 py-0.5 text-[10px] font-black",
+                                        complete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                                      )}>
+                                        {complete ? "✓ ครบ" : "⚠️ ไม่ครบ"}
+                                      </span>
+                                    </div>
+                                    <h4 className="font-extrabold text-sm text-[#071638] mt-1.5 truncate group-hover:text-[#002B5B] transition-colors flex items-center gap-1.5">
+                                      <span>{employee.name || <span className="text-neutral-400 italic">ไม่มีชื่อ</span>}</span>
+                                      <Pencil className="size-3 text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                    </h4>
+                                    <p className="text-xs font-bold text-neutral-500 mt-0.5">เพศ: {employee.gender || '-'}</p>
+                                    
+                                    <div className="mt-3 space-y-1">
+                                      <span className="text-[11px] font-black text-neutral-400">เสื้อที่เบิก:</span>
+                                      {employee.items.length === 0 ? (
+                                        <p className="text-xs text-neutral-400 italic">ไม่มีเสื้อ</p>
+                                      ) : (
+                                        employee.items.map((item, itemIdx) => (
+                                          <div key={itemIdx} className="text-xs font-bold text-neutral-700 bg-neutral-50 border border-neutral-100 rounded px-2 py-1 flex items-center justify-between animate-fade-in">
+                                            <span className="truncate">{item.type}</span>
+                                            <span className="shrink-0 text-[#002B5B] ml-2 font-black">ไซส์ {item.size} x {item.qty} ตัว</span>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2 mt-4 pt-3 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingCardId(employee.id);
+                                      }}
+                                      className="flex-1 inline-flex items-center justify-center gap-1 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#002B5B] hover:bg-[#002B5B]/5 text-xs font-extrabold transition cursor-pointer"
+                                    >
+                                      <Pencil className="size-3.5" />
+                                      <span>แก้ไข</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        dispatch({ type: 'cloneEmployee', id: employee.id });
+                                      }}
+                                      className="flex-1 inline-flex items-center justify-center gap-1 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#44536A] hover:bg-neutral-50 text-xs font-extrabold transition cursor-pointer"
+                                    >
+                                      <Copy className="size-3.5" />
+                                      <span>คัดลอก</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={state.employees.length <= 1}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        dispatch({ type: 'delete', id: employee.id });
+                                      }}
+                                      className="grid size-9 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-50 transition hover:bg-[#FFE2E2] cursor-pointer"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
