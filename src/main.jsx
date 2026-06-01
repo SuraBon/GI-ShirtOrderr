@@ -725,6 +725,7 @@ function flattenBatches(batches) {
         supervisorName: batch.supervisorName,
         supervisorPhone: batch.supervisorPhone,
         status: batch.status,
+        itemStatus: item.status || batch.status,
         statusUpdatedAt: batch.statusUpdatedAt,
         name: order.name,
         gender: order.gender,
@@ -4561,6 +4562,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState('');
   const [exportExpanded, setExportExpanded] = useState(false);
   const [orderPage, setOrderPage] = useState(1);
+  const [employeePage, setEmployeePage] = useState(1);
 
   async function loadData({ silent = false } = {}) {
     if (refreshing) return;
@@ -4642,9 +4644,23 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
 
   useEffect(() => {
     setOrderPage(1);
+    setEmployeePage(1);
   }, [branchFilter, statusFilter, monthFilter, query]);
 
   const rows = useMemo(() => flattenBatches(filteredBatches), [filteredBatches]);
+  const batchById = useMemo(
+    () => new Map(filteredBatches.map((batch) => [batch.batchId, batch])),
+    [filteredBatches]
+  );
+  const employeeRows = useMemo(
+    () =>
+      [...rows].sort(
+        (a, b) =>
+          new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime() ||
+          a.name.localeCompare(b.name, 'th', { numeric: true })
+      ),
+    [rows]
+  );
   const monthFilterOptions = useMemo(() => buildMonthFilterOptions(rows), [rows]);
   const metrics = useMemo(() => buildDashboardMetrics(filteredBatches), [filteredBatches]);
   const allRows = useMemo(() => flattenBatches(batches), [batches]);
@@ -5110,6 +5126,14 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const safeOrderPage = Math.min(orderPage, orderPageCount);
   const orderStartIndex = (safeOrderPage - 1) * orderPageSize;
   const orderRows = filteredBatches.slice(orderStartIndex, orderStartIndex + orderPageSize);
+  const employeePageSize = 12;
+  const employeePageCount = Math.max(1, Math.ceil(employeeRows.length / employeePageSize));
+  const safeEmployeePage = Math.min(employeePage, employeePageCount);
+  const employeeStartIndex = (safeEmployeePage - 1) * employeePageSize;
+  const pagedEmployeeRows = employeeRows.slice(
+    employeeStartIndex,
+    employeeStartIndex + employeePageSize
+  );
   const formatDashboardDate = (value) => {
     if (!value) return '-';
     const date = new Date(value);
@@ -5152,8 +5176,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         }));
       })
     )
-    .sort((a, b) => b.withdrawn - a.withdrawn || a.type.localeCompare(b.type, 'th'))
-    .slice(0, 8);
+    .sort((a, b) => b.withdrawn - a.withdrawn || a.type.localeCompare(b.type, 'th'));
+  const stockFocusRows = stockSummaryRows.slice(0, 8);
   const stockSummaryTotals = stockSummaryRows.reduce(
     (totals, row) => ({
       totalStock: totals.totalStock + row.totalStock,
@@ -5190,9 +5214,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 <span>โหลดข้อมูลใหม่</span>
               </button>
-              <button className="dark" onClick={() => onViewChange?.('inventory')}>
-                <Shirt className="size-4" />
-                <span>จัดการสต็อก</span>
+              <button className="dark" onClick={() => onViewChange?.('employees')}>
+                <Users className="size-4" />
+                <span>ดูข้อมูลพนักงาน</span>
               </button>
             </div>
           </div>
@@ -5202,44 +5226,53 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             <Stat icon={Truck} value={`${metrics.backorderPieces} ชิ้น`} label="รอของ" />
             <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
           </div>
-          <div className="dashboard-stock-summary">
-            <div className="dashboard-panel-head slim">
-              <div>
-                <h2>สรุปสต็อกเสื้อ</h2>
-                <p>ดูจำนวนที่เคยมี เบิกแล้ว และคงเหลือ แยกตามแบบเสื้อ เพศ และไซส์</p>
-              </div>
-              <div className="dashboard-stock-summary-totals">
-                <span>เคยมี {stockSummaryTotals.totalStock} ชิ้น</span>
-                <span>เบิก {stockSummaryTotals.withdrawn} ชิ้น</span>
-                <span>เหลือ {stockSummaryTotals.remaining} ชิ้น</span>
-              </div>
-            </div>
-            <div className="dashboard-stock-ledger">
-              <div className="dashboard-stock-ledger-head">
-                <span>แบบเสื้อ</span>
-                <span>เพศ/ไซส์</span>
-                <span>เคยมี</span>
-                <span>เบิก</span>
-                <span>เหลือ</span>
-              </div>
-              {stockSummaryRows.map((row) => (
-                <div className="dashboard-stock-ledger-row" key={row.id}>
-                  <strong>{row.type}</strong>
-                  <span>{row.gender} / {row.size || '-'}</span>
-                  <span>{row.totalStock}</span>
-                  <span>{row.withdrawn}</span>
-                  <span>{row.remaining}</span>
+          <div className="dashboard-overview-workspace">
+            <section className="dashboard-work-panel">
+              <article className="dashboard-work-card">
+                <div>
+                  <h2>งานที่ต้องติดตาม</h2>
+                  <p>แยกจากงานสต็อก เพื่อให้ภาพรวมโฟกัสที่คำสั่งเบิกและการจัดส่ง</p>
                 </div>
-              ))}
-              {!stockSummaryRows.length && (
-                <div className="dashboard-stock-ledger-empty">ยังไม่มีข้อมูลสต็อก</div>
-              )}
-            </div>
+                <div className="dashboard-work-list">
+                  <p><span className="dot red" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
+                  <p><span className="dot amber" /> รอของ <strong>{countByStatus(ORDER_STATUS_BACKORDER)} รายการ</strong></p>
+                  <p><span className="dot green" /> ส่งแล้ว <strong>{countByStatus(ORDER_STATUS_DELIVERED)} รายการ</strong></p>
+                </div>
+                <div className="dashboard-panel-actions">
+                  <button onClick={() => onViewChange?.('orders')}>
+                    <ClipboardList className="size-4" />
+                    <span>ดูคำสั่งเบิก</span>
+                  </button>
+                </div>
+              </article>
+              <article className="dashboard-work-card">
+                <div>
+                  <h2>ข้อมูลพนักงาน</h2>
+                  <p>ดูรายคนว่าเบิกเสื้ออะไร ไซส์ไหน จำนวนเท่าไร และอยู่คำสั่งใด</p>
+                </div>
+                <div className="dashboard-work-list">
+                  <p><span className="dot blue" /> รายการเบิกรายคน <strong>{employeeRows.length} รายการ</strong></p>
+                  <p><span className="dot green" /> จำนวนพนักงาน <strong>{metrics.totalEmployees} คน</strong></p>
+                </div>
+                <div className="dashboard-panel-actions">
+                  <button onClick={() => onViewChange?.('employees')}>
+                    <Users className="size-4" />
+                    <span>ดูข้อมูลพนักงาน</span>
+                  </button>
+                </div>
+              </article>
+            </section>
           </div>
         </section>
       )}
 
-      <section className={cn('dashboard-console', activeView === 'orders' && 'orders-only', activeView !== 'orders' && 'hidden')}>
+      <section
+        className={cn(
+          'dashboard-console',
+          (activeView === 'orders' || activeView === 'employees') && 'orders-only',
+          activeView !== 'orders' && activeView !== 'employees' && 'hidden'
+        )}
+      >
         <aside className="dashboard-filter-rail">
           <div className="dashboard-panel-title">
             <h2>ตัวกรอง</h2>
@@ -5268,6 +5301,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           </button>
         </aside>
 
+        {activeView === 'orders' && (
         <section className="dashboard-orders-panel">
           <div className="dashboard-panel-head">
             <div>
@@ -5421,6 +5455,121 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             </div>
           </div>
         </section>
+        )}
+
+        {activeView === 'employees' && (
+        <section className="dashboard-employees-panel">
+          <div className="dashboard-panel-head">
+            <div>
+              <h2>ข้อมูลพนักงานที่เบิกทั้งหมด</h2>
+              <p>ทั้งหมด {employeeRows.length} รายการตามตัวกรองปัจจุบัน</p>
+            </div>
+            <div className="dashboard-panel-actions">
+              <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
+                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                <span>โหลดใหม่</span>
+              </button>
+              <button onClick={() => onViewChange?.('orders')}>
+                <ClipboardList className="size-4" />
+                <span>ดูคำสั่งเบิก</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="dashboard-table-wrap">
+            <table className="dashboard-employee-table">
+              <thead>
+                <tr>
+                  <th>ชื่อพนักงาน</th>
+                  <th>เพศ</th>
+                  <th>เสื้อ</th>
+                  <th>ไซส์</th>
+                  <th>จำนวน</th>
+                  <th>สถานะ</th>
+                  <th>สาขา</th>
+                  <th>เลขที่คำสั่ง</th>
+                  <th>วันที่เบิก</th>
+                  <th>ดู</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedEmployeeRows.map((row) => {
+                  const rowBatch = batchById.get(row.batchId);
+                  return (
+                    <tr key={row.id}>
+                      <td>{row.name || '-'}</td>
+                      <td>{row.gender || '-'}</td>
+                      <td>{row.type || '-'}</td>
+                      <td>{row.size || '-'}</td>
+                      <td>{row.qty}</td>
+                      <td><StatusBadge status={row.itemStatus || row.status} /></td>
+                      <td>{row.branch || '-'}</td>
+                      <td>{row.batchId}</td>
+                      <td>{formatDashboardDate(row.submittedAt)}</td>
+                      <td>
+                        <button
+                          className="dashboard-icon-btn"
+                          onClick={() => rowBatch && setSelectedBatch(rowBatch)}
+                          disabled={!rowBatch}
+                        >
+                          <ChevronDown className="size-4 -rotate-90" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="dashboard-mobile-orders">
+            {pagedEmployeeRows.map((row) => {
+              const rowBatch = batchById.get(row.batchId);
+              return (
+                <article
+                  key={row.id}
+                  className="dashboard-mobile-order-card"
+                  onClick={() => rowBatch && setSelectedBatch(rowBatch)}
+                >
+                  <div className="dashboard-mobile-order-top">
+                    <div>
+                      <strong>{row.name || '-'}</strong>
+                      <span>{row.batchId}</span>
+                    </div>
+                    <StatusBadge status={row.itemStatus || row.status} />
+                  </div>
+                  <div className="dashboard-mobile-order-grid">
+                    <span>เพศ <strong>{row.gender || '-'}</strong></span>
+                    <span>เสื้อ <strong>{row.type || '-'}</strong></span>
+                    <span>ไซส์ <strong>{row.size || '-'}</strong></span>
+                    <span>จำนวน <strong>{row.qty} ตัว</strong></span>
+                  </div>
+                  <div className="dashboard-mobile-order-bottom">
+                    <span>{row.branch || '-'} · {formatDashboardDate(row.submittedAt)}</span>
+                    <button type="button">ดูคำสั่ง</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="dashboard-panel-foot">
+            <span>แสดง {employeeRows.length ? employeeStartIndex + 1 : 0} - {employeeStartIndex + pagedEmployeeRows.length} จาก {employeeRows.length} รายการ</span>
+            <div>
+              <button disabled={safeEmployeePage <= 1} onClick={() => setEmployeePage((page) => Math.max(1, page - 1))}>
+                <ArrowLeft className="size-4" />
+              </button>
+              <strong>{safeEmployeePage}</strong>
+              <button
+                disabled={safeEmployeePage >= employeePageCount}
+                onClick={() => setEmployeePage((page) => Math.min(employeePageCount, page + 1))}
+              >
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </div>
+        </section>
+        )}
 
         <aside className="dashboard-insight-panel">
           <div className="dashboard-panel-head slim">
@@ -5463,13 +5612,70 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <div className="dashboard-panel-head">
             <div>
               <h2>จัดการแบบเสื้อและสต็อกไซส์</h2>
-              <p>เพิ่มแบบเสื้อ อัปโหลดรูปภาพ แก้ไซส์ และจำนวนคงเหลือ</p>
+              <p>รวมงานข้อมูลเสื้อและสต็อกไว้ในหน้าเดียว แยกเป็นโซนภาพรวม ข้อมูลเสื้อ และสต็อกตามไซส์</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => onViewChange?.('orders')}>
                 <ClipboardList className="size-4" />
                 <span>กลับไปรายการคำสั่งเบิก</span>
               </button>
+            </div>
+          </div>
+          <div className="dashboard-stock-summary">
+            <div className="dashboard-panel-head slim">
+              <div>
+                <h2>ภาพรวมสต็อก</h2>
+                <p>จำนวนรวมและรายการที่ควรตรวจ ก่อนลงไปแก้ข้อมูลเสื้อหรือจำนวนคงเหลือ</p>
+              </div>
+              <div className="dashboard-stock-summary-totals">
+                <span>ตั้งต้น {stockSummaryTotals.totalStock} ชิ้น</span>
+                <span>เบิก {stockSummaryTotals.withdrawn} ชิ้น</span>
+                <span>เหลือ {stockSummaryTotals.remaining} ชิ้น</span>
+              </div>
+            </div>
+            <div className="dashboard-stock-status-grid">
+              <div>
+                <span>จำนวนตั้งต้น</span>
+                <strong>{stockSummaryTotals.totalStock}</strong>
+                <small>ชิ้น</small>
+              </div>
+              <div>
+                <span>เบิกแล้ว</span>
+                <strong>{stockSummaryTotals.withdrawn}</strong>
+                <small>ชิ้น</small>
+              </div>
+              <div>
+                <span>คงเหลือ</span>
+                <strong>{stockSummaryTotals.remaining}</strong>
+                <small>ชิ้น</small>
+              </div>
+            </div>
+            <div className="dashboard-inventory-zones">
+              <div className="dashboard-stock-focus-list">
+                <h3>รายการที่ถูกเบิกมาก</h3>
+                {stockFocusRows.slice(0, 5).map((row) => (
+                  <p key={row.id}>
+                    <span>{row.type} · {row.gender} · {row.size || '-'}</span>
+                    <strong>{row.withdrawn} ชิ้น</strong>
+                  </p>
+                ))}
+                {!stockSummaryRows.length && (
+                  <div className="dashboard-stock-ledger-empty">ยังไม่มีข้อมูลสต็อก</div>
+                )}
+              </div>
+              <div className="dashboard-stock-focus-list">
+                <h3>สต็อกต่ำที่ควรดู</h3>
+                {lowStockRows.length ? (
+                  lowStockRows.map((item) => (
+                    <p key={item.id}>
+                      <span>{item.type}</span>
+                      <strong>เหลือ {item.total} ชิ้น</strong>
+                    </p>
+                  ))
+                ) : (
+                  <div className="dashboard-stock-ledger-empty">ยังไม่มีรายการสต็อกต่ำ</div>
+                )}
+              </div>
             </div>
           </div>
           <InventoryManager
@@ -5791,6 +5997,7 @@ function BatchDetailDialog({
   const isFullyDelivered =
     batch &&
     batch.orders.flatMap((o) => o.items).every((item) => item.status === ORDER_STATUS_DELIVERED);
+  const shirtSummaryRows = useMemo(() => buildBatchItemSummary(batch), [batch]);
 
   return (
     <Dialog.Root open={Boolean(batch)} onOpenChange={(open) => !open && onClose()}>
@@ -5871,6 +6078,61 @@ function BatchDetailDialog({
                     {isDeleting ? 'กำลังลบคำสั่งเบิกเสื้อ' : 'ลบคำสั่งเบิกเสื้อนี้'}
                   </button>
                 </div>
+                <section className="mb-4 overflow-hidden rounded-xl border border-[#DCE6F4] bg-white">
+                  <div className="flex min-w-0 items-center justify-between gap-3 bg-[#EEF4FF] px-3 py-3 sm:px-4">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-extrabold text-[#071638]">สรุปรายการเสื้อ</h3>
+                      <p className="mt-1 text-xs font-bold text-[#64748B]">
+                        รวมตามเสื้อ เพศ ไซส์ และจำนวน
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-extrabold text-[#002B5B]">
+                      {getBatchPieces(batch)} ชิ้น
+                    </span>
+                  </div>
+                  <div className="grid gap-2 p-3 sm:hidden">
+                    {shirtSummaryRows.map((row) => (
+                      <div
+                        key={row.id}
+                        className="grid grid-cols-[1fr_auto] gap-3 rounded-lg bg-[#F8FAFC] p-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="break-words text-sm font-extrabold text-[#071638]">
+                            {row.type}
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-[#64748B]">
+                            {row.gender} · ไซส์ {row.size}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-right text-sm font-extrabold text-[#002B5B]">
+                          {row.qty} ชิ้น
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <table className="hidden w-full table-fixed text-left text-sm sm:table">
+                    <thead className="text-xs font-bold text-[#44536A]">
+                      <tr>
+                        <th className="px-3 py-3 sm:px-4">เสื้อ</th>
+                        <th className="w-24 px-3 py-3 sm:w-28 sm:px-4">เพศ</th>
+                        <th className="w-20 px-3 py-3 sm:w-24 sm:px-4">ไซส์</th>
+                        <th className="w-20 px-3 py-3 text-right sm:w-24 sm:px-4">จำนวน</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shirtSummaryRows.map((row) => (
+                        <tr key={row.id} className="border-t border-[#E2E8F0]">
+                          <td className="break-words px-3 py-3 font-bold sm:px-4">{row.type}</td>
+                          <td className="break-words px-3 py-3 sm:px-4">{row.gender}</td>
+                          <td className="break-words px-3 py-3 sm:px-4">{row.size}</td>
+                          <td className="px-3 py-3 text-right font-extrabold sm:px-4">
+                            {row.qty}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
                 <div className="grid gap-3">
                   {batch.orders.map((order) => (
                     <div
@@ -5974,6 +6236,36 @@ function DashboardDataNotice({ message, detail, onRetry, refreshing }) {
 
 function getBatchPieces(batch) {
   return flattenBatches([batch]).reduce((sum, row) => sum + Number(row.qty || 0), 0);
+}
+
+function buildBatchItemSummary(batch) {
+  if (!batch) return [];
+  const summaryByKey = new Map();
+
+  for (const order of batch.orders) {
+    for (const item of order.items) {
+      const type = item.type || '-';
+      const gender = order.gender || '-';
+      const size = item.size || '-';
+      const key = `${type}\u0000${gender}\u0000${size}`;
+      const current = summaryByKey.get(key) || {
+        id: key,
+        type,
+        gender,
+        size,
+        qty: 0,
+      };
+      current.qty += Number(item.qty || 0);
+      summaryByKey.set(key, current);
+    }
+  }
+
+  return Array.from(summaryByKey.values()).sort(
+    (a, b) =>
+      a.type.localeCompare(b.type, 'th', { numeric: true }) ||
+      a.gender.localeCompare(b.gender, 'th', { numeric: true }) ||
+      a.size.localeCompare(b.size, 'th', { numeric: true })
+  );
 }
 
 function uniqueSorted(values, sorter) {

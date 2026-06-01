@@ -2140,6 +2140,7 @@ body {
 
 .dashboard-filter-rail { grid-area: filters; }
 .dashboard-orders-panel { grid-area: orders; }
+.dashboard-employees-panel { grid-area: orders; }
 .dashboard-insight-panel { grid-area: insights; }
 
 .dashboard-console.orders-only {
@@ -2157,6 +2158,7 @@ body {
 
 .dashboard-filter-rail,
 .dashboard-orders-panel,
+.dashboard-employees-panel,
 .dashboard-insight-panel {
   min-width: 0;
   border: 1px solid var(--gi-border);
@@ -2223,7 +2225,8 @@ body {
   box-shadow: 0 10px 22px rgba(10, 42, 94, 0.18);
 }
 
-.dashboard-orders-panel {
+.dashboard-orders-panel,
+.dashboard-employees-panel {
   overflow: hidden;
 }
 
@@ -2281,6 +2284,7 @@ body {
 }
 
 .dashboard-batch-table,
+.dashboard-employee-table,
 .dashboard-inventory-table {
   width: 100%;
   min-width: 780px;
@@ -2290,6 +2294,8 @@ body {
 
 .dashboard-batch-table th,
 .dashboard-batch-table td,
+.dashboard-employee-table th,
+.dashboard-employee-table td,
 .dashboard-inventory-table th,
 .dashboard-inventory-table td {
   border-bottom: 1px solid var(--gi-border);
@@ -2300,6 +2306,7 @@ body {
 }
 
 .dashboard-batch-table th,
+.dashboard-employee-table th,
 .dashboard-inventory-table th {
   background: #f8fafc !important;
   color: #334155 !important;
@@ -2308,6 +2315,7 @@ body {
 }
 
 .dashboard-batch-table td,
+.dashboard-employee-table td,
 .dashboard-inventory-table td {
   color: var(--gi-text) !important;
   font-size: 0.79rem !important;
@@ -2316,9 +2324,16 @@ body {
 
 .dashboard-batch-table td:nth-child(2),
 .dashboard-batch-table td:nth-child(5),
+.dashboard-employee-table td:nth-child(1),
+.dashboard-employee-table td:nth-child(3),
+.dashboard-employee-table td:nth-child(8),
 .dashboard-inventory-table td:nth-child(2) {
   text-align: left;
   white-space: normal;
+}
+
+.dashboard-employee-table {
+  min-width: 1060px;
 }
 
 .dashboard-link,
@@ -2494,6 +2509,8 @@ body {
 
 .dot.red { background: #ef4444; }
 .dot.amber { background: #f59e0b; }
+.dot.green { background: #10b981; }
+.dot.blue { background: #2563eb; }
 .dot.violet { background: #7c3aed; }
 
 .dashboard-overview-page,
@@ -2535,6 +2552,78 @@ body {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+.dashboard-overview-workspace {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.dashboard-work-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.85rem;
+}
+
+.dashboard-work-card {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+  border: 1px solid var(--gi-border);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.95rem;
+  box-shadow: var(--gi-shadow);
+}
+
+.dashboard-work-card > div {
+  min-width: 0;
+}
+
+.dashboard-work-card h2,
+.dashboard-stock-focus-list h3 {
+  margin: 0;
+  color: var(--gi-text);
+  font-size: 0.95rem;
+  font-weight: 950;
+}
+
+.dashboard-work-card p {
+  margin: 0.18rem 0 0;
+  color: var(--gi-muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.dashboard-work-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dashboard-work-list p,
+.dashboard-stock-focus-list p {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.58rem 0.68rem;
+}
+
+.dashboard-work-list strong,
+.dashboard-stock-focus-list strong {
+  flex: 0 0 auto;
+  color: var(--gi-text);
+  font-weight: 950;
+}
+
+.dashboard-stock-focus-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-stock-summary {
@@ -2605,6 +2694,51 @@ body {
   color: var(--gi-muted);
   font-size: 0.86rem;
   font-weight: 800;
+}
+
+.dashboard-stock-status-grid,
+.dashboard-inventory-zones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dashboard-stock-status-grid div {
+  display: grid;
+  gap: 0.18rem;
+  border: 1px solid #edf2f7;
+  border-radius: 9px;
+  background: #f8fafc;
+  padding: 0.85rem;
+}
+
+.dashboard-stock-status-grid span,
+.dashboard-stock-status-grid small {
+  color: var(--gi-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.dashboard-stock-status-grid strong {
+  color: var(--gi-text);
+  font-size: 1.65rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.dashboard-inventory-zones {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-stock-focus-list {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  border: 1px solid var(--gi-border);
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 0.8rem;
 }
 
 .dashboard-inventory-manager .clothing-manager-card {
@@ -3351,12 +3485,20 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-table-wrap:has(.dashboard-batch-table) {
+  .dashboard-table-wrap:has(.dashboard-batch-table),
+  .dashboard-table-wrap:has(.dashboard-employee-table) {
     display: none;
   }
 
   .dashboard-mobile-orders {
     display: grid;
+  }
+
+  .dashboard-overview-stats,
+  .dashboard-stock-status-grid,
+  .dashboard-inventory-zones,
+  .dashboard-work-panel {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-export-strip {
