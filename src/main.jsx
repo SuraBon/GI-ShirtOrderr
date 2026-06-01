@@ -5323,8 +5323,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   </button>
                 </div>
               </article>
-            </section>
-          </div>
+            </div>
         </section>
       )}
 
