@@ -676,7 +676,15 @@ function orderReducer(state, action) {
             ? {
                 ...employee,
                 items: employee.items.map((item) =>
-                  item.type === action.itemType ? { ...item, ...action.patch } : item
+                  item.type === action.itemType
+                    ? {
+                        ...item,
+                        ...action.patch,
+                        ...(action.patch?.type && action.patch.type !== item.type
+                          ? { size: '', customSize: '' }
+                          : {}),
+                      }
+                    : item
                 ),
               }
             : employee
@@ -1265,7 +1273,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       setMobileEmployeeId('');
       setEditingCardId('');
     } catch {
-      toast.error('ส่งคำสั่งเบิกเสื้อไม่สำเร็จ', {
+      toast.error('ไม่สามารถส่งคำขอเบิกได้', {
         id: loadingToastId,
         description: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
       });
@@ -2755,9 +2763,10 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
         <button
           onClick={() => dispatch({ type: 'toggleType', id: employee.id, itemType: type })}
           disabled={!employee.gender}
+          aria-label={`เพิ่ม ${type}`}
           type="button"
           className={cn(
-            'flex h-9 w-full items-center justify-center gap-1 rounded-lg border border-dashed text-xs font-bold transition',
+            'flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 text-xs font-bold transition',
             !employee.gender
               ? 'border-[#D8DEEA] bg-[#F4F4F5] text-[#A1A1AA] cursor-not-allowed'
               : 'border-[#A9B9D1] bg-white text-[#002B5B] hover:bg-[#F4F8FF]'
@@ -2766,7 +2775,7 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
           {employee.gender ? (
             <>
               <Plus className="size-3.5" />
-              <span>เพิ่มเสื้อ</span>
+              <span className="truncate">เพิ่ม {type}</span>
             </>
           ) : (
             <span className="text-[11px] text-[#A1A1AA]">เลือกเพศก่อน</span>
@@ -6135,7 +6144,12 @@ function SkeletonDashboard() {
   );
 }
 
-createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+if (!window.__giOrderRoot || window.__giOrderRootElement !== rootElement) {
+  window.__giOrderRoot = createRoot(rootElement);
+  window.__giOrderRootElement = rootElement;
+}
+window.__giOrderRoot.render(
   <AppErrorBoundary>
     <App />
   </AppErrorBoundary>

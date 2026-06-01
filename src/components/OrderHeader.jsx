@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, HelpCircle, LayoutDashboard, LogOut, PackageSearch, Ruler, Shirt } from 'lucide-react';
+import { BookOpen, HelpCircle, LayoutDashboard, LogOut, Ruler, Shirt } from 'lucide-react';
 
 export function Logo({ surface = 'order' }) {
   const isDashboard = surface === 'dashboard';
@@ -109,14 +109,6 @@ export function DashboardHeader({
           >
             <BookOpen size={18} />
             <span>คู่มือ</span>
-          </button>
-          <button
-            className="dashboard-header-icon hidden size-9 place-items-center rounded-lg text-white/90 hover:bg-white/10 lg:grid"
-            onClick={() => onViewChange?.('inventory')}
-            title="จัดการสต็อก"
-            type="button"
-          >
-            <PackageSearch size={18} />
           </button>
           <button
             onClick={onLogout}

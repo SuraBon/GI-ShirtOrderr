@@ -205,7 +205,15 @@ export function orderReducer(state, action) {
             ? {
                 ...employee,
                 items: employee.items.map((item) =>
-                  item.type === action.itemType ? { ...item, ...action.patch } : item
+                  item.type === action.itemType
+                    ? {
+                        ...item,
+                        ...action.patch,
+                        ...(action.patch?.type && action.patch.type !== item.type
+                          ? { size: '', customSize: '' }
+                          : {}),
+                      }
+                    : item
                 ),
               }
             : employee

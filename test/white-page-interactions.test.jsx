@@ -33,7 +33,7 @@ describe('order page mobile interactions', () => {
     const editorCard = screen.getByText('แก้ไขข้อมูล ลำดับที่ 2').closest('article');
     const editor = within(editorCard);
     fireEvent.click(editor.getAllByText('ชาย')[0]);
-    fireEvent.click(editor.getAllByRole('button', { name: 'เพิ่มเสื้อ' })[0]);
+    fireEvent.click(editor.getByRole('button', { name: 'เพิ่ม เสื้อโปโล' }));
     fireEvent.click(editor.getByRole('button', { name: 'เสร็จสิ้น' }));
 
     expect(screen.getAllByRole('button', { name: 'แก้ไข' }).length).toBeGreaterThan(0);
