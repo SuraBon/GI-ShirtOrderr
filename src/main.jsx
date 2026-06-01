@@ -1176,6 +1176,53 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   }, [state]);
 
   useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.altKey && (e.key === '1' || e.key === '2' || e.key === '3')) {
+        const stepNum = parseInt(e.key, 10);
+        if (stepNum === 1) {
+          setActiveStep(1);
+          toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 1: ข้อมูลผู้เบิก');
+        } else if (stepNum === 2) {
+          if (validateCompany()) {
+            setActiveStep(2);
+            toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
+          }
+        } else if (stepNum === 3) {
+          if (validateCompany() && validateEmployees()) {
+            setActiveStep(3);
+            toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 3: ตรวจสอบและส่ง');
+          }
+        }
+      }
+
+      if (e.altKey && e.key === 'ArrowRight') {
+        if (activeStep === 1) {
+          if (validateCompany()) {
+            setActiveStep(2);
+            toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
+          }
+        } else if (activeStep === 2) {
+          if (validateCompany() && validateEmployees()) {
+            setActiveStep(3);
+            toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 3: ตรวจสอบและส่ง');
+          }
+        }
+      } else if (e.altKey && e.key === 'ArrowLeft') {
+        if (activeStep === 2) {
+          setActiveStep(1);
+          toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 1: ข้อมูลผู้เบิก');
+        } else if (activeStep === 3) {
+          setActiveStep(2);
+          toast.info('⚡ เปลี่ยนไปยังขั้นตอนที่ 2: รายการเสื้อพนักงาน');
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeStep, state.companyName, state.branch, state.supervisorName, state.supervisorPhone, state.employees]);
+
+  useEffect(() => {
     const invalidEmployee = state.employees.find((employee) => employee.id === invalidEmployeeId);
     if (invalidEmployeeId && invalidEmployee && isEmployeeComplete(invalidEmployee))
       setInvalidEmployeeId('');
@@ -1653,19 +1700,20 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
               {/* Connection Line */}
               <div className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-neutral-200 z-0">
                 <div 
-                  className="h-full bg-[#002B5B] transition-all duration-500" 
+                  className="h-full bg-gradient-to-r from-[#002B5B] to-[#3b82f6] transition-all duration-500" 
                   style={{ width: `${((activeStep - 1) / 2) * 100}%` }}
                 />
               </div>
               
               {/* Step Items */}
               {[
-                { number: 1, label: 'ข้อมูลผู้เบิก', desc: 'ผู้ติดต่อ & สถานที่จัดส่ง' },
-                { number: 2, label: 'รายการเสื้อพนักงาน', desc: 'ระบุรายชื่อและไซส์เสื้อ' },
-                { number: 3, label: 'ตรวจสอบและส่ง', desc: 'ตรวจสอบจำนวนและสต็อก' }
+                { number: 1, label: 'ข้อมูลผู้เบิก', desc: 'ผู้ติดต่อ & สถานที่จัดส่ง', icon: Users },
+                { number: 2, label: 'รายการเสื้อพนักงาน', desc: 'ระบุรายชื่อและไซส์เสื้อ', icon: Shirt },
+                { number: 3, label: 'ตรวจสอบและส่ง', desc: 'ตรวจสอบจำนวนและสต็อก', icon: ClipboardList }
               ].map((step) => {
                 const isActive = activeStep === step.number;
                 const isCompleted = activeStep > step.number;
+                const StepIcon = step.icon;
                 return (
                   <div key={step.number} className="relative z-10 flex flex-col items-center">
                     <button
@@ -1681,15 +1729,15 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                         }
                       }}
                       className={cn(
-                        "flex size-10 items-center justify-center rounded-full font-bold text-sm transition-all duration-300 border-2 cursor-pointer",
+                        "flex size-11 items-center justify-center rounded-full font-bold transition-all duration-300 border-2 cursor-pointer",
                         isCompleted 
-                          ? "bg-green-500 border-green-500 text-white shadow-[0_0_12px_rgba(34,197,94,0.3)]"
+                          ? "bg-green-500 border-green-500 text-white shadow-[0_0_12px_rgba(34,197,94,0.35)]"
                           : isActive
-                          ? "bg-[#002B5B] border-[#002B5B] text-white shadow-[0_0_12px_rgba(0,43,91,0.3)] scale-105"
-                          : "bg-white border-neutral-300 text-neutral-400"
+                          ? "bg-gradient-to-tr from-[#002B5B] to-[#3b82f6] border-none text-white ring-4 ring-[#002B5B]/15 shadow-[0_0_15px_rgba(59,130,246,0.3)] scale-105 animate-pulse-subtle"
+                          : "bg-white border-neutral-300 text-neutral-400 hover:border-neutral-400"
                       )}
                     >
-                      {isCompleted ? <Check className="size-5" /> : step.number}
+                      {isCompleted ? <Check className="size-5" /> : <StepIcon className="size-5" />}
                     </button>
                     <span className={cn(
                       "mt-2 text-xs sm:text-sm font-black whitespace-nowrap",
@@ -1706,11 +1754,14 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
             </div>
           </div>
 
-          {/* Wizard Steps */}
+           {/* Wizard Steps */}
           {activeStep === 1 && (
             <div className="space-y-6">
               <QuickOrderSetupPanel state={state} dispatch={dispatch} forceExpand={true} />
-              <div className="flex justify-end mt-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 bg-white p-4 rounded-xl border border-neutral-200/80 shadow-xs">
+                <span className="text-[11px] text-neutral-400 font-semibold hidden sm:inline">
+                  💡 กด <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">Alt</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">→</kbd> เพื่อสลับไปยังขั้นตอนถัดไป
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -1718,7 +1769,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                       setActiveStep(2);
                     }
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#002B5B] text-white hover:bg-[#001f42] px-6 py-3 font-extrabold shadow-md transition active:scale-95 text-sm sm:text-base cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#002B5B] text-white hover:bg-[#001f42] px-6 py-3 font-extrabold shadow-md transition active:scale-95 text-sm sm:text-base cursor-pointer"
                 >
                   <span>ถัดไป: รายการเสื้อพนักงาน</span>
                   <ArrowRight className="size-4" />
@@ -2284,14 +2335,19 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
 
               {/* Navigation Footer Step 2 */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-neutral-200 pt-4 bg-white p-4 rounded-xl shadow-xs">
-                <button
-                  type="button"
-                  onClick={() => setActiveStep(1)}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition cursor-pointer"
-                >
-                  <ArrowLeft className="size-4" />
-                  <span>ย้อนกลับ</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(1)}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition cursor-pointer"
+                  >
+                    <ArrowLeft className="size-4" />
+                    <span>ย้อนกลับ</span>
+                  </button>
+                  <span className="text-[11px] text-neutral-400 font-semibold hidden lg:inline ml-2">
+                    💡 กด <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">Alt</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">← / →</kbd> หรือ <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">1/2/3</kbd> เพื่อสลับขั้นตอน
+                  </span>
+                </div>
                 
                 <div className="flex w-full sm:w-auto gap-3">
                   <button
@@ -2360,7 +2416,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
               {/* Stock Warning Alert Banner */}
               {stockWarnings.length > 0 && (
                 <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 flex items-start gap-3 shadow-sm animate-fade-in">
-                  <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5 animate-bounce" />
+                  <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5 animate-pulse-subtle" />
                   <div>
                     <h4 className="text-sm font-extrabold text-yellow-800">⚠️ สต็อกเสื้อบางรายการมีไม่เพียงพอ</h4>
                     <p className="text-xs text-yellow-700 font-semibold mt-1 leading-5">
@@ -2498,15 +2554,20 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
 
               {/* Navigation Footer Step 3 */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-neutral-200 pt-4 bg-white p-4 rounded-xl shadow-xs">
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setActiveStep(2)}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition disabled:opacity-50 cursor-pointer"
-                >
-                  <ArrowLeft className="size-4" />
-                  <span>ย้อนกลับ</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => setActiveStep(2)}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition disabled:opacity-50 cursor-pointer"
+                  >
+                    <ArrowLeft className="size-4" />
+                    <span>ย้อนกลับ</span>
+                  </button>
+                  <span className="text-[11px] text-neutral-400 font-semibold hidden lg:inline ml-2">
+                    💡 กด <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">Alt</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">←</kbd> หรือ <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">1/2/3</kbd> เพื่อสลับขั้นตอน
+                  </span>
+                </div>
                 
                 <button
                   type="button"
@@ -7205,16 +7266,16 @@ function buildDashboardMetrics(batches) {
 
 function Stat({ icon: Icon, value, label }) {
   return (
-    <Card className="min-w-0 p-3 sm:p-4">
+    <Card className="min-w-0 p-3 sm:p-4 hover:-translate-y-0.5 active:translate-y-0 transition duration-300">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#EEF4FF] text-[#002B5B] sm:size-10">
+        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#EEF4FF] text-[#002B5B] sm:size-10 shadow-xs">
           <Icon className="size-4 sm:size-5" />
         </div>
-        <div className="flex min-w-0 items-baseline gap-2">
-          <p className="shrink-0 text-xl font-extrabold leading-none text-[#071638] sm:text-2xl">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="shrink-0 text-xl font-black leading-none text-[#071638] sm:text-2xl">
             {value}
           </p>
-          <p className="min-w-0 truncate text-xs font-bold text-[#64748B] sm:text-sm">{label}</p>
+          <p className="min-w-0 truncate text-[11px] font-bold text-neutral-400 sm:text-xs uppercase tracking-wider">{label}</p>
         </div>
       </div>
     </Card>

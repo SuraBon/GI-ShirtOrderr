@@ -144,6 +144,7 @@ select option:checked {
     @apply hover:bg-primary-700 active:bg-primary-800 disabled:opacity-60 disabled:cursor-not-allowed;
     @apply shadow-sm hover:shadow-md transition-all duration-300;
     @apply focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+    @apply sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
   }
 
   /* Secondary Button */
@@ -152,6 +153,7 @@ select option:checked {
     @apply hover:bg-neutral-200 active:bg-neutral-300 disabled:opacity-60;
     @apply border border-neutral-200 transition-all duration-300;
     @apply focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2;
+    @apply sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
   }
 
   /* Outline Button */
@@ -160,6 +162,7 @@ select option:checked {
     @apply border border-primary-300 hover:bg-primary-50 active:bg-primary-100;
     @apply transition-all duration-300 disabled:opacity-60;
     @apply focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+    @apply sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
   }
 
   /* Ghost Button */
@@ -167,6 +170,7 @@ select option:checked {
     @apply bg-transparent text-neutral-700 px-3 py-2 rounded-lg font-medium;
     @apply hover:bg-neutral-100 active:bg-neutral-200 transition-all duration-300;
     @apply focus:outline-none focus:ring-2 focus:ring-primary-400;
+    @apply sm:hover:-translate-y-0.5 active:translate-y-0;
   }
 
   /* Icon Button */
@@ -174,6 +178,7 @@ select option:checked {
     @apply inline-flex items-center justify-center w-10 h-10 rounded-lg;
     @apply hover:bg-neutral-100 active:bg-neutral-200 transition-all duration-300;
     @apply focus:outline-none focus:ring-2 focus:ring-primary-400;
+    @apply sm:hover:-translate-y-0.5 active:translate-y-0;
   }
 
   /* Danger Button */
@@ -182,6 +187,7 @@ select option:checked {
     @apply hover:bg-red-600 active:bg-red-700 disabled:opacity-60;
     @apply transition-all duration-300 shadow-sm hover:shadow-md;
     @apply focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2;
+    @apply sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
   }
 
   /* Success Button */
@@ -190,6 +196,7 @@ select option:checked {
     @apply hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-60;
     @apply transition-all duration-300 shadow-sm hover:shadow-md;
     @apply focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2;
+    @apply sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
   }
 
   /* Small Button */
@@ -364,6 +371,17 @@ select option:checked {
   }
 }
 
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
 @layer components {
   .skeleton {
     @apply bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-200;
@@ -378,6 +396,10 @@ select option:checked {
   .pulse-ring::after {
     content: '';
     @apply absolute inset-0 rounded-full bg-primary-400 opacity-75 animate-pulse;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 }
 
