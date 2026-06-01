@@ -4207,6 +4207,413 @@ async function uploadImageToBlob(file) {
   });
 }
 
+function InventoryManager({ config, setConfig, onAuthExpired }) {
+  const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
+  const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
+  const [editing, setEditing] = useState(false);
+  const [activeSection, setActiveSection] = useState('details');
+  const [uploadingId, setUploadingId] = useState('');
+  const syncTimerRef = useRef(null);
+  const selectedItem = config.find((item) => item.id === selectedId) || config[0];
+  const stockRows = selectedItem?.genderSizeRows?.[selectedGender] || selectedItem?.sizeRows || [];
+
+  useEffect(() => {
+    if (!config.some((item) => item.id === selectedId)) {
+      setSelectedId(config[0]?.id || '');
+    }
+  }, [config, selectedId]);
+
+  useEffect(() => () => window.clearTimeout(syncTimerRef.current), []);
+
+  function scheduleSync(normalizedConfig) {
+    window.clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = window.setTimeout(() => {
+      publishSharedClothingConfig(normalizedConfig).catch((error) => {
+        if (isAuthFailure(error)) {
+          setAdminToken('');
+          onAuthExpired?.();
+          toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ');
+          return;
+        }
+        toast.error('บันทึกข้อมูลเสื้อไม่สำเร็จ', {
+          description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
+        });
+      });
+    }, 700);
+  }
+
+  function commit(nextConfig) {
+    const normalized = normalizeClothingConfig(nextConfig);
+    setConfig(normalized);
+    saveClothingConfig(normalized);
+    scheduleSync(normalized);
+  }
+
+  function patchItem(id, patch) {
+    commit(config.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }
+
+  function patchColor(id, colorIndex, patch) {
+    commit(
+      config.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              colors: (item.colors || []).map((color, index) =>
+                index === colorIndex ? { ...color, ...patch } : color
+              ),
+            }
+          : item
+      )
+    );
+  }
+
+  function addColor(id) {
+    commit(
+      config.map((item) =>
+        item.id === id
+          ? { ...item, colors: [...(item.colors || []), { name: '', value: '#0F172A' }] }
+          : item
+      )
+    );
+  }
+
+  function removeColor(id, colorIndex) {
+    commit(
+      config.map((item) =>
+        item.id === id
+          ? { ...item, colors: (item.colors || []).filter((_, index) => index !== colorIndex) }
+          : item
+      )
+    );
+  }
+
+  function patchStock(id, rowIndex, patch) {
+    commit(
+      config.map((item) => {
+        if (item.id !== id) return item;
+        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
+        return {
+          ...item,
+          genderSizeRows: {
+            ...(item.genderSizeRows || {}),
+            [selectedGender]: rows.map((row, index) =>
+              index === rowIndex ? { ...row, ...patch } : row
+            ),
+          },
+        };
+      })
+    );
+  }
+
+  function addStockRow(id) {
+    commit(
+      config.map((item) => {
+        if (item.id !== id) return item;
+        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
+        return {
+          ...item,
+          genderSizeRows: {
+            ...(item.genderSizeRows || {}),
+            [selectedGender]: [
+              ...rows,
+              {
+                size: '',
+                qty: 0,
+                details: (item.detailFields || []).reduce(
+                  (details, field) => ({ ...details, [field]: '' }),
+                  {}
+                ),
+              },
+            ],
+          },
+        };
+      })
+    );
+  }
+
+  function removeStockRow(id, rowIndex) {
+    commit(
+      config.map((item) => {
+        if (item.id !== id) return item;
+        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
+        return {
+          ...item,
+          genderSizeRows: {
+            ...(item.genderSizeRows || {}),
+            [selectedGender]: rows.length > 1 ? rows.filter((_, index) => index !== rowIndex) : rows,
+          },
+        };
+      })
+    );
+  }
+
+  function addClothing() {
+    const id = crypto.randomUUID();
+    commit([
+      ...config,
+      {
+        id,
+        type: 'เสื้อใหม่',
+        imageUrl: '',
+        colors: [],
+        detailFields: ['อก'],
+        sizeRows: [{ size: 'M', details: { อก: '' }, qty: 0 }],
+        genderSizeRows: GENDERS.reduce(
+          (rows, gender) => ({ ...rows, [gender]: [{ size: 'M', details: { อก: '' }, qty: 0 }] }),
+          {}
+        ),
+      },
+    ]);
+    setSelectedId(id);
+    setEditing(true);
+  }
+
+  async function uploadImage(id, file) {
+    if (!file) return;
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error('ไฟล์รูปไม่ถูกต้อง', { description: validationError });
+      return;
+    }
+    setUploadingId(id);
+    const loadingToastId = toast.loading('กำลังอัปโหลดรูปเสื้อ...');
+    try {
+      const result = await uploadImageToBlob(file);
+      patchItem(id, { imageUrl: result.url });
+      toast.success('อัปโหลดรูปเสื้อแล้ว', { id: loadingToastId });
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken('');
+        onAuthExpired?.();
+        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', { id: loadingToastId });
+        return;
+      }
+      toast.error('อัปโหลดรูปเสื้อไม่สำเร็จ', {
+        id: loadingToastId,
+        description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
+      });
+    } finally {
+      setUploadingId('');
+    }
+  }
+
+  if (!selectedItem) return null;
+
+  return (
+    <section className="inventory-manager-shell">
+      <aside className="inventory-list-panel">
+        <div className="inventory-list-head">
+          <div>
+            <h3>แบบเสื้อ</h3>
+            <p>{config.length} รายการ</p>
+          </div>
+          <button onClick={addClothing}>
+            <Plus className="size-4" /> เพิ่ม
+          </button>
+        </div>
+        <div className="inventory-item-list">
+          {config.map((item) => {
+            const total = Object.values(item.genderSizeRows || {})
+              .flat()
+              .reduce((sum, row) => sum + Number(row.qty || 0), 0);
+            return (
+              <button
+                key={item.id}
+                className={cn('inventory-item-card', item.id === selectedItem.id && 'active')}
+                onClick={() => {
+                  setSelectedId(item.id);
+                  setEditing(false);
+                }}
+              >
+                <span className="inventory-item-thumb">
+                  {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <Shirt className="size-5" />}
+                </span>
+                <span>
+                  <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
+                  <small>คงเหลือ {total} ชิ้น</small>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      <div className="inventory-edit-panels">
+        <div className="inventory-edit-toolbar">
+          <div>
+            <h3>{selectedItem.type || 'ยังไม่ระบุชื่อ'}</h3>
+            <p>
+              ใช้แท็บข้อมูลเสื้อสำหรับชื่อ รูป และสี ส่วนแท็บสต็อกใช้แก้จำนวนคงเหลือตามไซส์
+            </p>
+          </div>
+          <button className={editing ? 'done' : ''} onClick={() => setEditing((value) => !value)}>
+            <Pencil className="size-4" />
+            {editing ? 'เสร็จสิ้น' : 'จัดการ'}
+          </button>
+        </div>
+
+        <div className="inventory-subtabs" role="tablist" aria-label="จัดการข้อมูลเสื้อ">
+          <button
+            className={activeSection === 'details' ? 'active' : ''}
+            onClick={() => setActiveSection('details')}
+            role="tab"
+            aria-selected={activeSection === 'details'}
+          >
+            ข้อมูลเสื้อ
+          </button>
+          <button
+            className={activeSection === 'stock' ? 'active' : ''}
+            onClick={() => setActiveSection('stock')}
+            role="tab"
+            aria-selected={activeSection === 'stock'}
+          >
+            สต็อกตามไซส์
+          </button>
+        </div>
+
+        <section className={cn('inventory-detail-card', activeSection !== 'details' && 'hidden')}>
+          <div className="inventory-section-head">
+            <div>
+              <h4>ข้อมูลรายละเอียดเสื้อ</h4>
+              <p>แก้เฉพาะข้อมูลที่ผู้เบิกเห็น เช่น ชื่อแบบเสื้อ รูปภาพ และสี</p>
+            </div>
+          </div>
+          <div className="inventory-detail-grid">
+            <div className="inventory-image-box">
+              {selectedItem.imageUrl ? (
+                <img src={selectedItem.imageUrl} alt={selectedItem.type} />
+              ) : (
+                <span>ไม่มีรูป</span>
+              )}
+              {editing && (
+                <label>
+                  {uploadingId === selectedItem.id ? 'กำลังอัปโหลด' : 'แนบรูป'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={uploadingId === selectedItem.id}
+                    onChange={(event) => {
+                      uploadImage(selectedItem.id, event.target.files?.[0]);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="inventory-detail-fields">
+              <Field label="ชื่อแบบเสื้อ">
+                <TextInput
+                  value={selectedItem.type}
+                  onChange={(value) => patchItem(selectedItem.id, { type: value })}
+                  disabled={!editing}
+                  placeholder="เช่น เสื้อโปโล"
+                />
+              </Field>
+              <div className="inventory-color-list">
+                <div className="inventory-inline-head">
+                  <span>สี</span>
+                  {editing && (
+                    <button onClick={() => addColor(selectedItem.id)}>
+                      <Plus className="size-4" /> เพิ่มสี
+                    </button>
+                  )}
+                </div>
+                {(selectedItem.colors || []).length ? (
+                  selectedItem.colors.map((color, index) => (
+                    <div className="inventory-color-row" key={`${selectedItem.id}-${index}`}>
+                      <input
+                        type="color"
+                        value={color.value || '#0F172A'}
+                        onChange={(event) =>
+                          patchColor(selectedItem.id, index, { value: event.target.value })
+                        }
+                        disabled={!editing}
+                      />
+                      <TextInput
+                        value={color.name}
+                        onChange={(value) => patchColor(selectedItem.id, index, { name: value })}
+                        disabled={!editing}
+                        placeholder="ชื่อสี"
+                      />
+                      {editing && (
+                        <button onClick={() => removeColor(selectedItem.id, index)}>
+                          <Trash2 className="size-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="inventory-empty-note">ยังไม่มีสีที่กำหนด</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className={cn('inventory-stock-card', activeSection !== 'stock' && 'hidden')}>
+          <div className="inventory-section-head">
+            <div>
+              <h4>สต็อกตามไซส์</h4>
+              <p>ส่วนนี้ใช้ปรับจำนวนคงเหลือเท่านั้น: เลือกเพศ ดูไซส์ แล้วกรอกจำนวน</p>
+            </div>
+            <div className="inventory-gender-toggle">
+              {GENDERS.map((gender) => (
+                <button
+                  key={gender}
+                  className={selectedGender === gender ? 'active' : ''}
+                  onClick={() => setSelectedGender(gender)}
+                >
+                  {gender}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="inventory-stock-table">
+            <div className="inventory-stock-header">
+              <span>ไซส์</span>
+              <span>จำนวนคงเหลือ</span>
+              {editing && <span />}
+            </div>
+            {stockRows.map((row, index) => (
+              <div className="inventory-stock-row" key={`${selectedItem.id}-${selectedGender}-${index}`}>
+                {editing ? (
+                  <TextInput
+                    value={row.size}
+                    onChange={(value) => patchStock(selectedItem.id, index, { size: value })}
+                    placeholder="ไซส์"
+                  />
+                ) : (
+                  <strong>{row.size || '-'}</strong>
+                )}
+                <TextInput
+                  type="number"
+                  inputMode="numeric"
+                  value={String(row.qty ?? 0)}
+                  onChange={(value) =>
+                    patchStock(selectedItem.id, index, { qty: Number(value) || 0 })
+                  }
+                  disabled={!editing}
+                />
+                {editing && (
+                  <button onClick={() => removeStockRow(selectedItem.id, index)}>
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {editing && (
+            <button className="inventory-add-stock" onClick={() => addStockRow(selectedItem.id)}>
+              <Plus className="size-4" /> เพิ่มไซส์
+            </button>
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
 function ClothingManager({ config, setConfig, onAuthExpired }) {
   const [uploadingId, setUploadingId] = useState('');
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
@@ -5956,7 +6363,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
               </button>
             </div>
           </div>
-          <ClothingManager
+          <InventoryManager
             config={clothingConfig}
             setConfig={setClothingConfig}
             onAuthExpired={onAuthExpired}
