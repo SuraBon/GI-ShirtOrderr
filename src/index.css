@@ -1647,7 +1647,7 @@ input[type='radio']:hover:not(:disabled) {
 
 /* Dialog animations */
 [role='dialog'] {
-  animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: fadeIn 160ms ease-out;
 }
 
 /* Mobile-optimized touch targets */
@@ -1684,7 +1684,7 @@ textarea:disabled {
 
 /* Toast improvements */
 [data-sonner-toast] {
-  animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: fadeIn 160ms ease-out;
 }
 
 /* Smooth transitions for all interactive elements */

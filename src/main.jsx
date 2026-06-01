@@ -38,7 +38,6 @@ import {
   X,
   ArrowLeft,
   ArrowRight,
-  Save,
   Printer,
   AlertTriangle,
   Edit3,
@@ -67,7 +66,6 @@ const DASHBOARD_PATH = '#/dashboard';
 const ORDER_PATH = '/';
 const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
 const ORDER_STORAGE_KEY = 'gi-shirt-order-batches';
-const ORDER_DRAFT_KEY = 'gi-shirt-order-draft';
 const CLOTHING_CONFIG_KEY = 'gi-shirt-clothing-config';
 const CLOTHING_SIZE_TABLE_VERSION_KEY = 'gi-shirt-clothing-size-table-version';
 const CLOTHING_SIZE_TABLE_VERSION = '2026-05-standard-shirt-table-v2';
@@ -632,48 +630,6 @@ function createInitialOrderState() {
   };
 }
 
-function normalizeDraftEmployee(employee, index) {
-  return {
-    ...createEmployee(index),
-    ...employee,
-    id: employee?.id || crypto.randomUUID(),
-    name: employee?.name || '',
-    gender: employee?.gender || '',
-    expanded: index === 0,
-    items: Array.isArray(employee?.items)
-      ? employee.items
-          .map((item) => ({
-            type: item.type || '',
-            size: item.size || '',
-            customSize: item.customSize || '',
-            color: resolveItemColor(item.type || '', item.color || ''),
-            qty: digitsOnly(item.qty || ''),
-          }))
-          .filter((item) => getClothingTypes().includes(item.type))
-      : [],
-  };
-}
-
-function readOrderDraft() {
-  try {
-    const draft = JSON.parse(localStorage.getItem(ORDER_DRAFT_KEY) || 'null');
-    if (!draft || typeof draft !== 'object') return createInitialOrderState();
-    const employees =
-      Array.isArray(draft.employees) && draft.employees.length
-        ? draft.employees.map(normalizeDraftEmployee)
-        : createInitialOrderState().employees;
-    return {
-      companyName: draft.companyName || DEFAULT_COMPANY_NAME,
-      branch: BRANCHES.includes(draft.branch) ? draft.branch : BRANCHES[0],
-      supervisorName: draft.supervisorName || '',
-      supervisorPhone: phoneDigitsOnly(draft.supervisorPhone || ''),
-      employees,
-    };
-  } catch {
-    return createInitialOrderState();
-  }
-}
-
 function canDeleteEmployee(employees) {
   return employees.length > 1;
 }
@@ -1183,8 +1139,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     setMobileEmployeeId(id);
   }
 
-  const skipDraftSaveRef = useRef(false);
-  const [state, dispatch] = useReducer(orderReducer, undefined, readOrderDraft);
+  const [state, dispatch] = useReducer(orderReducer, undefined, createInitialOrderState);
 
   const isCompanyComplete = Boolean(
     state.companyName?.trim() &&
@@ -1205,14 +1160,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   );
   const selectedMobileEmployee =
     state.employees.find((employee) => employee.id === mobileEmployeeId) || null;
-
-  useEffect(() => {
-    if (skipDraftSaveRef.current) {
-      skipDraftSaveRef.current = false;
-      return;
-    }
-    localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(state));
-  }, [state]);
 
   useEffect(() => {
     if (activeTab === 'copy') {
@@ -1459,8 +1406,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       const result = await postToGAS(payload);
       saveStoredBatch(payload);
       toast.success('บันทึกคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
-      localStorage.removeItem(ORDER_DRAFT_KEY);
-      skipDraftSaveRef.current = true;
       setSuccessData(payload); // Save success data for the Success Screen
       setQuery('');
       setShowIncompleteOnly(false);
@@ -1476,39 +1421,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     }
   }
 
-  // Wizard Stock and Data Helpers
-  function getStockRemaining(type, gender, size) {
-    const clothing = findClothingConfig(type);
-    if (!clothing) return 0;
-    const sizeRows = clothing.genderSizeRows?.[gender] || clothing.sizeRows || [];
-    const stockRow = sizeRows.find((r) => r.size === size);
-    return stockRow ? Number(stockRow.qty ?? 0) : 0;
-  }
-
-  const aggregatedDemands = useMemo(() => {
-    const demands = {};
-    state.employees.forEach((emp) => {
-      emp.items.forEach((item) => {
-        if (!item.size) return;
-        const key = `${item.type}|${emp.gender}|${item.size}`;
-        demands[key] = (demands[key] || 0) + Number(item.qty || 0);
-      });
-    });
-    return demands;
-  }, [state.employees]);
-
-  const stockWarnings = useMemo(() => {
-    const warnings = [];
-    Object.entries(aggregatedDemands).forEach(([key, requested]) => {
-      const [type, gender, size] = key.split('|');
-      const available = getStockRemaining(type, gender, size);
-      if (requested > available) {
-        warnings.push({ type, gender, size, requested, available });
-      }
-    });
-    return warnings;
-  }, [aggregatedDemands]);
-
+  // Wizard Data Helpers
   const employeesByGarmentType = useMemo(() => {
     const groups = {};
     state.employees.forEach((emp) => {
@@ -1669,11 +1582,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     setActiveTab('table');
   }
 
-  function handleSaveDraft() {
-    localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(state));
-    toast.success('💾 บันทึกร่างข้อมูลสำเร็จเรียบร้อยแล้ว');
-  }
-
   return (
     <>
       <OrderHeader
@@ -1741,12 +1649,12 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           {!gasConfigured && <SetupWarning />}
           
           {/* Step Progress Bar */}
-          <div className="mb-4">
+          <div className="mb-3">
             <div className="grid grid-cols-3 gap-2 md:gap-3">
               {[
                 { number: 1, label: 'ข้อมูลผู้เบิก', desc: 'ผู้ติดต่อ & สถานที่จัดส่ง', icon: Users },
                 { number: 2, label: 'รายการเสื้อพนักงาน', desc: 'ระบุรายชื่อและไซส์เสื้อ', icon: Shirt },
-                { number: 3, label: 'ตรวจสอบและส่ง', desc: 'ตรวจสอบจำนวนและสต็อก', icon: ClipboardList }
+                { number: 3, label: 'ตรวจสอบและส่ง', desc: 'ตรวจสอบรายการก่อนส่ง', icon: ClipboardList }
               ].map((step) => {
                 const isActive = activeStep === step.number;
                 const isCompleted = activeStep > step.number;
@@ -1762,7 +1670,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                       else if (step.number === 3 && validateCompany() && validateEmployees()) setActiveStep(3);
                     }}
                     className={cn(
-                      "flex aspect-square items-center justify-center rounded-2xl border p-2 text-center transition-all duration-300 w-full cursor-pointer relative overflow-hidden shadow-xs md:aspect-auto md:justify-start md:gap-3.5 md:p-4 md:text-left",
+                      "relative flex min-h-16 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border p-2 text-center shadow-xs transition-all duration-300 md:min-h-[4.75rem] md:justify-start md:gap-3 md:p-3 md:text-left",
                       isCompleted 
                         ? "bg-[#f0fdf4] border-green-200/80 text-green-950 hover:bg-[#e6fdf0]"
                         : isActive
@@ -1771,7 +1679,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                     )}
                   >
                     <div className={cn(
-                        "flex size-9 items-center justify-center rounded-xl font-bold shrink-0 transition-all duration-300 md:size-10",
+                        "flex size-8 shrink-0 items-center justify-center rounded-full font-bold transition-all duration-300 md:size-9 md:rounded-xl",
                       isCompleted
                         ? "bg-green-500 text-white"
                         : isActive
@@ -2415,14 +2323,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                 <div className="flex w-full sm:w-auto gap-3">
                   <button
                     type="button"
-                    onClick={handleSaveDraft}
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#002B5B] text-[#002B5B] hover:bg-[#002B5B]/5 px-5 py-2.5 font-extrabold transition cursor-pointer"
-                  >
-                    <Save className="size-4" />
-                    <span>บันทึกร่าง</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => {
                       if (validateCompany() && validateEmployees()) {
                         setActiveStep(3);
@@ -2476,43 +2376,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                 ))}
               </div>
 
-              {/* Stock Warning Alert Banner */}
-              {stockWarnings.length > 0 && (
-                <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 flex items-start gap-3 shadow-sm animate-fade-in">
-                  <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5 animate-pulse-subtle" />
-                  <div>
-                    <h4 className="text-sm font-extrabold text-yellow-800">⚠️ สต็อกเสื้อบางรายการมีไม่เพียงพอ</h4>
-                    <p className="text-xs text-yellow-700 font-semibold mt-1 leading-5">
-                      พบจำนวนเสื้อที่ขอเบิกมากกว่าสต็อกเสื้อที่พร้อมส่ง ณ ขณะนี้ รายการที่ขาดจะเปลี่ยนสถานะเป็น <strong className="text-[#D97706]">"รอผลิต (Backorder)"</strong> โดยอัตโนมัติ และจะทำการส่งมอบในรอบถัดไป
-                    </p>
-                    <div className="mt-3 overflow-hidden rounded-lg border border-yellow-200 bg-white text-xs">
-                      <table className="w-full text-left">
-                        <thead className="bg-yellow-100/50 text-yellow-800 font-extrabold border-b border-yellow-100">
-                          <tr>
-                            <th className="px-3 py-1.5">แบบเสื้อ</th>
-                            <th className="px-3 py-1.5">ไซส์</th>
-                            <th className="px-3 py-1.5 text-center">ต้องการ</th>
-                            <th className="px-3 py-1.5 text-center">คลัง</th>
-                            <th className="px-3 py-1.5 text-center text-red-600">ขาด</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stockWarnings.map((w, idx) => (
-                            <tr key={idx} className="border-t border-yellow-100 hover:bg-neutral-50/50">
-                              <td className="px-3 py-1.5 font-bold text-neutral-800">{w.type} ({w.gender})</td>
-                              <td className="px-3 py-1.5 font-bold text-neutral-800">{w.size}</td>
-                              <td className="px-3 py-1.5 text-center font-bold text-[#002B5B]">{w.requested}</td>
-                              <td className="px-3 py-1.5 text-center text-neutral-600">{w.available}</td>
-                              <td className="px-3 py-1.5 text-center font-black text-red-600">-{w.requested - w.available}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Breakdown sorted by clothing types */}
               <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm">
                 <h3 className="text-sm sm:text-base font-extrabold text-[#071638] mb-3">📋 จำแนกรายการขอเบิกตามประเภทเสื้อ</h3>
@@ -2534,33 +2397,18 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                               <th className="px-4 py-2">เพศ</th>
                               <th className="px-4 py-2">ไซส์</th>
                               <th className="px-4 py-2 text-center">จำนวน</th>
-                              <th className="px-4 py-2 text-center">สถานะสต็อก</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {list.map((item, idx) => {
-                              const available = getStockRemaining(type, item.employee.gender, item.size);
-                              const isAvailable = available >= item.qty;
-                              return (
+                            {list.map((item, idx) => (
                                 <tr key={idx} className="border-b border-neutral-100 hover:bg-neutral-50/50">
                                   <td className="px-4 py-2 text-center text-neutral-400">{idx + 1}</td>
                                   <td className="px-4 py-2 font-bold text-neutral-800">{item.employee.name}</td>
                                   <td className="px-4 py-2 text-neutral-500">{item.employee.gender}</td>
                                   <td className="px-4 py-2 font-bold text-neutral-700">{item.size}</td>
                                   <td className="px-4 py-2 text-center font-bold text-[#002B5B]">{item.qty} ตัว</td>
-                                  <td className="px-4 py-2 text-center">
-                                    <span className={cn(
-                                      "inline-block rounded-full px-2 py-0.5 text-[10px] font-black",
-                                      isAvailable 
-                                        ? "bg-green-100 text-green-800" 
-                                        : "bg-yellow-100 text-[#D97706]"
-                                    )}>
-                                      {isAvailable ? "พร้อมส่ง" : `รอผลิต (คลังมี ${available})`}
-                                    </span>
-                                  </td>
                                 </tr>
-                              );
-                            })}
+                              ))}
                           </tbody>
                         </table>
                       </div>
@@ -4393,9 +4241,6 @@ function UserManualDialog({ open, setOpen }) {
                   <strong className="text-[#071638]">ตรวจสอบยอดรวมและสถิติ:</strong> ระบบจะสรุปจำนวนยอดสั่งรวมแยกตามไซส์และรูปแบบเสื้อให้อย่างชัดเจน
                 </li>
                 <li>
-                  <strong className="text-[#071638]">เช็กยอดคลังสินค้า:</strong> ระบบเปรียบเทียบยอดขอกับสต็อกใน Google Sheets แบบเรียลไทม์ โดยจะแสดงป้ายกำกับ <span className="inline-block rounded-sm bg-green-100 text-green-800 px-1 text-[10px] font-black">พร้อมส่ง</span> หรือ <span className="inline-block rounded-sm bg-yellow-100 text-[#D97706] px-1 text-[10px] font-black">รอผลิต</span>
-                </li>
-                <li>
                   <strong className="text-[#071638]">ยอมรับข้อตกลง:</strong> ทำเครื่องหมายถูกที่กล่องยืนยันทั้ง 3 ข้อเพื่อปลดล็อกปุ่มส่งข้อมูล
                 </li>
                 <li>
@@ -4404,14 +4249,6 @@ function UserManualDialog({ open, setOpen }) {
               </ul>
             </div>
 
-            <section className="space-y-2 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
-              <h3 className="text-xs sm:text-sm font-extrabold text-neutral-700 flex items-center gap-1.5">
-                <span>⚡</span> ข้อมูลการบันทึกดราฟต์อัตโนมัติ
-              </h3>
-              <p className="text-xs text-neutral-500 font-semibold leading-relaxed">
-                ระบบเปิดใช้การบันทึกดราฟต์ข้อมูลอัตโนมัติ (Auto-Save) ลงเครื่องของคุณตลอดเวลา หากเบราว์เซอร์เผลอปิดหรือปิดเครื่อง ข้อมูลในขั้นตอนล่าสุดจะยังคงอยู่และสามารถทำรายการต่อได้ทันทีเมื่อเปิดหน้าเว็บนี้ขึ้นมาใหม่
-              </p>
-            </section>
           </div>
           
           <div className="flex justify-end gap-2 border-t border-[#E7EAF0] bg-[#F8FAFD] px-4 py-3 sm:px-5">
