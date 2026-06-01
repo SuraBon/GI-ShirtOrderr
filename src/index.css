@@ -1011,6 +1011,16 @@ body {
   border-color: rgba(255,255,255,0.06) !important;
 }
 
+/* Toast entrance animation */
+@keyframes gi-toast-slide-in {
+  from { transform: translateY(-8px) translateX(12px) scale(.995); opacity: 0; }
+  to { transform: translateY(0) translateX(0) scale(1); opacity: 1; }
+}
+
+[data-sonner-toast].gi-toast {
+  animation: gi-toast-slide-in 320ms cubic-bezier(.2,.9,.2,1);
+}
+
 [data-sonner-toast].gi-toast [data-icon] {
   margin-top: 0 !important;
   flex: 0 0 44px !important;
@@ -1020,6 +1030,23 @@ body {
   place-items: center !important;
   background: rgba(255,255,255,0.06) !important;
   border-radius: 10px !important;
+  color: #ffffff !important;
+}
+
+/* Type-specific icon backgrounds */
+[data-sonner-toast][data-type='success'] .gi-toast [data-icon],
+[data-sonner-toast][data-type='success'] [data-icon] {
+  background: rgba(16,185,129,0.12) !important;
+  color: #10b981 !important;
+}
+[data-sonner-toast][data-type='error'] .gi-toast [data-icon],
+[data-sonner-toast][data-type='error'] [data-icon] {
+  background: rgba(239,68,68,0.08) !important;
+  color: #ef4444 !important;
+}
+[data-sonner-toast][data-type='loading'] .gi-toast [data-icon],
+[data-sonner-toast][data-type='loading'] [data-icon] {
+  background: rgba(255,255,255,0.03) !important;
   color: #ffffff !important;
 }
 
@@ -1036,6 +1063,50 @@ body {
   opacity: 0.9 !important;
   box-shadow: none !important;
   border-radius: 8px !important;
+}
+
+/* Loading state: indeterminate progress bar + spinner */
+[data-sonner-toast][data-type='loading'] {
+  position: relative;
+  overflow: visible !important;
+}
+
+@keyframes gi-toast-progress {
+  0% { left: -30%; width: 30%; }
+  50% { left: 30%; width: 40%; }
+  100% { left: 110%; width: 30%; }
+}
+
+[data-sonner-toast][data-type='loading']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.22), rgba(255,255,255,0.08));
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  animation: gi-toast-progress 2s linear infinite;
+}
+
+/* Spinner inside icon for loading */
+[data-sonner-toast][data-type='loading'] [data-icon] {
+  position: relative !important;
+}
+[data-sonner-toast][data-type='loading'] [data-icon]::after {
+  content: '';
+  box-sizing: border-box;
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.16);
+  border-top-color: rgba(255,255,255,0.92);
+  animation: gi-spin 800ms linear infinite;
+}
+
+@keyframes gi-spin {
+  to { transform: rotate(1turn); }
 }
 
 [data-sonner-toast].gi-toast [data-close-button]:hover {
