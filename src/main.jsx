@@ -69,6 +69,7 @@ import {
   GridSelect,
   Card,
 } from './components';
+import { Donut, MiniBar } from './components/SimpleCharts';
 import './index.css';
 
 const DASHBOARD_PATH = '#/dashboard';
@@ -1436,7 +1437,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           </div>
         </div>
       ) : (
-        <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-4 px-3 pb-40 pt-3 sm:px-5">
+        <main className="relative z-10 mx-auto grid w-full gi-container gap-4 pb-40 pt-3">
           {!gasConfigured && <SetupWarning />}
           
           {/* Step Progress Bar */}
@@ -3499,7 +3500,7 @@ function DashboardApp({ onOpenOrder }) {
         batchFormat={batchFormat}
         onBatchFormatChange={handleBatchFormatChange}
       />
-      <main className="relative z-10 mx-auto flex w-full max-w-[1520px] flex-col gap-3 px-2 pb-10 pt-3 sm:px-4 lg:gap-4 lg:px-6 lg:pt-5">
+      <main className="relative z-10 mx-auto flex w-full gi-container flex-col gap-3 pb-10 pt-3 lg:gap-4">
         <Dashboard
           activeView={dashboardView}
           onAuthExpired={handleAuthExpired}
@@ -3538,7 +3539,7 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
   }
 
   return (
-    <main className="relative z-10 mx-auto grid min-h-screen w-full max-w-[520px] place-items-center px-4 py-10">
+    <main className="relative z-10 mx-auto grid min-h-screen w-full gi-container place-items-center py-10">
       <Card className="w-full p-6 sm:p-8">
         <div className="mb-7 flex items-center justify-between gap-4">
           <Logo />
@@ -6704,28 +6705,20 @@ function DashboardOverviewChart({ metrics }) {
   ];
   const maxValue = Math.max(...rows.map((row) => row.value), 1);
 
+  const donutData = rows.map((r) => ({ label: r.label, value: r.value, color: r.color }));
   return (
-    <div className="dashboard-overview-chart">
+    <div className="dashboard-overview-chart gi-card">
       <div className="dashboard-overview-chart-head">
         <h3>กราฟสถานะคำสั่งเบิก</h3>
-        <p>เปรียบเทียบจำนวนชิ้นตามสถานะเพื่อดูภาพรวมได้เร็วขึ้น</p>
+        <p>เปรียบเทียบจำนวนชิ้นตามสถานะเพื่อดูภาพรวม</p>
       </div>
-      <div className="dashboard-overview-chart-bars">
-        {rows.map((row) => (
-          <div key={row.label} className="dashboard-overview-chart-row">
-            <div className="dashboard-overview-chart-label">
-              <span className="dashboard-overview-chart-marker" style={{ background: row.color }} />
-              <strong>{row.label}</strong>
-            </div>
-            <div className="dashboard-overview-chart-track">
-              <div
-                className="dashboard-overview-chart-bar"
-                style={{ width: `${Math.round((row.value / maxValue) * 100)}%`, background: row.color }}
-              />
-            </div>
-            <span className="dashboard-overview-chart-value">{row.value} ชิ้น</span>
-          </div>
-        ))}
+      <div style={{ display: 'flex', gap: 18, alignItems: 'center', paddingTop: 8 }}>
+        <div style={{ width: 160, height: 160 }}>
+          <Donut data={donutData} size={160} stroke={20} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <MiniBar rows={rows} />
+        </div>
       </div>
     </div>
   );

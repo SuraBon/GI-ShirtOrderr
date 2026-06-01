@@ -2618,6 +2618,27 @@ body {
   gap: 0.85rem;
 }
 
+/* Global container for consistent page sizing */
+:root {
+  --gi-container-max: 1200px;
+  --gi-spacing-x: 16px;
+  --gi-card-padding: 1rem;
+}
+.gi-container {
+  max-width: var(--gi-container-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--gi-spacing-x) !important;
+  padding-right: var(--gi-spacing-x) !important;
+  width: 100%;
+}
+.gi-card {
+  padding: var(--gi-card-padding) !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  border: 1px solid var(--gi-border) !important;
+}
+
 @media (min-width: 1200px) {
   .dashboard-orders-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -30,7 +30,7 @@ export function Logo({ surface = 'order' }) {
 export function OrderHeader({ onSizeOpen, onOpenDashboard, onManualOpen }) {
   return (
     <header className="gi-order-header relative z-10 border-b border-neutral-200 bg-white px-2 py-2.5 shadow-xs sm:px-3">
-      <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-2 sm:gap-3">
+      <div className="gi-container flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <Logo />
         <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
           <button
@@ -81,7 +81,7 @@ export function DashboardHeader({
 
   return (
     <header className="gi-dashboard-header relative z-10 border-b px-3 py-2 shadow-xs">
-      <div className="mx-auto flex max-w-[1520px] items-center gap-3">
+      <div className="gi-container flex items-center gap-3">
         <Logo surface="dashboard" />
         <nav className="gi-dashboard-nav flex items-center gap-2" aria-label="เมนูแอดมิน">
           {navItems.map((item) => (
