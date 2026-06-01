@@ -1631,7 +1631,7 @@ input[type='radio']:hover:not(:disabled) {
 /* Mobile-optimized touch targets */
 @media (max-width: 768px) {
   button,
-  input,
+  input:not([type='checkbox']):not([type='radio']),
   select,
   textarea,
   [role='button'],
