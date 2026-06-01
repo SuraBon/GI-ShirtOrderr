@@ -1151,6 +1151,13 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const skipDraftSaveRef = useRef(false);
   const [state, dispatch] = useReducer(orderReducer, undefined, readOrderDraft);
 
+  const isCompanyComplete = Boolean(
+    state.companyName?.trim() &&
+    state.branch &&
+    state.supervisorName?.trim() &&
+    state.supervisorPhone?.length === PHONE_LENGTH
+  );
+
   const summaryRows = useMemo(() => buildOrderSummaryRows(state.employees), [state.employees]);
   const totalPieces = summaryRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
   const completedEmployees = useMemo(
@@ -1674,7 +1681,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                   <div key={step.number} className="relative z-10 flex flex-col items-center">
                     <button
                       type="button"
-                      disabled={step.number > activeStep && !validateCompany()}
+                      disabled={step.number > activeStep && !isCompanyComplete}
                       onClick={() => {
                         if (step.number === 1) {
                           setActiveStep(1);
