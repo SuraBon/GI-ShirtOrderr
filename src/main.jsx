@@ -3750,6 +3750,7 @@ function ReviewMetric({ label, value }) {
 
 function DashboardApp({ demoMode, onOpenOrder }) {
   const [adminToken, setDashboardToken] = useState(getAdminToken);
+  const [dashboardView, setDashboardView] = useState('orders');
 
   function handleUnlock(token) {
     setAdminToken(token);
@@ -3767,9 +3768,18 @@ function DashboardApp({ demoMode, onOpenOrder }) {
 
   return (
     <>
-      <DashboardHeader onOpenOrder={onOpenOrder} />
+      <DashboardHeader
+        activeView={dashboardView}
+        onViewChange={setDashboardView}
+        onOpenOrder={onOpenOrder}
+      />
       <main className="relative z-10 mx-auto flex w-full max-w-[1520px] flex-col gap-3 px-2 pb-10 pt-3 sm:px-4 lg:gap-4 lg:px-6 lg:pt-5">
-        <Dashboard demoMode={demoMode} onAuthExpired={handleAuthExpired} />
+        <Dashboard
+          activeView={dashboardView}
+          demoMode={demoMode}
+          onAuthExpired={handleAuthExpired}
+          onViewChange={setDashboardView}
+        />
       </main>
     </>
   );
@@ -4898,7 +4908,7 @@ function ClothingManager({ config, setConfig, onAuthExpired }) {
   );
 }
 
-function Dashboard({ demoMode, onAuthExpired }) {
+function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChange }) {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -4925,6 +4935,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
   const [showOrderFilters, setShowOrderFilters] = useState(true);
   const [exportExpanded, setExportExpanded] = useState(false);
   const [advancedExportExpanded, setAdvancedExportExpanded] = useState(false);
+  const [orderPage, setOrderPage] = useState(1);
 
   async function loadData({ silent = false } = {}) {
     if (refreshing) return;
@@ -4985,6 +4996,9 @@ function Dashboard({ demoMode, onAuthExpired }) {
       batches.filter((batch) => {
         const inBranch = branchFilter === 'ทุกสาขา' || batch.branch === branchFilter;
         const inStatus = statusFilter === 'ทุกสถานะ' || batch.status === statusFilter;
+        const inMonth =
+          monthFilter === 'à¸—à¸¸à¸à¹€à¸”à¸·à¸­à¸™' ||
+          formatMonthLabel(batch.submittedAt) === monthFilter;
         const searchText = [
           batch.batchId,
           batch.companyName,
@@ -5005,10 +5019,14 @@ function Dashboard({ demoMode, onAuthExpired }) {
           .join(' ')
           .toLowerCase();
         const inQuery = !query || searchText.includes(query.toLowerCase());
-        return inBranch && inStatus && inQuery;
+        return inBranch && inStatus && inMonth && inQuery;
       }),
-    [batches, branchFilter, statusFilter, query]
+    [batches, branchFilter, statusFilter, monthFilter, query]
   );
+
+  useEffect(() => {
+    setOrderPage(1);
+  }, [branchFilter, statusFilter, monthFilter, query]);
 
   const rows = useMemo(() => flattenBatches(filteredBatches), [filteredBatches]);
   const summaryGenderOptions = useMemo(
@@ -5568,7 +5586,11 @@ function Dashboard({ demoMode, onAuthExpired }) {
 
   if (loading) return <SkeletonDashboard />;
 
-  const orderRows = filteredBatches.slice(0, 8);
+  const orderPageSize = 8;
+  const orderPageCount = Math.max(1, Math.ceil(filteredBatches.length / orderPageSize));
+  const safeOrderPage = Math.min(orderPage, orderPageCount);
+  const orderStartIndex = (safeOrderPage - 1) * orderPageSize;
+  const orderRows = filteredBatches.slice(orderStartIndex, orderStartIndex + orderPageSize);
   const formatDashboardDate = (value) => {
     if (!value) return '-';
     const date = new Date(value);
@@ -5606,7 +5628,34 @@ function Dashboard({ demoMode, onAuthExpired }) {
 
   return (
     <>
-      <section className="dashboard-console">
+      {activeView === 'dashboard' && (
+        <section className="dashboard-overview-page">
+          <div className="dashboard-overview-hero">
+            <div>
+              <h2>ภาพรวมการดำเนินงาน</h2>
+              <p>ติดตามสถานะออเดอร์และจุดที่ต้องจัดการต่อ</p>
+            </div>
+            <div className="dashboard-panel-actions">
+              <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
+                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
+                <span>โหลดข้อมูลใหม่</span>
+              </button>
+              <button className="dark" onClick={() => onViewChange?.('inventory')}>
+                <Shirt className="size-4" />
+                <span>จัดการสต็อก</span>
+              </button>
+            </div>
+          </div>
+          <div className="dashboard-overview-stats">
+            <Stat icon={ClipboardList} value={filteredBatches.length} label="ออเดอร์ทั้งหมด" />
+            <Stat icon={Clock} value={countByStatus(ORDER_STATUS_PENDING)} label="รอดำเนินการ" />
+            <Stat icon={Truck} value={`${metrics.backorderPieces} ชิ้น`} label="รอของ" />
+            <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
+          </div>
+        </section>
+      )}
+
+      <section className={cn('dashboard-console', activeView === 'orders' && 'orders-only', activeView !== 'orders' && 'hidden')}>
         <aside className="dashboard-filter-rail">
           <div className="dashboard-panel-title">
             <h2>ตัวกรอง</h2>
@@ -5653,7 +5702,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
                 <Download className="size-4" />
                 <span>ส่งออก</span>
               </button>
-              <button className="dark" onClick={exportCsv} disabled={!exportRows.length}>
+              <button className="dark dashboard-create-order-hidden" onClick={exportCsv} disabled={!exportRows.length}>
                 <Plus className="size-4" />
                 <span>สร้างออเดอร์</span>
               </button>
@@ -5783,9 +5832,16 @@ function Dashboard({ demoMode, onAuthExpired }) {
           <div className="dashboard-panel-foot">
             <span>แสดง 1 - {orderRows.length} จาก {filteredBatches.length} รายการ</span>
             <div>
-              <button><ArrowLeft className="size-4" /></button>
-              <strong>1</strong>
-              <button><ArrowRight className="size-4" /></button>
+              <button disabled={safeOrderPage <= 1} onClick={() => setOrderPage((page) => Math.max(1, page - 1))}>
+                <ArrowLeft className="size-4" />
+              </button>
+              <strong>{safeOrderPage}</strong>
+              <button
+                disabled={safeOrderPage >= orderPageCount}
+                onClick={() => setOrderPage((page) => Math.min(orderPageCount, page + 1))}
+              >
+                <ArrowRight className="size-4" />
+              </button>
             </div>
           </div>
         </section>
@@ -5829,7 +5885,7 @@ function Dashboard({ demoMode, onAuthExpired }) {
         </aside>
       </section>
 
-      <section className="dashboard-inventory-panel">
+      <section className={cn('dashboard-inventory-panel', activeView !== 'dashboard' && 'hidden')}>
         <div className="dashboard-panel-head">
           <div>
             <h2>จัดการแบบเสื้อและสต็อกไซส์</h2>
@@ -5885,6 +5941,28 @@ function Dashboard({ demoMode, onAuthExpired }) {
           </table>
         </div>
       </section>
+
+      {activeView === 'inventory' && (
+        <section className="dashboard-inventory-manager">
+          <div className="dashboard-panel-head">
+            <div>
+              <h2>จัดการแบบเสื้อและสต็อกไซส์</h2>
+              <p>เพิ่มแบบเสื้อ อัปโหลดรูปภาพ แก้สี ไซส์ และจำนวนคงเหลือ</p>
+            </div>
+            <div className="dashboard-panel-actions">
+              <button onClick={() => onViewChange?.('orders')}>
+                <ClipboardList className="size-4" />
+                <span>กลับไปรายการออเดอร์</span>
+              </button>
+            </div>
+          </div>
+          <ClothingManager
+            config={clothingConfig}
+            setConfig={setClothingConfig}
+            onAuthExpired={onAuthExpired}
+          />
+        </section>
+      )}
 
       {selectedBatchIds.size > 0 && (
         <div className="dashboard-bulk-bar">

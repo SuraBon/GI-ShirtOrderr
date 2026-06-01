@@ -1,5 +1,5 @@
 import React from 'react';
-import { HelpCircle, LayoutDashboard, Ruler, Search, Settings, Shirt, UserCheck } from 'lucide-react';
+import { HelpCircle, LayoutDashboard, Ruler, Settings, Shirt, UserCheck } from 'lucide-react';
 
 export function Logo({ surface = 'order' }) {
   const isDashboard = surface === 'dashboard';
@@ -63,29 +63,28 @@ export function OrderHeader({ onSizeOpen, onOpenDashboard, onManualOpen }) {
   );
 }
 
-export function DashboardHeader({ onOpenOrder }) {
+export function DashboardHeader({ activeView = 'orders', onViewChange, onOpenOrder }) {
+  const navItems = [
+    { id: 'orders', label: 'Orders' },
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'inventory', label: 'Inventory' },
+  ];
+
   return (
     <header className="gi-dashboard-header relative z-10 border-b px-3 py-2 shadow-xs">
       <div className="mx-auto flex max-w-[1520px] items-center gap-3">
         <Logo surface="dashboard" />
-        <span className="dashboard-mobile-action ml-auto grid size-9 place-items-center rounded-lg text-white/90 md:hidden">
-          <Search size={18} />
-        </span>
-        <div className="gi-dashboard-search hidden min-w-[260px] flex-1 items-center gap-2 rounded-lg border border-white/15 bg-white px-3 py-2 shadow-sm lg:flex">
-          <Search className="size-4 text-[#102B5C]" />
-          <input
-            className="h-6 flex-1 border-0 bg-transparent p-0 text-sm font-semibold text-[#102B5C] shadow-none outline-none placeholder:text-slate-500"
-            placeholder="ค้นหาเอกสาร, เลขที่ออเดอร์, ผู้ขอเบิก..."
-            readOnly
-          />
-          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-black text-slate-600">
-            Ctrl K
-          </span>
-        </div>
-        <nav className="gi-dashboard-nav hidden items-center gap-2 md:flex" aria-label="Dashboard">
-          <span className="active">Orders</span>
-          <span>Inventory</span>
-          <span>Reports</span>
+        <nav className="gi-dashboard-nav flex items-center gap-2" aria-label="Dashboard">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={activeView === item.id ? 'active' : ''}
+              onClick={() => onViewChange?.(item.id)}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
         <div className="flex items-center gap-2 md:ml-auto">
           <button
@@ -96,9 +95,14 @@ export function DashboardHeader({ onOpenOrder }) {
             <Shirt className="size-4" />
             <span>เปิดหน้าสั่งเบิกเสื้อ</span>
           </button>
-          <span className="dashboard-header-icon hidden size-9 place-items-center rounded-lg text-white/90 hover:bg-white/10 lg:grid">
+          <button
+            className="dashboard-header-icon hidden size-9 place-items-center rounded-lg text-white/90 hover:bg-white/10 lg:grid"
+            onClick={() => onViewChange?.('inventory')}
+            title="จัดการสต็อก"
+            type="button"
+          >
             <Settings size={18} />
-          </span>
+          </button>
           <span className="hidden min-h-9 items-center gap-2 rounded-lg px-2.5 text-sm font-bold text-white sm:flex">
             <span className="grid size-8 place-items-center rounded-full bg-white text-[#0A2A5E]">
               <UserCheck size={16} />

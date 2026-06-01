@@ -1969,18 +1969,20 @@ body {
   box-shadow: var(--gi-shadow) !important;
 }
 
-.gi-dashboard-nav span {
+.gi-dashboard-nav button {
   display: inline-flex;
   min-height: 2.35rem;
   align-items: center;
+  border: 0;
   border-radius: 0.45rem;
+  background: transparent;
   padding: 0 1.25rem;
   color: rgba(255, 255, 255, 0.82);
   font-size: 0.82rem;
   font-weight: 800;
 }
 
-.gi-dashboard-nav span.active {
+.gi-dashboard-nav button.active {
   background: rgba(255, 255, 255, 0.13);
   color: #ffffff;
 }
@@ -2008,6 +2010,20 @@ body {
 .dashboard-orders-panel { grid-area: orders; }
 .dashboard-insight-panel { grid-area: insights; }
 .dashboard-inventory-panel { grid-area: inventory; }
+
+.dashboard-console.orders-only {
+  grid-template-columns: minmax(240px, 290px) minmax(0, 1fr);
+  grid-template-areas: 'filters orders';
+}
+
+.dashboard-console.orders-only .dashboard-insight-panel {
+  display: none;
+}
+
+.dashboard-console.hidden,
+.dashboard-inventory-panel.hidden {
+  display: none;
+}
 
 .dashboard-filter-rail,
 .dashboard-orders-panel,
@@ -2076,6 +2092,12 @@ body {
   color: #ffffff;
   font-weight: 900;
   box-shadow: 0 10px 22px rgba(10, 42, 94, 0.18);
+}
+
+.dashboard-filter-rail .dashboard-primary-action,
+.dashboard-filter-rail .dashboard-saved-filter,
+.dashboard-create-order-hidden {
+  display: none !important;
 }
 
 .dashboard-saved-filter {
@@ -2361,6 +2383,56 @@ body {
 
 .dashboard-inventory-panel {
   margin-top: 0.9rem;
+}
+
+.dashboard-overview-page,
+.dashboard-inventory-manager {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.dashboard-overview-hero,
+.dashboard-inventory-manager > .dashboard-panel-head {
+  border: 1px solid var(--gi-border);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: var(--gi-shadow-soft);
+}
+
+.dashboard-overview-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.dashboard-overview-hero h2 {
+  color: var(--gi-text);
+  font-size: 1.08rem;
+  font-weight: 950;
+}
+
+.dashboard-overview-hero p {
+  margin-top: 0.2rem;
+  color: var(--gi-muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.dashboard-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.dashboard-inventory-panel .dashboard-panel-actions button:not(.dashboard-stock-manage-link),
+.dashboard-inventory-panel .dashboard-icon-btn {
+  display: none !important;
+}
+
+.dashboard-inventory-manager .clothing-manager-card {
+  margin-top: 0;
 }
 
 .dashboard-inventory-table {
@@ -2691,6 +2763,10 @@ body {
     top: 0;
   }
 
+  .gi-dashboard-header > div {
+    flex-wrap: wrap;
+  }
+
   .gi-dashboard-header .gi-brand {
     gap: 0.45rem;
   }
@@ -2698,6 +2774,20 @@ body {
   .gi-dashboard-header .gi-brand h1 {
     max-width: 8.5rem;
     font-size: 0.8rem !important;
+  }
+
+  .gi-dashboard-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    padding-top: 0.35rem;
+  }
+
+  .gi-dashboard-nav button {
+    min-height: 2rem;
+    flex: 1 0 auto;
+    padding-inline: 0.75rem;
+    font-size: 0.74rem;
   }
 
   .dashboard-mobile-action {
