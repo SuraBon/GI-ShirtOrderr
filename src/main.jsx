@@ -41,6 +41,21 @@ import {
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import {
+  readClothingConfig,
+  saveClothingConfig,
+  loadSharedClothingConfig,
+  publishSharedClothingConfig,
+  CLOTHING_CONFIG_KEY,
+  CLOTHING_SIZE_TABLE_VERSION_KEY,
+  CLOTHING_SIZE_TABLE_VERSION,
+  CLOTHING_CONFIG_UPDATED_AT_KEY,
+  getClothingTypes,
+  findClothingConfig,
+  getSizeRows,
+  getSizeOptions,
+  defaultSize,
+} from './lib/config';
+import {
   Logo,
   OrderHeader,
   DashboardHeader,
@@ -59,10 +74,7 @@ import './index.css';
 const DASHBOARD_PATH = '#/dashboard';
 const ORDER_PATH = '/';
 const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
-const CLOTHING_CONFIG_KEY = 'gi-shirt-clothing-config';
-const CLOTHING_SIZE_TABLE_VERSION_KEY = 'gi-shirt-clothing-size-table-version';
-const CLOTHING_SIZE_TABLE_VERSION = '2026-05-standard-shirt-table-v2';
-const CLOTHING_CONFIG_UPDATED_AT_KEY = 'gi-shirt-clothing-config-updated-at';
+// clothing config keys and helpers are imported from ./lib/config
 const IMAGE_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
@@ -263,104 +275,7 @@ function getStockLedgerSummary(row) {
   };
 }
 
-function normalizeClothingConfig(config) {
-  const source = Array.isArray(config) && config.length ? config : DEFAULT_CLOTHING_CONFIG;
-  return source
-    .map((item, index) => {
-      const type = String(item?.type || CLOTHING_TYPES[index] || 'เสื้อ').trim();
-      const detailFields =
-        Array.isArray(item?.detailFields) && item.detailFields.length
-          ? item.detailFields.map((field) => String(field || '').trim()).filter(Boolean)
-          : [String(item?.detailLabel || (type.includes('กางเกง') ? 'เอว' : 'อก')).trim()];
-      const fallbackRows = normalizeSizeRows(item?.sizeRows, detailFields);
-      const genderSizeRows = GENDERS.reduce(
-        (genderRows, gender) => ({
-          ...genderRows,
-          [gender]: normalizeSizeRows(item?.genderSizeRows?.[gender] || fallbackRows, detailFields),
-        }),
-        {}
-      );
-
-      return {
-        id: item?.id || crypto.randomUUID(),
-        type,
-        imageUrl: item?.imageUrl || '',
-        detailFields,
-        sizeRows: genderSizeRows[GENDERS[0]] || fallbackRows,
-        genderSizeRows,
-      };
-    })
-    .filter((item) => item.type);
-}
-
-function migrateStandardSizeTables(config) {
-  const normalized = normalizeClothingConfig(config);
-  const standardTypes = new Set(CLOTHING_TYPES);
-  const byType = new Map(normalized.map((item) => [item.type, item]));
-  const migratedStandardItems = CLOTHING_TYPES.map((type) =>
-    buildDefaultClothingItem(type, byType.get(type))
-  );
-  const customItems = normalized.filter((item) => !standardTypes.has(item.type));
-  return [...migratedStandardItems, ...customItems];
-}
-
-function readClothingConfig() {
-  try {
-    const normalized = normalizeClothingConfig(
-      JSON.parse(localStorage.getItem(CLOTHING_CONFIG_KEY) || 'null')
-    );
-    if (localStorage.getItem(CLOTHING_SIZE_TABLE_VERSION_KEY) !== CLOTHING_SIZE_TABLE_VERSION) {
-      const migrated = migrateStandardSizeTables(normalized);
-      localStorage.setItem(CLOTHING_CONFIG_KEY, JSON.stringify(migrated));
-      localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
-      return migrated;
-    }
-    return normalized;
-  } catch {
-    const normalized = migrateStandardSizeTables();
-    localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
-    return normalized;
-  }
-}
-
-function saveClothingConfig(config) {
-  localStorage.setItem(CLOTHING_CONFIG_KEY, JSON.stringify(normalizeClothingConfig(config)));
-}
-
-async function loadSharedClothingConfig() {
-  const response = await fetch('/api/blob/config', { cache: 'no-store' });
-  if (!response.ok) throw new Error('Shared clothing config is not available');
-  const data = await response.json();
-  if (!Array.isArray(data?.config) || !data.config.length) return null;
-  const normalized = migrateStandardSizeTables(data.config);
-  saveClothingConfig(normalized);
-  if (data?.updatedAt) localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(data.updatedAt));
-  localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
-  return normalized;
-}
-
-async function publishSharedClothingConfig(config) {
-  const normalized = normalizeClothingConfig(config);
-  const token = getAdminToken();
-  const expected = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
-  const response = await fetch('/api/blob/config', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ config: normalized, expectedUpdatedAt: expected }),
-  });
-  if (!response.ok) {
-    const data = await response.json().catch(() => null);
-    const error = new Error(data?.error || 'Shared clothing config sync failed');
-    error.status = response.status;
-    throw error;
-  }
-  const result = await response.json().catch(() => null);
-  if (result?.updatedAt) localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedAt));
-  return normalized;
-}
+// Clothing config helpers are provided by ./lib/config (imported at top)
 
 function getAdminToken() {
   return sessionStorage.getItem(DASHBOARD_SESSION_KEY) || '';
@@ -407,48 +322,8 @@ async function authFetch(url, options = {}) {
   }
 }
 
-function getClothingTypes() {
-  return readClothingConfig().map((item) => item.type);
-}
-
-function findClothingConfig(type) {
-  return readClothingConfig().find((item) => item.type === type);
-}
-
-function getSizeRows(type, gender) {
-  const clothing = findClothingConfig(type);
-  const genderRows = clothing?.genderSizeRows?.[gender];
-  if (genderRows?.length)
-    return genderRows.map((row) => [
-      row.size,
-      Object.values(row.details || {})
-        .filter(Boolean)
-        .join(' / ') || row.size,
-    ]);
-  if (clothing?.sizeRows?.length)
-    return clothing.sizeRows.map((row) => [
-      row.size,
-      Object.values(row.details || {})
-        .filter(Boolean)
-        .join(' / ') || row.size,
-    ]);
-  if (type === 'เสื้อโปโล') return SIZE_TABLES[`เสื้อโปโล ${gender}`] || [];
-  return SIZE_TABLES[type] || [];
-}
-
-function getSizeOptions(type, gender) {
-  return [...getSizeRows(type, gender).map(([size]) => size), OTHER_SIZE];
-}
-
-function getSizeOptionsWithLabels(type, gender) {
-  if (!gender) return [];
-  const options = getSizeRows(type, gender).map(([size]) => [size, size]);
-  return [...options, [OTHER_SIZE, OTHER_SIZE]];
-}
-
-function defaultSize(type, gender) {
-  return getSizeOptions(type, gender)[1] || 'M';
-}
+// Clothing helpers (getClothingTypes, findClothingConfig, getSizeRows, getSizeOptions, defaultSize)
+// are provided by ./lib/config and imported at the top.
 
 function patchSizeWithDefaultQty(item, size) {
   return {

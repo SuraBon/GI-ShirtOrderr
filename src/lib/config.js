@@ -3,6 +3,7 @@ import { getAdminToken } from './api';
 export const CLOTHING_CONFIG_KEY = 'gi-shirt-clothing-config';
 export const CLOTHING_SIZE_TABLE_VERSION_KEY = 'gi-shirt-clothing-size-table-version';
 export const CLOTHING_SIZE_TABLE_VERSION = '2026-05-standard-shirt-table-v2';
+export const CLOTHING_CONFIG_UPDATED_AT_KEY = 'gi-shirt-clothing-config-updated-at';
 export const IMAGE_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 
