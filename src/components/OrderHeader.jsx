@@ -98,14 +98,6 @@ export function DashboardHeader({
         </nav>
         <div className="flex items-center gap-2 md:ml-auto">
           <button
-            onClick={onOpenOrder}
-            className="btn-outline flex min-h-9 items-center gap-1.5 px-3 text-sm font-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-            title="ไปยังหน้าสั่งเบิกเสื้อ"
-          >
-            <Shirt className="size-4" />
-            <span>เปิดหน้าสั่งเบิกเสื้อ</span>
-          </button>
-          <button
             onClick={onManualOpen}
             className="dashboard-header-icon hidden min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-black text-white/90 hover:bg-white/10 lg:flex"
             title="คู่มือแอดมิน"
@@ -116,25 +108,13 @@ export function DashboardHeader({
           </button>
           <button
             onClick={onLogout}
-            className="dashboard-logout-button flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-black text-white/90 hover:bg-white/10"
+            aria-label="ออกจากระบบ"
+            className="dashboard-logout-button grid place-items-center rounded-full p-2 text-red-600 hover:bg-red-50"
             title="ออกจากระบบแอดมิน"
             type="button"
           >
-            <LogOut size={18} />
-            <span>ออกจากระบบ</span>
+            <LogOut size={18} className="text-red-600" />
           </button>
-          <div className="ml-2 flex items-center gap-2">
-            <label className="text-xs font-bold text-white/90">รหัส:</label>
-            <select
-              value={batchFormat}
-              onChange={(e) => onBatchFormatChange?.(e.target.value)}
-              className="rounded-md bg-white/10 text-sm font-bold text-white/90"
-              title="รูปแบบการแสดงรหัสคำสั่ง"
-            >
-              <option value="day-tail">วัน-รหัส (01-15131)</option>
-              <option value="ellipsis">ย่อ …12345</option>
-            </select>
-          </div>
         </div>
       </div>
     </header>

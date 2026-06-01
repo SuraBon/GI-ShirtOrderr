@@ -5002,6 +5002,18 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     }
   }
 
+  async function shipSingleItem(batchId, orderName, item) {
+    const shipmentItems = [
+      {
+        gender: item.gender || '',
+        type: item.type,
+        size: item.size,
+        shippedQty: Number(item.qty || 0),
+      },
+    ];
+    await shipBatchItems(batchId, shipmentItems);
+  }
+
   async function deleteBatch(batchId) {
     setDeleteLoadingId(batchId);
     const loadingToastId = toast.loading('กำลังลบคำสั่งเบิกเสื้อ...', {
@@ -5451,7 +5463,14 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                               <div className="flex items-center gap-2">
                                 <button
                                   className="dashboard-link"
-                                  onClick={() => setSelectedBatch(batch)}
+                                  onClick={() => {
+                                    setExpandedBatchIds((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(batch.batchId)) next.delete(batch.batchId);
+                                      else next.add(batch.batchId);
+                                      return next;
+                                    });
+                                  }}
                                   title={String(batch.batchId)}
                                 >
                                   {shortBatchId(batch)}
@@ -5482,7 +5501,17 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                             <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>
                             <td className="dashboard-row-actions">
                               <div className="dashboard-row-actions-group">
-                                <button className="dashboard-icon-btn" onClick={() => setSelectedBatch(batch)}>
+                                <button
+                                  className="dashboard-icon-btn"
+                                  onClick={() => {
+                                    setExpandedBatchIds((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(batch.batchId)) next.delete(batch.batchId);
+                                      else next.add(batch.batchId);
+                                      return next;
+                                    });
+                                  }}
+                                >
                                   <ChevronDown className="size-4 -rotate-90" />
                                 </button>
                                 {batch.status !== ORDER_STATUS_DELIVERED && (
@@ -5583,7 +5612,14 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                         </button>
                         <button
                           className="dashboard-link"
-                          onClick={() => setSelectedBatch(batch)}
+                          onClick={() => {
+                            setExpandedBatchIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(batch.batchId)) next.delete(batch.batchId);
+                              else next.add(batch.batchId);
+                              return next;
+                            });
+                          }}
                           title={String(batch.batchId)}
                         >
                           {shortBatchId(batch)}
@@ -5634,15 +5670,19 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                               <td colSpan={10} className="p-0">
                                 <div className="batch-detail-container">
                                   <div className={cn('batch-detail-inner', expandedBatchIds.has(batch.batchId) && 'open')}>
-                                    <table className="batch-detail-table">
+                                    <table className="batch-detail-table text-center">
                                       <thead>
                                         <tr>
                                           <th>ชื่อพนักงาน</th>
                                           <th>เพศ</th>
-                                          <th>ประเภท</th>
+                                          <th>เสื้อ</th>
                                           <th>ไซส์</th>
                                           <th>จำนวน</th>
-                                          <th>สถานะไอเท็ม</th>
+                                          <th>สถานะ</th>
+                                          <th>บริษัท</th>
+                                          <th>สาขา</th>
+                                          <th>เลขที่คำสั่ง</th>
+                                          <th>วันที่เบิก</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -5656,9 +5696,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                             const understock = requested > available && item.size !== OTHER_SIZE;
                                             return (
                                               <tr key={`${batch.batchId}-${order.name}-${idx}`} className={cn('batch-detail-item', understock && 'understock')}>
-                                                <td className="text-left">{order.name}</td>
+                                                <td>{order.name}</td>
                                                 <td>{order.gender}</td>
-                                                <td className="text-left">{item.type}</td>
+                                                <td>{item.type}</td>
                                                 <td>{item.size}</td>
                                                 <td>
                                                   {requested}
@@ -5667,6 +5707,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                   )}
                                                 </td>
                                                 <td><StatusBadge status={item.status || batch.status} small /></td>
+                                                <td>{batch.companyName || '-'}</td>
+                                                <td>{batch.branch || '-'}</td>
+                                                <td>{String(batch.batchId)}</td>
+                                                <td>{formatDashboardDate(batch.submittedAt)}</td>
                                               </tr>
                                             );
                                           })
@@ -5690,7 +5734,14 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               <article
                 key={batch.batchId}
                 className="dashboard-mobile-order-card"
-                onClick={() => setSelectedBatch(batch)}
+                onClick={() => {
+                  setExpandedBatchIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(batch.batchId)) next.delete(batch.batchId);
+                    else next.add(batch.batchId);
+                    return next;
+                  });
+                }}
               >
                 <div className="dashboard-mobile-order-top">
                         <div>
