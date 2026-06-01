@@ -20,8 +20,11 @@ const STOCK_HEADERS = [
   "ประเภทเสื้อ",
   "เพศ",
   "ไซส์",
-  "สต๊อกทั้งหมด",
+  "ยอดตั้งต้น",
+  "เพิ่มเข้า",
+  "ปรับลด",
   "เบิกแล้ว",
+  "สต๊อกทั้งหมด",
   "คงเหลือ"
 ];
 
@@ -364,7 +367,7 @@ function syncStockSheet_(spreadsheet, config) {
   }
 
   // Row 1: Warning Banner
-  sheet.getRange("A1:F1").merge();
+  sheet.getRange(1, 1, 1, STOCK_HEADERS.length).merge();
   const warningCell = sheet.getRange("A1");
   warningCell.setValue("⚠️ คำเตือน: ระบบอัปเดตข้อมูลแผ่นงานนี้โดยอัตโนมัติจากแดชบอร์ด ห้ามแก้ไขตัวเลขคงเหลือในตารางนี้โดยตรง (การแก้ไขจะสูญหาย)");
   warningCell.setFontWeight("bold");
@@ -392,15 +395,20 @@ function syncStockSheet_(spreadsheet, config) {
         sizeRows.forEach((sizeRow) => {
           const size = sizeRow.size || "";
           const qty = Number(sizeRow.qty || 0);
-          
-          const formulaWithdrawn = '=SUMIFS(' + SHEET_NAME + '!M:M, ' + SHEET_NAME + '!K:K, A' + rowIndex + ', ' + SHEET_NAME + '!J:J, B' + rowIndex + ', ' + SHEET_NAME + '!L:L, C' + rowIndex + ', ' + SHEET_NAME + '!B:B, "จัดส่งแล้ว")';
-          const formulaTotal = '=E' + rowIndex + '+F' + rowIndex;
+          const opening = Number(sizeRow.stockOpeningQty || 0);
+          const added = Number(sizeRow.stockAdded || 0);
+          const adjustedOut = Number(sizeRow.stockAdjustedOut || 0);
+          const withdrawn = Number(sizeRow.stockWithdrawn || 0);
+          const total = Math.max(0, opening + added - adjustedOut);
           stockRows.push([
             type,
             gender,
             size,
-            formulaTotal,
-            formulaWithdrawn,
+            opening,
+            added,
+            adjustedOut,
+            withdrawn,
+            total,
             qty
           ]);
           rowIndex++;

@@ -202,15 +202,68 @@ function normalizeSizeDetails(row, detailFields) {
 function normalizeSizeRows(rows, detailFields) {
   const normalizedRows =
     Array.isArray(rows) && rows.length
-      ? rows.map((row) => ({
-          size: String(row?.size || '').trim(),
-          details: normalizeSizeDetails(row, detailFields),
-          qty: Number(row?.qty || 0),
-        }))
+      ? rows.map((row) => {
+          const qty = Number(row?.qty || 0);
+          const ledger = normalizeStockLedger(row, qty);
+          return {
+            size: String(row?.size || '').trim(),
+            details: normalizeSizeDetails(row, detailFields),
+            qty,
+            ...ledger,
+          };
+        })
       : [];
   return normalizedRows.length
     ? normalizedRows
-    : [{ size: 'M', details: normalizeSizeDetails({}, detailFields), qty: 0 }];
+    : [{ size: 'M', details: normalizeSizeDetails({}, detailFields), qty: 0, ...normalizeStockLedger({}, 0) }];
+}
+
+function normalizeStockLedger(row, qty = Number(row?.qty || 0)) {
+  const stockAdded = Number(row?.stockAdded || 0);
+  const stockWithdrawn = Number(row?.stockWithdrawn || row?.withdrawn || 0);
+  const stockAdjustedOut = Number(row?.stockAdjustedOut || 0);
+  const stockOpeningQty =
+    row?.stockOpeningQty !== undefined
+      ? Number(row.stockOpeningQty || 0)
+      : Math.max(0, Number(qty || 0) + stockWithdrawn - stockAdded + stockAdjustedOut);
+  return {
+    stockOpeningQty,
+    stockAdded,
+    stockWithdrawn,
+    stockAdjustedOut,
+  };
+}
+
+function applyStockMovement(row, delta, movementType = 'manual') {
+  const currentQty = Number(row?.qty || 0);
+  const nextQty = Math.max(0, currentQty + Number(delta || 0));
+  const actualDelta = nextQty - currentQty;
+  const ledger = normalizeStockLedger(row, currentQty);
+
+  if (movementType === 'withdraw' && actualDelta < 0) {
+    ledger.stockWithdrawn += Math.abs(actualDelta);
+  } else if (movementType === 'restore' && actualDelta > 0) {
+    ledger.stockWithdrawn = Math.max(0, ledger.stockWithdrawn - actualDelta);
+  } else if (movementType === 'manual') {
+    if (actualDelta > 0) ledger.stockAdded += actualDelta;
+    if (actualDelta < 0) ledger.stockAdjustedOut += Math.abs(actualDelta);
+  }
+
+  return { ...row, qty: nextQty, ...ledger };
+}
+
+function getStockLedgerSummary(row) {
+  const qty = Number(row?.qty || 0);
+  const ledger = normalizeStockLedger(row, qty);
+  const totalStock = Math.max(0, ledger.stockOpeningQty + ledger.stockAdded - ledger.stockAdjustedOut);
+  return {
+    opening: ledger.stockOpeningQty,
+    added: ledger.stockAdded,
+    adjustedOut: ledger.stockAdjustedOut,
+    withdrawn: ledger.stockWithdrawn,
+    totalStock,
+    remaining: qty,
+  };
 }
 
 function normalizeClothingConfig(config) {
@@ -4175,6 +4228,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
   const [editing, setEditing] = useState(false);
   const [activeSection, setActiveSection] = useState('details');
   const [uploadingId, setUploadingId] = useState('');
+  const [stockAdjustments, setStockAdjustments] = useState({});
   const syncTimerRef = useRef(null);
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
   const stockRows = selectedItem?.genderSizeRows?.[selectedGender] || selectedItem?.sizeRows || [];
@@ -4263,6 +4317,136 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
               index === rowIndex ? { ...row, ...patch } : row
             ),
           },
+        };
+      })
+    );
+  }
+
+  function getStockAdjustmentKey(rowIndex) {
+    return `${selectedItem?.id || ''}:${selectedGender}:${rowIndex}`;
+  }
+
+  function adjustStockQuantity(id, rowIndex) {
+    const key = getStockAdjustmentKey(rowIndex);
+    const amount = Number(stockAdjustments[key] || 0);
+    if (!amount) return;
+    commit(
+      config.map((item) => {
+        if (item.id !== id) return item;
+        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
+        return {
+          ...item,
+          genderSizeRows: {
+            ...(item.genderSizeRows || {}),
+            [selectedGender]: rows.map((row, index) =>
+              index === rowIndex ? applyStockMovement(row, amount, 'manual') : row
+            ),
+          },
+        };
+      })
+    );
+    setStockAdjustments((current) => ({ ...current, [key]: '' }));
+  }
+
+  function patchStockDetail(id, rowIndex, field, value) {
+    commit(
+      config.map((item) => {
+        if (item.id !== id) return item;
+        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
+        return {
+          ...item,
+          genderSizeRows: {
+            ...(item.genderSizeRows || {}),
+            [selectedGender]: rows.map((row, index) =>
+              index === rowIndex
+                ? {
+                    ...row,
+                    details: {
+                      ...(row.details || {}),
+                      [field]: value,
+                    },
+                  }
+                : row
+            ),
+          },
+        };
+      })
+    );
+  }
+
+  function patchDetailField(id, fieldIndex, value) {
+    const nextField = value.trim() || 'รายละเอียด';
+    commit(
+      config.map((item) => {
+        if (item.id !== id) return item;
+        const oldField = item.detailFields?.[fieldIndex];
+        const detailFields = (item.detailFields || []).map((field, index) =>
+          index === fieldIndex ? nextField : field
+        );
+        return {
+          ...item,
+          detailFields,
+          genderSizeRows: GENDERS.reduce((rows, gender) => {
+            const sizeRows = item.genderSizeRows?.[gender] || item.sizeRows || [];
+            return {
+              ...rows,
+              [gender]: sizeRows.map((row) => {
+                const details = { ...(row.details || {}) };
+                if (oldField && oldField !== nextField) {
+                  details[nextField] = details[oldField] || '';
+                  delete details[oldField];
+                }
+                return { ...row, details };
+              }),
+            };
+          }, {}),
+        };
+      })
+    );
+  }
+
+  function addDetailField(id) {
+    commit(
+      config.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              detailFields: [...(item.detailFields || []), 'รายละเอียด'],
+              genderSizeRows: GENDERS.reduce((rows, gender) => {
+                const sizeRows = item.genderSizeRows?.[gender] || item.sizeRows || [];
+                return {
+                  ...rows,
+                  [gender]: sizeRows.map((row) => ({
+                    ...row,
+                    details: { ...(row.details || {}), รายละเอียด: '' },
+                  })),
+                };
+              }, {}),
+            }
+          : item
+      )
+    );
+  }
+
+  function removeDetailField(id, fieldIndex) {
+    commit(
+      config.map((item) => {
+        if (item.id !== id || (item.detailFields || []).length <= 1) return item;
+        const field = item.detailFields[fieldIndex];
+        return {
+          ...item,
+          detailFields: item.detailFields.filter((_, index) => index !== fieldIndex),
+          genderSizeRows: GENDERS.reduce((rows, gender) => {
+            const sizeRows = item.genderSizeRows?.[gender] || item.sizeRows || [];
+            return {
+              ...rows,
+              [gender]: sizeRows.map((row) => {
+                const details = { ...(row.details || {}) };
+                delete details[field];
+                return { ...row, details };
+              }),
+            };
+          }, {}),
         };
       })
     );
@@ -4361,6 +4545,11 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
   }
 
   if (!selectedItem) return null;
+
+  const detailFields = selectedItem.detailFields?.length ? selectedItem.detailFields : ['อก'];
+  const sizeDetailGridStyle = {
+    '--inventory-size-detail-columns': `minmax(7rem, 0.8fr) repeat(${detailFields.length}, minmax(7rem, 1fr)) 2.5rem`,
+  };
 
   return (
     <section className="inventory-manager-shell">
@@ -4511,13 +4700,102 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
               </div>
             </div>
           </div>
+          <div className="inventory-size-fields">
+            <div className="inventory-size-fields-top">
+              <div>
+                <strong>รายละเอียดไซส์</strong>
+                <span>แก้ค่าอก/เอวแยกตามเพศ ข้อมูลนี้จะแสดงในตารางไซส์ของผู้เบิก</span>
+              </div>
+              <div className="inventory-gender-toggle">
+                {GENDERS.map((gender) => (
+                  <button
+                    key={gender}
+                    className={selectedGender === gender ? 'active' : ''}
+                    onClick={() => setSelectedGender(gender)}
+                  >
+                    {gender}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {editing && (
+              <div className="inventory-size-field-list">
+                {detailFields.map((field, index) => (
+                  <div key={`${selectedItem.id}-detail-field-${index}`} className="inventory-size-field-row">
+                    <TextInput
+                      value={field}
+                      onChange={(value) => patchDetailField(selectedItem.id, index, value)}
+                      placeholder="อก"
+                    />
+                    <button
+                      onClick={() => removeDetailField(selectedItem.id, index)}
+                      disabled={detailFields.length <= 1}
+                      title="ลบช่องรายละเอียด"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="inventory-size-detail-table">
+              <div className="inventory-size-detail-header" style={sizeDetailGridStyle}>
+                <span>ไซส์</span>
+                {detailFields.map((field) => (
+                  <span key={`${selectedItem.id}-size-head-${field}`}>{field}</span>
+                ))}
+                {editing && <span />}
+              </div>
+              {stockRows.map((row, index) => (
+                <div
+                  className="inventory-size-detail-row"
+                  key={`${selectedItem.id}-${selectedGender}-detail-${index}`}
+                  style={sizeDetailGridStyle}
+                >
+                  {editing ? (
+                    <TextInput
+                      value={row.size}
+                      onChange={(value) => patchStock(selectedItem.id, index, { size: value })}
+                      placeholder="ไซส์"
+                    />
+                  ) : (
+                    <strong>{row.size || '-'}</strong>
+                  )}
+                  {detailFields.map((field) =>
+                    editing ? (
+                      <TextInput
+                        key={`${selectedItem.id}-${selectedGender}-${index}-${field}`}
+                        value={row.details?.[field] || ''}
+                        onChange={(value) => patchStockDetail(selectedItem.id, index, field, value)}
+                        placeholder={field}
+                      />
+                    ) : (
+                      <span key={`${selectedItem.id}-${selectedGender}-${index}-${field}`}>
+                        {row.details?.[field] || '-'}
+                      </span>
+                    )
+                  )}
+                  {editing && (
+                    <button onClick={() => removeStockRow(selectedItem.id, index)} title="ลบไซส์">
+                      <Trash2 className="size-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {editing && (
+              <button className="inventory-add-stock" onClick={() => addStockRow(selectedItem.id)}>
+                <Plus className="size-4" /> เพิ่มไซส์
+              </button>
+            )}
+          </div>
         </section>
 
         <section className={cn('inventory-stock-card', activeSection !== 'stock' && 'hidden')}>
           <div className="inventory-section-head">
             <div>
               <h4>สต็อกตามไซส์</h4>
-              <p>ส่วนนี้ใช้ปรับจำนวนคงเหลือเท่านั้น: เลือกเพศ ดูไซส์ แล้วกรอกจำนวน</p>
+              <p>แก้เฉพาะจำนวนคงเหลือ แยกตามเพศ ส่วนอก/เอวอยู่ในแท็บข้อมูลเสื้อ</p>
             </div>
             <div className="inventory-gender-toggle">
               {GENDERS.map((gender) => (
@@ -4535,745 +4813,38 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
             <div className="inventory-stock-header">
               <span>ไซส์</span>
               <span>จำนวนคงเหลือ</span>
-              {editing && <span />}
+              {editing && <span>เพิ่ม / ลด</span>}
             </div>
             {stockRows.map((row, index) => (
-              <div className="inventory-stock-row" key={`${selectedItem.id}-${selectedGender}-${index}`}>
-                {editing ? (
-                  <TextInput
-                    value={row.size}
-                    onChange={(value) => patchStock(selectedItem.id, index, { size: value })}
-                    placeholder="ไซส์"
-                  />
-                ) : (
-                  <strong>{row.size || '-'}</strong>
-                )}
-                <TextInput
-                  type="number"
-                  inputMode="numeric"
-                  value={String(row.qty ?? 0)}
-                  onChange={(value) =>
-                    patchStock(selectedItem.id, index, { qty: Number(value) || 0 })
-                  }
-                  disabled={!editing}
-                />
+              <div
+                className="inventory-stock-row"
+                key={`${selectedItem.id}-${selectedGender}-${index}`}
+              >
+                <strong>{row.size || '-'}</strong>
+                <span>{Number(row.qty || 0)} ชิ้น</span>
                 {editing && (
-                  <button onClick={() => removeStockRow(selectedItem.id, index)}>
-                    <Trash2 className="size-4" />
-                  </button>
+                  <div className="inventory-stock-adjust">
+                    <TextInput
+                      type="number"
+                      inputMode="numeric"
+                      value={stockAdjustments[getStockAdjustmentKey(index)] || ''}
+                      onChange={(value) =>
+                        setStockAdjustments((current) => ({
+                          ...current,
+                          [getStockAdjustmentKey(index)]: value,
+                        }))
+                      }
+                      placeholder="+10 หรือ -2"
+                    />
+                    <button onClick={() => adjustStockQuantity(selectedItem.id, index)}>เพิ่ม</button>
+                  </div>
                 )}
               </div>
             ))}
           </div>
-          {editing && (
-            <button className="inventory-add-stock" onClick={() => addStockRow(selectedItem.id)}>
-              <Plus className="size-4" /> เพิ่มไซส์
-            </button>
-          )}
         </section>
       </div>
     </section>
-  );
-}
-
-function ClothingManager({ config, setConfig, onAuthExpired }) {
-  const [uploadingId, setUploadingId] = useState('');
-  const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
-  const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
-  const [deleteClothingId, setDeleteClothingId] = useState('');
-  const syncTimerRef = useRef(null);
-  const selectedItem = config.find((item) => item.id === selectedId) || config[0];
-  const deleteClothingItem = config.find((item) => item.id === deleteClothingId) || null;
-  const selectedSizeRows =
-    selectedItem?.genderSizeRows?.[selectedGender] || selectedItem?.sizeRows || [];
-
-  useEffect(() => {
-    if (!config.some((item) => item.id === selectedId)) {
-      setSelectedId(config[0]?.id || '');
-    }
-  }, [config, selectedId]);
-
-  useEffect(() => () => window.clearTimeout(syncTimerRef.current), []);
-
-  function scheduleSharedConfigSync(normalizedConfig) {
-    window.clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = window.setTimeout(() => {
-      publishSharedClothingConfig(normalizedConfig).catch((error) => {
-        if (isAuthFailure(error)) {
-          setAdminToken('');
-          onAuthExpired?.();
-          toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
-            description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
-          });
-          return;
-        }
-        toast.error('บันทึกการตั้งค่าเสื้อไม่สำเร็จ', {
-          description: error?.message || 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
-        });
-      });
-    }, 700);
-  }
-
-  function commit(nextConfig) {
-    const normalized = normalizeClothingConfig(nextConfig);
-    setConfig(normalized);
-    saveClothingConfig(normalized);
-    scheduleSharedConfigSync(normalized);
-  }
-
-  function patchItem(id, patch) {
-    commit(config.map((item) => (item.id === id ? { ...item, ...patch } : item)));
-  }
-
-  function patchSize(id, sizeIndex, patch) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              genderSizeRows: {
-                ...(item.genderSizeRows || {}),
-                [selectedGender]: (
-                  item.genderSizeRows?.[selectedGender] ||
-                  item.sizeRows ||
-                  []
-                ).map((row, index) => (index === sizeIndex ? { ...row, ...patch } : row)),
-              },
-            }
-          : item
-      )
-    );
-  }
-
-  function patchSizeDetail(id, sizeIndex, field, value) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              genderSizeRows: {
-                ...(item.genderSizeRows || {}),
-                [selectedGender]: (
-                  item.genderSizeRows?.[selectedGender] ||
-                  item.sizeRows ||
-                  []
-                ).map((row, index) =>
-                  index === sizeIndex
-                    ? {
-                        ...row,
-                        details: { ...(row.details || {}), [field]: value },
-                      }
-                    : row
-                ),
-              },
-            }
-          : item
-      )
-    );
-  }
-
-  function patchDetailField(id, fieldIndex, value) {
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const oldField = item.detailFields[fieldIndex];
-        const detailFields = item.detailFields
-          .map((field, index) => (index === fieldIndex ? value : field))
-          .filter(Boolean);
-        return {
-          ...item,
-          detailFields,
-          genderSizeRows: GENDERS.reduce(
-            (genderRows, gender) => ({
-              ...genderRows,
-              [gender]: (item.genderSizeRows?.[gender] || item.sizeRows || []).map((row) => {
-                const details = { ...(row.details || {}) };
-                if (oldField && value && oldField !== value) {
-                  details[value] = details[oldField] || '';
-                  delete details[oldField];
-                }
-                return { ...row, details };
-              }),
-            }),
-            {}
-          ),
-        };
-      })
-    );
-  }
-
-  function addDetailField(id) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              detailFields: [...item.detailFields, 'รายละเอียด'],
-              genderSizeRows: GENDERS.reduce(
-                (genderRows, gender) => ({
-                  ...genderRows,
-                  [gender]: (item.genderSizeRows?.[gender] || item.sizeRows || []).map((row) => ({
-                    ...row,
-                    details: { ...(row.details || {}), รายละเอียด: '' },
-                  })),
-                }),
-                {}
-              ),
-            }
-          : item
-      )
-    );
-  }
-
-  function deleteDetailField(id, fieldIndex) {
-    commit(
-      config.map((item) => {
-        if (item.id !== id || item.detailFields.length <= 1) return item;
-        const field = item.detailFields[fieldIndex];
-        return {
-          ...item,
-          detailFields: item.detailFields.filter((_, index) => index !== fieldIndex),
-          genderSizeRows: GENDERS.reduce(
-            (genderRows, gender) => ({
-              ...genderRows,
-              [gender]: (item.genderSizeRows?.[gender] || item.sizeRows || []).map((row) => {
-                const details = { ...(row.details || {}) };
-                delete details[field];
-                return { ...row, details };
-              }),
-            }),
-            {}
-          ),
-        };
-      })
-    );
-  }
-
-  function patchColor(id, colorIndex, patch) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              colors: (item.colors || []).map((color, index) =>
-                index === colorIndex ? { ...color, ...patch } : color
-              ),
-            }
-          : item
-      )
-    );
-  }
-
-  function addClothing() {
-    const id = crypto.randomUUID();
-    commit([
-      ...config,
-      {
-        id,
-        type: 'เสื้อใหม่',
-        imageUrl: '',
-        colors: [],
-        detailFields: ['อก'],
-        sizeRows: [{ size: 'M', details: { อก: '' } }],
-        genderSizeRows: GENDERS.reduce(
-          (rows, gender) => ({ ...rows, [gender]: [{ size: 'M', details: { อก: '' } }] }),
-          {}
-        ),
-      },
-    ]);
-    setSelectedId(id);
-  }
-
-  function deleteClothing(id) {
-    if (config.length <= 1) {
-      toast.error('ลบแบบเสื้อไม่ได้', { description: 'ต้องมีประเภทเสื้ออย่างน้อย 1 รายการ' });
-      return;
-    }
-    setDeleteClothingId(id);
-  }
-
-  function confirmDeleteClothing() {
-    if (!deleteClothingId) return;
-    commit(config.filter((item) => item.id !== deleteClothingId));
-    setDeleteClothingId('');
-  }
-
-  function addSize(id) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              genderSizeRows: {
-                ...(item.genderSizeRows || {}),
-                [selectedGender]: [
-                  ...(item.genderSizeRows?.[selectedGender] || item.sizeRows || []),
-                  {
-                    size: '',
-                    details: item.detailFields.reduce(
-                      (details, field) => ({ ...details, [field]: '' }),
-                      {}
-                    ),
-                    qty: 0,
-                  },
-                ],
-              },
-            }
-          : item
-      )
-    );
-  }
-
-  function deleteSize(id, sizeIndex) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              genderSizeRows: {
-                ...(item.genderSizeRows || {}),
-                [selectedGender]:
-                  (item.genderSizeRows?.[selectedGender] || item.sizeRows || []).length > 1
-                    ? (item.genderSizeRows?.[selectedGender] || item.sizeRows || []).filter(
-                        (_, index) => index !== sizeIndex
-                      )
-                    : item.genderSizeRows?.[selectedGender] || item.sizeRows || [],
-              },
-            }
-          : item
-      )
-    );
-  }
-
-  function addColor(id) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? { ...item, colors: [...(item.colors || []), { name: '', value: '#0F172A' }] }
-          : item
-      )
-    );
-  }
-
-  function deleteColor(id, colorIndex) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              colors: (item.colors || []).filter((_, index) => index !== colorIndex),
-            }
-          : item
-      )
-    );
-  }
-
-  async function uploadImage(id, file) {
-    if (!file) return;
-    const validationError = validateImageFile(file);
-    if (validationError) {
-      toast.error('ไฟล์รูปไม่ถูกต้อง', { description: validationError });
-      return;
-    }
-    setUploadingId(id);
-    const loadingToastId = toast.loading('กำลังอัปโหลดรูปเสื้อ...', {
-      description: 'ระบบกำลังบันทึกรูป กรุณารอสักครู่',
-    });
-    try {
-      const result = await uploadImageToBlob(file);
-      patchItem(id, { imageUrl: result.url });
-      toast.success('อัปโหลดรูปเสื้อแล้ว', { id: loadingToastId });
-    } catch (error) {
-      if (isAuthFailure(error)) {
-        setAdminToken('');
-        onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
-          id: loadingToastId,
-          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
-        });
-        return;
-      }
-      toast.error('อัปโหลดรูปเสื้อไม่สำเร็จ', {
-        id: loadingToastId,
-        description: error?.message || 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
-      });
-    } finally {
-      setUploadingId('');
-    }
-  }
-
-  return (
-    <>
-      <Card className="clothing-manager-card p-0">
-        <div className="flex flex-col gap-3 border-b border-[#E7EAF0] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-extrabold text-[#071638]">ตั้งค่าเสื้อและไซส์</h2>
-            <p className="mt-1 text-sm font-semibold text-[#64748B]">
-              เลือกแบบเสื้อจากรายการ แล้วแก้รายละเอียดเฉพาะตัวที่ต้องการ
-            </p>
-          </div>
-          <button
-            onClick={addClothing}
-            className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#002B5B] px-4 text-sm font-bold text-white"
-          >
-            <Plus /> เพิ่มแบบเสื้อ
-          </button>
-        </div>
-        <div className="grid gap-4 bg-[#F7F9FC] p-3 lg:grid-cols-[18rem_1fr] lg:items-start">
-          <div className="clothing-list grid max-h-[70vh] gap-2 overflow-auto rounded-xl border border-[#E4E4E7] bg-white p-2">
-            {config.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setSelectedId(item.id)}
-                className={cn(
-                  'grid grid-cols-[3.25rem_1fr] gap-3 rounded-lg border p-2 text-left transition',
-                  item.id === selectedItem?.id
-                    ? 'border-[#0D152A] bg-[#F8FAFC] shadow-sm'
-                    : 'border-transparent bg-white hover:border-[#E7EAF0] hover:bg-[#F8FAFC]'
-                )}
-              >
-                <div className="overflow-hidden rounded-md border border-[#E4E4E7] bg-white">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.type}
-                      className="h-12 w-full bg-[#F8FAFC] object-contain"
-                    />
-                  ) : (
-                    <div className="grid h-12 place-items-center text-[#A1A1AA]">
-                      <Shirt className="size-4" />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-extrabold text-[#18181B]">
-                    {item.type || 'ยังไม่ระบุชื่อ'}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold text-[#71717A]">
-                    {GENDERS.map((gender) => {
-                      const rows = item.genderSizeRows?.[gender] || item.sizeRows || [];
-                      const totalQty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
-                      return `${gender} ${rows.length} ไซส์ (${totalQty} ชิ้น)`;
-                    }).join(' · ')}{' '}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {selectedItem && (
-            <div className="clothing-editor rounded-xl border border-[#D8DEEA] bg-white p-3">
-              <div className="grid gap-3 lg:grid-cols-[9rem_1fr_auto] lg:items-start">
-                <div className="overflow-hidden rounded-xl border border-[#D8DEEA] bg-white">
-                  {selectedItem.imageUrl ? (
-                    <img
-                      src={selectedItem.imageUrl}
-                      alt={selectedItem.type}
-                      className="h-32 w-full bg-[#F8FAFC] object-contain"
-                    />
-                  ) : (
-                    <div className="grid h-32 place-items-center text-sm font-bold text-[#94A3B8]">
-                      ไม่มีรูป
-                    </div>
-                  )}
-                </div>
-                <div className="grid gap-3">
-                  <Field label="ชื่อประเภทเสื้อ">
-                    <TextInput
-                      value={selectedItem.type}
-                      onChange={(value) => patchItem(selectedItem.id, { type: value })}
-                      placeholder="เช่น เสื้อโปโล"
-                    />
-                  </Field>
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-[#64748B]">สีที่มี</p>
-                      <button
-                        onClick={() => addColor(selectedItem.id)}
-                        className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-xs font-bold text-[#002B5B]"
-                      >
-                        <Plus className="size-3.5" /> เพิ่มสี
-                      </button>
-                    </div>
-                    {(selectedItem.colors || []).length ? (
-                      selectedItem.colors.map((color, index) => (
-                        <div
-                          key={`${selectedItem.id}-color-${index}`}
-                          className="grid grid-cols-[40px_1fr_40px] gap-2"
-                        >
-                          <input
-                            type="color"
-                            value={color.value || '#0F172A'}
-                            onChange={(event) =>
-                              patchColor(selectedItem.id, index, { value: event.target.value })
-                            }
-                            className="h-10 w-10 rounded-lg border border-[#CBD5E1] bg-white p-1"
-                            aria-label="เลือกสี"
-                          />
-                          <GridInput
-                            value={color.name}
-                            onChange={(value) =>
-                              patchColor(selectedItem.id, index, { name: value })
-                            }
-                            placeholder="เช่น กรมท่า"
-                            className="min-h-10 px-3 text-sm"
-                          />
-                          <button
-                            onClick={() => deleteColor(selectedItem.id, index)}
-                            className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]"
-                            title="ลบสี"
-                          >
-                            <Trash2 />
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white px-3 py-2 text-sm font-semibold text-[#64748B]">
-                        ยังไม่มีสี ถ้าเสื้อตัวนี้มีหลายสีให้กดเพิ่มสี
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-[#64748B]">รายละเอียดไซส์</p>
-                      <button
-                        onClick={() => addDetailField(selectedItem.id)}
-                        className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-xs font-bold text-[#002B5B]"
-                      >
-                        <Plus className="size-3.5" /> เพิ่มช่อง
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {GENDERS.map((gender) => (
-                        <button
-                          key={gender}
-                          onClick={() => setSelectedGender(gender)}
-                          className={cn(
-                            'min-h-9 rounded-lg border text-sm font-black transition',
-                            selectedGender === gender
-                              ? 'border-[#002B5B] bg-[#002B5B] text-white'
-                              : 'border-[#CBD5E1] bg-white text-[#071638]'
-                          )}
-                        >
-                          {gender}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="grid gap-2 rounded-lg border border-[#E4E4E7] bg-white p-2 sm:hidden">
-                      <div className="grid gap-2 rounded-lg bg-[#F8FAFC] p-2">
-                        <p className="text-xs font-bold text-[#64748B]">ช่องรายละเอียด</p>
-                        {selectedItem.detailFields.map((field, index) => (
-                          <div
-                            key={`${selectedItem.id}-mobile-field-${index}`}
-                            className="grid grid-cols-[1fr_40px] gap-2"
-                          >
-                            <GridInput
-                              value={field}
-                              onChange={(value) => patchDetailField(selectedItem.id, index, value)}
-                              placeholder="อก"
-                              className="h-10 min-h-10 rounded-md px-2 text-xs font-bold"
-                            />
-                            <button
-                              onClick={() => deleteDetailField(selectedItem.id, index)}
-                              disabled={selectedItem.detailFields.length <= 1}
-                              className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-40"
-                              title="ลบช่องรายละเอียด"
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      {selectedSizeRows.map((row, index) => (
-                        <div
-                          key={`${selectedItem.id}-mobile-size-${index}`}
-                          className="grid gap-2 rounded-lg bg-[#F8FAFC] p-2"
-                        >
-                          <div className="grid grid-cols-[1fr_40px] gap-2">
-                            <GridInput
-                              value={row.size}
-                              onChange={(value) =>
-                                patchSize(selectedItem.id, index, { size: value })
-                              }
-                              placeholder="M"
-                              className="h-10 min-h-10 rounded-lg px-3 text-sm"
-                            />
-                            <button
-                              onClick={() => deleteSize(selectedItem.id, index)}
-                              className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]"
-                              title="ลบไซส์"
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
-                          </div>
-                          {selectedItem.detailFields.map((field) => (
-                            <Field
-                              key={`${selectedItem.id}-mobile-${index}-${field}`}
-                              label={field}
-                            >
-                              <GridInput
-                                value={row.details?.[field] || ''}
-                                onChange={(value) =>
-                                  patchSizeDetail(selectedItem.id, index, field, value)
-                                }
-                                placeholder={field}
-                                className="h-10 min-h-10 rounded-lg px-3 text-sm"
-                              />
-                            </Field>
-                          ))}
-                          <Field label="จำนวนสต็อก">
-                            <GridInput
-                              type="number"
-                              inputMode="numeric"
-                              value={String(row.qty ?? 0)}
-                              onChange={(value) =>
-                                patchSize(selectedItem.id, index, { qty: Number(value) || 0 })
-                              }
-                              className="h-10 min-h-10 rounded-lg px-3 text-sm"
-                            />
-                          </Field>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="hidden gap-2 overflow-x-auto rounded-lg border border-[#E4E4E7] bg-white p-2 sm:grid">
-                      <div
-                        className="grid min-w-max gap-2"
-                        style={{
-                          gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) minmax(7rem,1fr) 40px`,
-                        }}
-                      >
-                        <span className="text-xs font-bold text-[#64748B]">ไซส์</span>
-                        {selectedItem.detailFields.map((field, index) => (
-                          <div
-                            key={`${selectedItem.id}-field-${index}`}
-                            className="grid grid-cols-[1fr_32px] gap-1"
-                          >
-                            <GridInput
-                              value={field}
-                              onChange={(value) => patchDetailField(selectedItem.id, index, value)}
-                              placeholder="อก"
-                              className="h-8 rounded-md px-2 text-xs font-bold"
-                            />
-                            <button
-                              onClick={() => deleteDetailField(selectedItem.id, index)}
-                              disabled={selectedItem.detailFields.length <= 1}
-                              className="grid min-h-8 place-items-center rounded-md border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-40"
-                              title="ลบช่องรายละเอียด"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                        <span className="text-xs font-bold text-[#64748B]">จำนวน</span>
-                        <span />
-                      </div>
-                      {selectedSizeRows.map((row, index) => (
-                        <div
-                          key={`${selectedItem.id}-${index}`}
-                          className="grid min-w-max gap-2"
-                          style={{
-                            gridTemplateColumns: `minmax(4.5rem,.7fr) repeat(${selectedItem.detailFields.length}, minmax(5rem,1fr)) minmax(7rem,1fr) 40px`,
-                          }}
-                        >
-                          <GridInput
-                            value={row.size}
-                            onChange={(value) => patchSize(selectedItem.id, index, { size: value })}
-                            placeholder="M"
-                            className="h-10 min-h-10 rounded-lg px-3 text-sm"
-                          />
-                          {selectedItem.detailFields.map((field) => (
-                            <GridInput
-                              key={`${selectedItem.id}-${index}-${field}`}
-                              value={row.details?.[field] || ''}
-                              onChange={(value) =>
-                                patchSizeDetail(selectedItem.id, index, field, value)
-                              }
-                              placeholder={field}
-                              className="h-10 min-h-10 rounded-lg px-3 text-sm"
-                            />
-                          ))}
-                          <GridInput
-                            type="number"
-                            inputMode="numeric"
-                            value={String(row.qty ?? 0)}
-                            onChange={(value) =>
-                              patchSize(selectedItem.id, index, { qty: Number(value) || 0 })
-                            }
-                            className="h-10 min-h-10 rounded-lg px-3 text-sm"
-                          />
-                          <button
-                            onClick={() => deleteSize(selectedItem.id, index)}
-                            className="grid min-h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C]"
-                            title="ลบไซส์"
-                          >
-                            <Trash2 />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => addSize(selectedItem.id)}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8FA4C7] bg-white px-3 text-sm font-bold text-[#002B5B]"
-                  >
-                    <Plus className="size-4" /> เพิ่มไซส์
-                  </button>
-                </div>
-                <div className="grid gap-2">
-                  <label
-                    className={cn(
-                      'flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]',
-                      uploadingId === selectedItem.id
-                        ? 'cursor-not-allowed opacity-70'
-                        : 'cursor-pointer'
-                    )}
-                  >
-                    {uploadingId === selectedItem.id ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      <Upload />
-                    )}
-                    {uploadingId === selectedItem.id ? 'กำลังอัปโหลด' : 'แนบรูป'}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      disabled={uploadingId === selectedItem.id}
-                      onChange={(event) => {
-                        uploadImage(selectedItem.id, event.target.files?.[0]);
-                        event.target.value = '';
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                  <button
-                    onClick={() => deleteClothing(selectedItem.id)}
-                    className="min-h-10 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3 text-sm font-bold text-[#B91C1C]"
-                  >
-                    <span className="inline-flex items-center justify-center gap-1.5">
-                      <Trash2 className="size-4" /> ลบแบบเสื้อ
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
-      <ConfirmDialog
-        open={Boolean(deleteClothingItem)}
-        title="ลบประเภทเสื้อ"
-        description={
-          deleteClothingItem
-            ? `ลบประเภทเสื้อ ${deleteClothingItem.type}? รายการเก่าที่เคยสั่งจะยังอยู่ในประวัติ`
-            : ''
-        }
-        confirmLabel="ลบประเภทเสื้อ"
-        cancelLabel="ยกเลิก"
-        destructive
-        onCancel={() => setDeleteClothingId('')}
-        onConfirm={confirmDeleteClothing}
-      />
-    </>
   );
 }
 
@@ -5595,9 +5166,8 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
         const rows = genderSizeRows[gender] || clothing.sizeRows || [];
         const updatedRows = rows.map((row) => {
           if (row.size !== sizeKey) return row;
-          const nextQty = Number(row.qty || 0) + delta;
           changed = true;
-          return { ...row, qty: Math.max(0, nextQty) };
+          return applyStockMovement(row, delta, delta < 0 ? 'withdraw' : 'restore');
         });
         genderSizeRows[gender] = updatedRows;
       });
@@ -5795,7 +5365,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
           const rows = genderSizeRows[item.gender] || clothing.sizeRows || [];
           const updatedRows = rows.map((row) => {
             if (row.size !== item.size) return row;
-            return { ...row, qty: Math.max(0, Number(row.qty || 0) - item.shippedQty) };
+            return applyStockMovement(row, -item.shippedQty, 'withdraw');
           });
           genderSizeRows[item.gender] = updatedRows;
           return { ...clothing, genderSizeRows };
@@ -5985,6 +5555,29 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
     .filter((item) => item.total <= 320)
     .sort((a, b) => a.total - b.total)
     .slice(0, 3);
+  const stockSummaryRows = clothingConfig
+    .flatMap((item) =>
+      GENDERS.flatMap((gender) => {
+        const rows = item.genderSizeRows?.[gender] || item.sizeRows || [];
+        return rows.map((row) => ({
+          id: `${item.id}-${gender}-${row.size}`,
+          type: item.type,
+          gender,
+          size: row.size,
+          ...getStockLedgerSummary(row),
+        }));
+      })
+    )
+    .sort((a, b) => b.withdrawn - a.withdrawn || a.type.localeCompare(b.type, 'th'))
+    .slice(0, 8);
+  const stockSummaryTotals = stockSummaryRows.reduce(
+    (totals, row) => ({
+      totalStock: totals.totalStock + row.totalStock,
+      withdrawn: totals.withdrawn + row.withdrawn,
+      remaining: totals.remaining + row.remaining,
+    }),
+    { totalStock: 0, withdrawn: 0, remaining: 0 }
+  );
   const selectedPieces = Array.from(selectedBatchIds).reduce((sum, id) => {
     const batch = batches.find((item) => item.batchId === id);
     return sum + (batch ? getBatchPieces(batch) : 0);
@@ -6016,6 +5609,40 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
             <Stat icon={Truck} value={`${metrics.backorderPieces} ชิ้น`} label="รอของ" />
             <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
           </div>
+          <div className="dashboard-stock-summary">
+            <div className="dashboard-panel-head slim">
+              <div>
+                <h2>สรุปสต็อกเสื้อ</h2>
+                <p>ดูจำนวนที่เคยมี เบิกแล้ว และคงเหลือ แยกตามแบบเสื้อ เพศ และไซส์</p>
+              </div>
+              <div className="dashboard-stock-summary-totals">
+                <span>เคยมี {stockSummaryTotals.totalStock} ชิ้น</span>
+                <span>เบิก {stockSummaryTotals.withdrawn} ชิ้น</span>
+                <span>เหลือ {stockSummaryTotals.remaining} ชิ้น</span>
+              </div>
+            </div>
+            <div className="dashboard-stock-ledger">
+              <div className="dashboard-stock-ledger-head">
+                <span>แบบเสื้อ</span>
+                <span>เพศ/ไซส์</span>
+                <span>เคยมี</span>
+                <span>เบิก</span>
+                <span>เหลือ</span>
+              </div>
+              {stockSummaryRows.map((row) => (
+                <div className="dashboard-stock-ledger-row" key={row.id}>
+                  <strong>{row.type}</strong>
+                  <span>{row.gender} / {row.size || '-'}</span>
+                  <span>{row.totalStock}</span>
+                  <span>{row.withdrawn}</span>
+                  <span>{row.remaining}</span>
+                </div>
+              ))}
+              {!stockSummaryRows.length && (
+                <div className="dashboard-stock-ledger-empty">ยังไม่มีข้อมูลสต็อก</div>
+              )}
+            </div>
+          </div>
         </section>
       )}
 
@@ -6044,12 +5671,8 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
             />
           </Field>
           <button className="dashboard-primary-action" onClick={clearFilters}>
-            ค้นหา
+            ล้างตัวกรอง
           </button>
-          <div className="dashboard-saved-filter">
-            <span>บันทึกตัวกรอง</span>
-            <strong>บันทึกไว้ 3 รายการ</strong>
-          </div>
         </aside>
 
         <section className="dashboard-orders-panel">
@@ -6065,10 +5688,6 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
               <button onClick={() => setExportExpanded((value) => !value)}>
                 <Download className="size-4" />
                 <span>ส่งออก</span>
-              </button>
-              <button className="dark dashboard-create-order-hidden" onClick={exportCsv} disabled={!exportRows.length}>
-                <Plus className="size-4" />
-                <span>สร้างออเดอร์</span>
               </button>
             </div>
           </div>
@@ -6224,17 +5843,14 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
           </div>
           <div className="dashboard-alert-card">
             <div className="dashboard-section-title">
-              <h3>Backorder / ล่าช้า</h3>
-              <button>ดูทั้งหมด</button>
+              <h3>สถานะที่ต้องติดตาม</h3>
             </div>
-            <p><span className="dot red" /> เกินกำหนดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
-            <p><span className="dot amber" /> ใกล้เกินกำหนด <strong>{countByStatus(ORDER_STATUS_BACKORDER)} รายการ</strong></p>
-            <p><span className="dot violet" /> รอข้อมูลเพิ่มเติม <strong>0 รายการ</strong></p>
+            <p><span className="dot red" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
+            <p><span className="dot amber" /> รอของ <strong>{countByStatus(ORDER_STATUS_BACKORDER)} รายการ</strong></p>
           </div>
           <div className="dashboard-alert-card">
             <div className="dashboard-section-title">
               <h3>แจ้งเตือนสต็อกต่ำ</h3>
-              <button>ดูทั้งหมด</button>
             </div>
             {lowStockRows.length ? (
               lowStockRows.map((item) => (
@@ -6247,63 +5863,6 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
             )}
           </div>
         </aside>
-      </section>
-
-      <section className={cn('dashboard-inventory-panel', activeView !== 'dashboard' && 'hidden')}>
-        <div className="dashboard-panel-head">
-          <div>
-            <h2>จัดการแบบเสื้อและสต็อกไซส์</h2>
-            <p>แบบเสื้อ {clothingConfig.length} รายการ</p>
-          </div>
-          <div className="dashboard-panel-actions">
-            <button><Upload className="size-4" /><span>อัปโหลดรูปภาพ</span></button>
-            <button className="dark"><Plus className="size-4" /><span>เพิ่มแบบเสื้อ</span></button>
-          </div>
-        </div>
-        <div className="dashboard-table-wrap">
-          <table className="dashboard-inventory-table">
-            <thead>
-              <tr>
-                <th>รหัสสินค้า</th>
-                <th>แบบเสื้อ / รายละเอียด</th>
-                <th>สี</th>
-                <th>ขนาด</th>
-                <th>รวมคงเหลือ</th>
-                <th>สถานะ</th>
-                <th>จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventoryRows.map((item, index) => (
-                <tr key={item.id}>
-                  <td className="dashboard-code">SH-{String(index + 1).padStart(3, '0')}</td>
-                  <td>
-                    <div className="dashboard-product-cell">
-                      <div className="dashboard-product-thumb">
-                        {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <Shirt className="size-5" />}
-                      </div>
-                      <div>
-                        <strong>{item.type}</strong>
-                        <span>Stock profile</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="dashboard-swatches">
-                      {item.colors.slice(0, 4).map((color) => (
-                        <span key={`${item.id}-${color.name}`} style={{ backgroundColor: color.value }} />
-                      ))}
-                    </div>
-                  </td>
-                  <td>{item.sizes.join(' / ') || '-'}</td>
-                  <td>{item.total}</td>
-                  <td><span className="dashboard-green-pill">ใช้งาน</span></td>
-                  <td><button className="dashboard-icon-btn"><Pencil className="size-4" /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </section>
 
       {activeView === 'inventory' && (
@@ -6374,416 +5933,6 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
     </>
   );
 
-  return (
-    <>
-      <section className="rounded-xl border border-[#D8E3F5] bg-white/96 px-3 py-3 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-extrabold tracking-tight text-[#071638] sm:text-xl">
-              แดชบอร์ดเบิกเสื้อ
-            </h2>
-            <p className="mt-0.5 text-xs font-semibold text-[#64748B] sm:text-sm">
-              ดูยอดรวม แยกรายคน และจัดการคำสั่งเบิก
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setExportExpanded((v) => !v)}
-              className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-[#E5EFFD] px-3 text-sm font-bold text-[#002B5B]"
-            >
-              <Download className="size-4" /> ส่งออก Excel (CSV)
-              <ChevronDown className={cn('size-3.5 transition', exportExpanded && 'rotate-180')} />
-            </button>
-            <button
-              onClick={() => loadData({ silent: true })}
-              disabled={refreshing}
-              className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#BFD0EA] bg-white px-3 text-sm font-bold text-[#002B5B] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {refreshing ? <Loader2 className="size-4 animate-spin" /> : null}
-              {refreshing ? 'กำลังโหลด' : 'โหลดข้อมูลใหม่'}
-            </button>
-          </div>
-        </div>
-        {exportExpanded && (
-          <div className="mt-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3 grid gap-3">
-            {/* Main Filters */}
-            <div className="grid gap-2 sm:grid-cols-3 items-end">
-              <Field label="สาขาที่ส่งออก">
-                <Select
-                  value={exportBranchFilter}
-                  onChange={setExportBranchFilter}
-                  values={exportBranchOptions}
-                />
-              </Field>
-              <Field label="ตั้งแต่เดือน">
-                <MonthInput value={exportStartMonth} onChange={setExportStartMonth} />
-              </Field>
-              <Field label="ถึงเดือน">
-                <MonthInput value={exportEndMonth} onChange={setExportEndMonth} />
-              </Field>
-            </div>
-
-            {/* Toggle for Advanced Filters */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setAdvancedExportExpanded((prev) => !prev)}
-                className="flex items-center gap-1.5 text-xs font-bold text-[#002B5B] hover:text-[#002144] focus:outline-none"
-              >
-                <Settings className="size-3.5" />
-                {advancedExportExpanded
-                  ? 'ซ่อนตัวกรองขั้นสูง'
-                  : 'แสดงตัวกรองขั้นสูง (เพศ, แบบเสื้อ, ไซส์, สถานะ)'}
-                <ChevronDown
-                  className={cn('size-3.5 transition', advancedExportExpanded && 'rotate-180')}
-                />
-              </button>
-            </div>
-
-            {/* Advanced Filters */}
-            {advancedExportExpanded && (
-              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 border-t border-[#E2E8F0] pt-3">
-                <Field label="เพศ">
-                  <Select
-                    value={exportGenderFilter}
-                    onChange={setExportGenderFilter}
-                    values={exportGenderOptions}
-                  />
-                </Field>
-                <Field label="แบบเสื้อ">
-                  <Select
-                    value={exportTypeFilter}
-                    onChange={setExportTypeFilter}
-                    values={exportTypeOptions}
-                  />
-                </Field>
-                <Field label="ไซส์">
-                  <Select
-                    value={exportSizeFilter}
-                    onChange={setExportSizeFilter}
-                    values={exportSizeOptions}
-                  />
-                </Field>
-                <Field label="สถานะ">
-                  <Select
-                    value={exportStatusFilter}
-                    onChange={setExportStatusFilter}
-                    values={exportStatusOptions}
-                  />
-                </Field>
-              </div>
-            )}
-
-            {/* Action Button */}
-            <div className="flex justify-end border-t border-[#E2E8F0] pt-3">
-              <button
-                onClick={exportCsv}
-                disabled={refreshing || !exportRows.length}
-                className="w-full sm:w-auto flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 shadow-sm hover:bg-[#002144] transition-all"
-              >
-                <Download className="size-4" /> ส่งออก Excel (CSV) ({exportRows.length} รายการ)
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        <Stat icon={Users} value={metrics.totalEmployees} label="จำนวนพนักงาน" />
-        <Stat icon={ClipboardList} value={`${metrics.pendingPieces} ชิ้น`} label="ยอดรอจัดส่ง" />
-        <Stat icon={Truck} value={`${metrics.backorderPieces} ชิ้น`} label="ค้างส่ง (รอของ)" />
-        <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
-      </div>
-
-      <Tabs.Root defaultValue="overview" className="grid gap-3">
-        <Tabs.List className="dashboard-tabs grid grid-cols-2 gap-1 rounded-xl border border-[#D8DEEA] bg-white p-1 shadow-sm sm:grid-cols-4">
-          <Tabs.Trigger
-            value="overview"
-            className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm"
-          >
-            <LayoutDashboard className="size-4 shrink-0" />{' '}
-            <span className="truncate">สรุปยอด</span>
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="list"
-            className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm"
-          >
-            <Users className="size-4 shrink-0" /> <span className="truncate">แยกรายคน</span>
-            <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">
-              {rows.length}
-            </span>
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="orders"
-            className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm"
-          >
-            <ClipboardList className="size-4 shrink-0" />{' '}
-            <span className="truncate">คำสั่งทั้งหมด</span>
-            <span className="rounded-full bg-[#F4F4F5] px-2 py-0.5 text-xs text-[#52525B] data-[state=active]:bg-white/15 data-[state=active]:text-white">
-              {filteredBatches.length}
-            </span>
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="settings"
-            className="dashboard-tab flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[#64748B] data-[state=active]:bg-[#18181B] data-[state=active]:text-white sm:min-h-9 sm:text-sm"
-          >
-            <Settings className="size-4 shrink-0" /> <span className="truncate">ตั้งค่าเสื้อ</span>
-          </Tabs.Trigger>
-        </Tabs.List>
-
-        <Tabs.Content value="overview" className="grid gap-3">
-          <TypeFilterChips
-            value={typeFilter}
-            onChange={setTypeFilter}
-            options={typeFilterOptions}
-            genderValue={summaryGenderFilter}
-            onGenderChange={setSummaryGenderFilter}
-            genderOptions={summaryGenderOptions}
-            monthFilter={monthFilter}
-            onMonthFilterChange={setMonthFilter}
-            monthOptions={monthFilterOptions}
-            totalPieces={monthTotalPieces}
-          />
-          <TotalSummaryView
-            summaryRows={summaryRows}
-            typeTotals={typeTotals}
-            sizeTotals={sizeTotals}
-            filteredRows={monthRows}
-            monthFilter={monthFilter}
-          />
-        </Tabs.Content>
-
-        <Tabs.Content value="list">
-          <TypeFilterChips
-            value={typeFilter}
-            onChange={setTypeFilter}
-            options={typeFilterOptions}
-            genderValue={summaryGenderFilter}
-            onGenderChange={setSummaryGenderFilter}
-            genderOptions={summaryGenderOptions}
-          />
-          <EmployeeWithdrawalList rows={visibleRows} totalRows={rows.length} />
-        </Tabs.Content>
-
-        <Tabs.Content value="orders">
-          <div className="grid gap-3">
-            <Card className="p-3">
-              <div className="mb-3">
-                <h2 className="text-base font-extrabold text-[#071638]">คำสั่งทั้งหมด</h2>
-                <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
-                  ดูรายละเอียด แก้สถานะ และลบคำสั่งเป็นชุด
-                </p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[12rem_12rem_1fr_auto] lg:items-end">
-                <Field label="สาขา">
-                  <Select
-                    value={branchFilter}
-                    onChange={setBranchFilter}
-                    values={['ทุกสาขา', ...BRANCHES]}
-                  />
-                </Field>
-                <Field label="สถานะ">
-                  <Select
-                    value={statusFilter}
-                    onChange={setStatusFilter}
-                    values={['ทุกสถานะ', ...ORDER_STATUSES]}
-                  />
-                </Field>
-                <Field label="ค้นหา">
-                  <TextInput
-                    value={query}
-                    onChange={setQuery}
-                    placeholder="ค้นหารหัสคำสั่ง บริษัท ผู้ติดต่อ เบอร์ หรือชื่อพนักงาน"
-                  />
-                </Field>
-                <button
-                  onClick={clearFilters}
-                  className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white px-4 font-bold text-[#002B5B] shadow-sm"
-                >
-                  ล้างตัวกรอง
-                </button>
-              </div>
-            </Card>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-black text-[#18181B]">
-                  {filteredBatches.length} คำสั่ง
-                </div>
-                <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-black text-[#18181B]">
-                  {filteredBatches.reduce((sum, b) => b.orders.length + sum, 0)} พนักงาน
-                </div>
-                <span className="rounded-lg bg-[#EEF4FF] px-3 py-2 text-sm font-black text-[#002B5B]">
-                  รวม{' '}
-                  {filteredBatches.reduce(
-                    (sum, b) =>
-                      sum + flattenBatches([b]).reduce((s, r) => s + Number(r.qty || 0), 0),
-                    0
-                  )}{' '}
-                  ชิ้น
-                </span>
-              </div>
-              {filteredBatches.length > 0 && (
-                <button
-                  onClick={() => {
-                    const allSelected = filteredBatches.every((b) =>
-                      selectedBatchIds.has(b.batchId)
-                    );
-                    if (allSelected) {
-                      setSelectedBatchIds((prev) => {
-                        const next = new Set(prev);
-                        filteredBatches.forEach((b) => next.delete(b.batchId));
-                        return next;
-                      });
-                    } else {
-                      setSelectedBatchIds((prev) => {
-                        const next = new Set(prev);
-                        filteredBatches.forEach((b) => next.add(b.batchId));
-                        return next;
-                      });
-                    }
-                  }}
-                  className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-black text-[#002B5B] hover:bg-[#F8FAFC] transition w-full sm:w-auto"
-                >
-                  {filteredBatches.every((b) => selectedBatchIds.has(b.batchId))
-                    ? '✓ ยกเลิกการเลือกทั้งหมด'
-                    : '☑ เลือกทั้งหมดตามตัวกรอง'}
-                </button>
-              )}
-            </div>
-
-            {filteredBatches.length ? (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {filteredBatches.map((batch) => (
-                  <DashboardOrderCard
-                    key={batch.batchId}
-                    batch={batch}
-                    onOpen={() => setSelectedBatch(batch)}
-                    onStatusChange={updateBatchStatus}
-                    onDelete={requestDeleteBatch}
-                    statusLoadingId={statusLoadingId}
-                    deleteLoadingId={deleteLoadingId}
-                    isSelected={selectedBatchIds.has(batch.batchId)}
-                    onToggleSelect={() => {
-                      setSelectedBatchIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(batch.batchId)) {
-                          next.delete(batch.batchId);
-                        } else {
-                          next.add(batch.batchId);
-                        }
-                        return next;
-                      });
-                    }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyDashboardState text="ยังไม่มีคำสั่งเบิกเสื้อตามเงื่อนไขที่เลือก" />
-            )}
-          </div>
-        </Tabs.Content>
-
-        <Tabs.Content value="settings">
-          <div className="grid gap-3">
-            <Card className="p-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-base font-extrabold text-[#071638]">ตั้งค่าเสื้อและไซส์</h2>
-                  <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
-                    แก้แบบเสื้อ สี และไซส์
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-sm font-bold text-[#52525B]">
-                  {clothingConfig.length} แบบเสื้อ
-                </div>
-              </div>
-            </Card>
-            <ClothingManager
-              config={clothingConfig}
-              setConfig={setClothingConfig}
-              onAuthExpired={onAuthExpired}
-            />
-          </div>
-        </Tabs.Content>
-      </Tabs.Root>
-
-      {selectedBatchIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-[980px] -translate-x-1/2 flex-col gap-3 rounded-2xl border border-[#CBD5E1] bg-white p-4 shadow-2xl md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-5 duration-200">
-          <div className="flex items-center gap-3">
-            <span className="grid size-8 place-items-center rounded-lg bg-[#EEF4FF] text-sm font-extrabold text-[#002B5B]">
-              {selectedBatchIds.size}
-            </span>
-            <div>
-              <p className="text-sm font-extrabold text-[#071638]">เลือกรายการคำขอเบิกแล้ว</p>
-              <p className="text-xs font-semibold text-[#64748B]">
-                จำนวน{' '}
-                {Array.from(selectedBatchIds).reduce((sum, id) => {
-                  const b = batches.find((x) => x.batchId === id);
-                  return sum + (b ? getBatchPieces(b) : 0);
-                }, 0)}{' '}
-                ชิ้น
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => handleBulkStatusChange(ORDER_STATUS_DELIVERED)}
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#10B981] px-4 text-xs font-extrabold text-white transition hover:bg-[#059669] w-full sm:w-auto"
-            >
-              <CheckSquare className="size-4" /> จัดส่งสินค้าทั้งหมด
-            </button>
-            <button
-              onClick={() => handleBulkStatusChange(ORDER_STATUS_BACKORDER)}
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#F97316] px-4 text-xs font-extrabold text-white transition hover:bg-[#EA580C] w-full sm:w-auto"
-            >
-              <Clock className="size-4" /> ปรับเป็นรอของ
-            </button>
-            <button
-              onClick={() => handleBulkStatusChange(ORDER_STATUS_PENDING)}
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#EF4444] px-4 text-xs font-extrabold text-white transition hover:bg-[#DC2626] w-full sm:w-auto"
-            >
-              <AlertCircle className="size-4" /> ปรับเป็นรอจัดส่ง
-            </button>
-            <button
-              onClick={() => setSelectedBatchIds(new Set())}
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[#CBD5E1] bg-white px-4 text-xs font-extrabold text-[#64748B] transition hover:bg-[#F8FAFC] w-full sm:w-auto"
-            >
-              ยกเลิก
-            </button>
-          </div>
-        </div>
-      )}
-
-      <BatchDetailDialog
-        batch={selectedBatch}
-        onClose={() => setSelectedBatch(null)}
-        onStatusChange={updateBatchStatus}
-        onDelete={requestDeleteBatch}
-        statusLoadingId={statusLoadingId}
-        deleteLoadingId={deleteLoadingId}
-        onShipClick={() => setShipmentDialogOpen(true)}
-      />
-      <PartialShipmentDialog
-        open={shipmentDialogOpen}
-        onClose={() => setShipmentDialogOpen(false)}
-        batch={selectedBatch}
-        clothingConfig={clothingConfig}
-        onShipConfirm={shipBatchItems}
-      />
-      <ConfirmDialog
-        open={Boolean(deleteConfirmBatch)}
-        title="ยืนยันลบคำสั่งเบิกเสื้อ"
-        description={deleteConfirmBatch ? `ลบคำสั่งเบิกเสื้อ ${deleteConfirmBatch.batchId}?` : ''}
-        confirmLabel="ลบคำสั่ง"
-        cancelLabel="ยกเลิก"
-        loading={Boolean(deleteConfirmBatch && deleteLoadingId === deleteConfirmBatch.batchId)}
-        destructive
-        onCancel={() => !deleteLoadingId && setDeleteConfirmBatchId('')}
-        onConfirm={confirmDeleteBatch}
-      />
-    </>
-  );
 }
 
 function TypeFilterChips({
