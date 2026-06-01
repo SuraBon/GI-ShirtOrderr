@@ -1794,7 +1794,13 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => dispatch({ type: 'add' })}
+                            onClick={() => {
+                              const newId = crypto.randomUUID();
+                              dispatch({ type: 'add', id: newId });
+                              if (window.innerWidth < 1024) {
+                                handleEdit(newId, 'full');
+                              }
+                            }}
                             className="inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] px-3.5 text-xs font-black transition shadow-xs cursor-pointer"
                           >
                             <Plus className="size-3.5" />
@@ -1855,7 +1861,13 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                         </div>
                         <button
                           type="button"
-                          onClick={() => dispatch({ type: 'add' })}
+                          onClick={() => {
+                            const newId = crypto.randomUUID();
+                            dispatch({ type: 'add', id: newId });
+                            if (window.innerWidth < 1024) {
+                              handleEdit(newId, 'full');
+                            }
+                          }}
                           className="inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] px-3.5 text-xs font-black transition shadow-xs cursor-pointer"
                         >
                           <Plus className="size-3.5" />
