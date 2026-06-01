@@ -5800,7 +5800,6 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
           row.supervisorName,
           row.supervisorPhone,
           row.type,
-          row.color,
           row.size,
           row.qty,
           row.status,
@@ -5830,7 +5829,6 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
     { label: 'เพศ', className: 'min-w-[5rem]' },
     { label: 'สาขา', className: 'min-w-[10rem]' },
     { label: 'ประเภท', className: 'min-w-[9rem]' },
-    { label: 'สี', className: 'min-w-[7rem]' },
     { label: 'ไซส์', className: 'min-w-[5rem]' },
     { label: 'จำนวน', className: 'min-w-[5rem]' },
     { label: 'สถานะ', className: 'min-w-[7rem]' },
@@ -5853,7 +5851,7 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
             <GridInput
               value={listQuery}
               onChange={setListQuery}
-              placeholder="ค้นหาชื่อ สาขา บริษัท เสื้อ สี ไซส์ หรือรหัสคำสั่ง"
+              placeholder="ค้นหาชื่อ สาขา บริษัท เสื้อ ไซส์ หรือรหัสคำสั่ง"
               className="h-11 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-3 text-sm font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10"
             />
           </div>
@@ -5952,7 +5950,6 @@ function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
                 <td className="break-words px-3 py-4 text-center font-bold leading-6">
                   {row.type || '-'}
                 </td>
-                <td className="break-words px-3 py-4 text-center leading-6">{row.color || '-'}</td>
                 <td className="px-3 py-4 text-center font-bold leading-6">{row.size || '-'}</td>
                 <td className="px-3 py-4 text-center font-extrabold leading-6">{row.qty}</td>
                 <td className="px-3 py-4 text-center">
@@ -6008,8 +6005,7 @@ function WithdrawalMobileCard({ row }) {
       </div>
       <div className="mt-3 rounded-lg bg-[#F4F7FC] p-3">
         <p className="break-words text-sm font-extrabold text-[#071638]">{row.type || '-'}</p>
-        <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-          <MobileInfo label="สี" value={row.color || '-'} compact />
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
           <MobileInfo label="ไซส์" value={row.size || '-'} compact />
           <MobileInfo label="จำนวน" value={row.qty || '-'} compact strong />
         </div>
@@ -6565,7 +6561,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
                             {item.employeeName} ({item.gender})
                           </p>
                           <p className="text-xs font-bold text-[#002B5B] mt-0.5">
-                            {item.type} {item.color ? `· สี${item.color}` : ''} · ไซส์ {item.size}
+                            {item.type} · ไซส์ {item.size}
                           </p>
                         </div>
                         <span
@@ -6752,9 +6748,9 @@ function BatchDetailDialog({
                         </span>
                       </div>
                       <div className="grid gap-2 p-3 sm:hidden">
-                        {order.items.map((item) => (
+                        {order.items.map((item, itemIdx) => (
                           <div
-                            key={`${order.name}-${item.type}-${item.color}-${item.size}`}
+                            key={`${order.name}-${item.type}-${item.size}-${itemIdx}`}
                             className="rounded-lg bg-[#F8FAFC] p-3"
                           >
                             <div className="flex items-center justify-between gap-2">
@@ -6763,8 +6759,7 @@ function BatchDetailDialog({
                               </p>
                               <StatusBadge status={item.status || ORDER_STATUS_PENDING} />
                             </div>
-                            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                              <MobileInfo label="สี" value={item.color || '-'} compact />
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                               <MobileInfo label="ไซส์" value={item.size || '-'} compact />
                               <MobileInfo label="จำนวน" value={item.qty} compact strong />
                             </div>
@@ -6775,7 +6770,6 @@ function BatchDetailDialog({
                         <thead className="text-xs font-bold text-[#44536A]">
                           <tr>
                             <th className="px-3 py-3 sm:px-4">ประเภท</th>
-                            <th className="w-20 px-3 py-3 sm:w-24 sm:px-4">สี</th>
                             <th className="w-16 px-3 py-3 sm:w-20 sm:px-4">ไซส์</th>
                             <th className="w-16 px-3 py-3 text-right sm:w-20 sm:px-4">จำนวน</th>
                             <th className="w-28 px-3 py-3 text-center sm:w-32 sm:px-4">สถานะ</th>
@@ -6790,7 +6784,6 @@ function BatchDetailDialog({
                               <td className="break-words px-3 py-3 font-bold sm:px-4">
                                 {item.type}
                               </td>
-                              <td className="break-words px-3 py-3 sm:px-4">{item.color || '-'}</td>
                               <td className="break-words px-3 py-3 sm:px-4">{item.size}</td>
                               <td className="px-3 py-3 text-right font-extrabold sm:px-4">
                                 {item.qty}

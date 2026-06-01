@@ -12,7 +12,6 @@ const HEADERS = [
   "ชื่อพนักงาน",
   "เพศ",
   "ประเภท",
-  "สี",
   "ไซส์",
   "จำนวน"
 ];
@@ -20,7 +19,6 @@ const HEADERS = [
 const STOCK_HEADERS = [
   "ประเภทเสื้อ",
   "เพศ",
-  "สี",
   "ไซส์",
   "สต๊อกทั้งหมด",
   "เบิกแล้ว",
@@ -120,6 +118,7 @@ function updateBatchStatus_(sheet, payload) {
   return updatedRows;
 }
 
+// Security & Tokens helpers
 function getRequestToken_(e, key) {
   return e && e.parameter && e.parameter[key] ? String(e.parameter[key]) : "";
 }
@@ -157,6 +156,7 @@ function getOrdersSheet_() {
   const currentHeaders = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
   const needsHeaders = currentHeaders.join("") === "" || HEADERS.some((header, index) => currentHeaders[index] !== header);
   if (needsHeaders) {
+    // If the spreadsheet already has data, clearing formatting or headers might be needed
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.setFrozenRows(1);
   }
@@ -185,7 +185,6 @@ function buildRows_(batch) {
         order.name || "",
         order.gender || "",
         item.type || "",
-        item.color || "",
         item.size || "",
         Number(item.qty || 0)
       ]);
@@ -212,7 +211,6 @@ function readBatches_(sheet) {
       employeeName,
       gender,
       type,
-      color,
       size,
       qty
     ] = row;
@@ -242,7 +240,7 @@ function readBatches_(sheet) {
 
     order.items.push({ 
       type, 
-      color: color || "", 
+      color: "", 
       size, 
       qty: Number(qty || 0),
       status: status || "รอจัดส่ง",
@@ -266,7 +264,7 @@ function json_(payload) {
 
 function shipBatchItems_(sheet, payload) {
   const batchId = payload.batchId;
-  const items = payload.items; // array of { employeeName, gender, type, color, size, shippedQty, pendingQty }
+  const items = payload.items; // array of { employeeName, gender, type, size, shippedQty, pendingQty }
   const statusUpdatedAt = payload.statusUpdatedAt || new Date().toISOString();
 
   const lastRow = sheet.getLastRow();
@@ -294,7 +292,7 @@ function shipBatchItems_(sheet, payload) {
   // Build new rows to replace existing rows for this batch
   const newBatchRows = [];
   items.forEach((item) => {
-    const { employeeName, gender, type, color, size, shippedQty, pendingQty } = item;
+    const { employeeName, gender, type, size, shippedQty, pendingQty } = item;
     
     if (Number(shippedQty) > 0) {
       newBatchRows.push([
@@ -309,7 +307,6 @@ function shipBatchItems_(sheet, payload) {
         employeeName,
         gender,
         type,
-        color || "",
         size,
         Number(shippedQty)
       ]);
@@ -328,7 +325,6 @@ function shipBatchItems_(sheet, payload) {
         employeeName,
         gender,
         type,
-        color || "",
         size,
         Number(pendingQty)
       ]);
@@ -368,7 +364,7 @@ function syncStockSheet_(spreadsheet, config) {
   }
 
   // Row 1: Warning Banner
-  sheet.getRange("A1:G1").merge();
+  sheet.getRange("A1:F1").merge();
   const warningCell = sheet.getRange("A1");
   warningCell.setValue("⚠️ คำเตือน: ระบบอัปเดตข้อมูลแผ่นงานนี้โดยอัตโนมัติจากแดชบอร์ด ห้ามแก้ไขตัวเลขคงเหลือในตารางนี้โดยตรง (การแก้ไขจะสูญหาย)");
   warningCell.setFontWeight("bold");
@@ -390,29 +386,24 @@ function syncStockSheet_(spreadsheet, config) {
     let rowIndex = 3; // Starts at Row 3
     config.forEach((item) => {
       const type = item.type || "";
-      const colors = (Array.isArray(item.colors) && item.colors.length)
-        ? item.colors.map((c) => c.name || "")
-        : [""];
       const genders = ["ชาย", "หญิง"];
       genders.forEach((gender) => {
         const sizeRows = (item.genderSizeRows && item.genderSizeRows[gender]) || item.sizeRows || [];
         sizeRows.forEach((sizeRow) => {
           const size = sizeRow.size || "";
           const qty = Number(sizeRow.qty || 0);
-          colors.forEach((color) => {
-            const formulaWithdrawn = '=SUMIFS(' + SHEET_NAME + '!N:N, ' + SHEET_NAME + '!K:K, A' + rowIndex + ', ' + SHEET_NAME + '!J:J, B' + rowIndex + ', ' + SHEET_NAME + '!L:L, C' + rowIndex + ', ' + SHEET_NAME + '!M:M, D' + rowIndex + ', ' + SHEET_NAME + '!B:B, "จัดส่งแล้ว")';
-            const formulaTotal = '=F' + rowIndex + '+G' + rowIndex;
-            stockRows.push([
-              type,
-              gender,
-              color,
-              size,
-              formulaTotal,
-              formulaWithdrawn,
-              qty
-            ]);
-            rowIndex++;
-          });
+          
+          const formulaWithdrawn = '=SUMIFS(' + SHEET_NAME + '!M:M, ' + SHEET_NAME + '!K:K, A' + rowIndex + ', ' + SHEET_NAME + '!J:J, B' + rowIndex + ', ' + SHEET_NAME + '!L:L, C' + rowIndex + ', ' + SHEET_NAME + '!B:B, "จัดส่งแล้ว")';
+          const formulaTotal = '=E' + rowIndex + '+F' + rowIndex;
+          stockRows.push([
+            type,
+            gender,
+            size,
+            formulaTotal,
+            formulaWithdrawn,
+            qty
+          ]);
+          rowIndex++;
         });
       });
     });
