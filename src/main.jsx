@@ -1222,7 +1222,9 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
 
   function jumpToEmployee(employeeId) {
     setInvalidEmployeeId(employeeId);
-    setMobileEmployeeId(employeeId);
+    if (window.innerWidth < 1024) {
+      setMobileEmployeeId(employeeId);
+    }
     window.setTimeout(() => {
       const target = document.querySelector(
         `[data-quick-employee-row="${employeeId}"], [data-quick-employee-card="${employeeId}"]`
@@ -1242,7 +1244,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           }
 
           if (!focused && !employee.gender) {
-            target.querySelector("button[aria-haspopup='listbox']")?.focus({ preventScroll: true });
+            target.querySelector("select")?.focus({ preventScroll: true });
             focused = true;
           }
 
@@ -1250,31 +1252,22 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
             for (const item of employee.items) {
               const sizeEmpty = !item.size;
               const qtyInvalid = Number(item.qty || 0) <= 0;
-              const colorInvalid =
-                needsColorSelection(item.type) && !resolveItemColor(item.type, item.color || '');
               const customSizeEmpty = item.size === OTHER_SIZE && !item.customSize.trim();
 
-              if (sizeEmpty || qtyInvalid || colorInvalid || customSizeEmpty) {
-                const tds = Array.from(target.querySelectorAll('td'));
-                const garmentContainer = tds.find(
-                  (td) =>
-                    td.textContent?.includes(item.type) ||
-                    td.querySelector(`[title*='${item.type}'], [title*='ลบ']`)
+              if (sizeEmpty || qtyInvalid || customSizeEmpty) {
+                const typeSelect = Array.from(target.querySelectorAll('select')).find(
+                  (sel) => sel.value === item.type
                 );
+                const garmentContainer = typeSelect ? typeSelect.closest('div') : null;
+                
                 if (garmentContainer) {
                   if (sizeEmpty) {
-                    garmentContainer
-                      .querySelector("button[aria-haspopup='listbox']")
-                      ?.focus({ preventScroll: true });
+                    const selects = garmentContainer.querySelectorAll("select");
+                    selects[1]?.focus({ preventScroll: true });
                   } else if (qtyInvalid) {
                     garmentContainer
                       .querySelector("input[type='number']")
                       ?.focus({ preventScroll: true });
-                  } else if (colorInvalid) {
-                    const dropdowns = garmentContainer.querySelectorAll(
-                      "button[aria-haspopup='listbox']"
-                    );
-                    dropdowns[1]?.focus({ preventScroll: true });
                   } else if (customSizeEmpty) {
                     garmentContainer
                       .querySelector("input[placeholder='ระบุไซส์เพิ่มเติม']")
