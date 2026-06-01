@@ -243,7 +243,6 @@ function readBatches_(sheet) {
 
     order.items.push({ 
       type, 
-      color: "", 
       size, 
       qty: Number(qty || 0),
       status: status || "รอจัดส่ง",

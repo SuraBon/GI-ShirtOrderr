@@ -1034,6 +1034,7 @@ body {
   font-size: 0.92rem !important;
   line-height: 1.35 !important;
   letter-spacing: 0 !important;
+  text-align: center !important;
 }
 
 .gi-toast-description {
@@ -1041,6 +1042,7 @@ body {
   color: var(--sc-muted) !important;
   font-size: 0.8rem !important;
   line-height: 1.45 !important;
+  text-align: center !important;
 }
 
 [data-rich-colors='true'][data-sonner-toast][data-type='success'],
@@ -1130,6 +1132,8 @@ body {
 .size-reference-dialog .size-reference-table th,
 .size-reference-dialog .size-reference-table td {
   border-color: #e3e8f0 !important;
+  text-align: center !important;
+  vertical-align: middle;
 }
 
 .size-reference-dialog .size-reference-table td {
@@ -2829,8 +2833,7 @@ body {
   display: none;
 }
 
-.inventory-detail-fields,
-.inventory-color-list {
+.inventory-detail-fields {
   display: grid;
   gap: 0.75rem;
 }
@@ -2841,20 +2844,6 @@ body {
   font-weight: 950;
 }
 
-.inventory-color-row {
-  display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr) 2.5rem;
-  gap: 0.55rem;
-  align-items: center;
-}
-
-.inventory-color-row input[type='color'] {
-  width: 2.75rem;
-  height: 2.75rem;
-  padding: 0.2rem;
-}
-
-.inventory-color-row button,
 .inventory-stock-row button {
   display: grid;
   min-height: 2.5rem;
@@ -3538,14 +3527,6 @@ body {
   .inventory-size-detail-row,
   .inventory-stock-row {
     grid-template-columns: 1fr;
-  }
-
-  .inventory-color-row {
-    grid-template-columns: 2.75rem minmax(0, 1fr);
-  }
-
-  .inventory-color-row button {
-    grid-column: 1 / -1;
   }
 
   .inventory-gender-toggle {

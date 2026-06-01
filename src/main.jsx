@@ -1,36 +1,29 @@
 import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tabs from '@radix-ui/react-tabs';
 import { upload } from '@vercel/blob/client';
 import { Toaster, toast } from 'sonner';
 import {
-  CalendarDays,
   BarChart3,
   Check,
   CheckSquare,
   Clock,
-  AlertCircle,
   ChevronDown,
-  ChevronUp,
   ClipboardList,
   Copy,
   Download,
   Eraser,
   BookOpen,
   LayoutDashboard,
-  LogOut,
   Loader2,
   PackageCheck,
   PackageSearch,
   Pencil,
-  PieChart,
   Plus,
   Ruler,
   Search,
   Send,
-  Settings,
   Shirt,
   Trash2,
   Truck,
@@ -53,19 +46,16 @@ import {
   DashboardHeader,
   Field,
   TextInput,
+  MonthInput,
   GridInput,
   TextArea,
   CustomSelect,
   Select,
   GridSelect,
   Card,
-  Section,
-  Alert,
-  Badge,
 } from './components';
 import './index.css';
 
-const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || 'YOUR_SCRIPT_URL_HERE';
 const DASHBOARD_PATH = '#/dashboard';
 const ORDER_PATH = '/';
 const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
@@ -183,7 +173,6 @@ function buildDefaultClothingItem(type, item = {}) {
     id: item.id || crypto.randomUUID(),
     type,
     imageUrl: item.imageUrl || '',
-    colors: Array.isArray(item.colors) ? item.colors : [],
     detailFields,
     sizeRows: genderSizeRows[GENDERS[0]],
     genderSizeRows,
@@ -295,12 +284,6 @@ function normalizeClothingConfig(config) {
         id: item?.id || crypto.randomUUID(),
         type,
         imageUrl: item?.imageUrl || '',
-        colors: Array.isArray(item?.colors)
-          ? item.colors.map((color) => ({
-              name: String(color?.name || '').trim(),
-              value: String(color?.value || '#0F172A').trim() || '#0F172A',
-            }))
-          : [],
         detailFields,
         sizeRows: genderSizeRows[GENDERS[0]] || fallbackRows,
         genderSizeRows,
@@ -427,18 +410,6 @@ function findClothingConfig(type) {
   return readClothingConfig().find((item) => item.type === type);
 }
 
-function getColorOptions(type) {
-  return [];
-}
-
-function needsColorSelection(type) {
-  return false;
-}
-
-function resolveItemColor(type, color = '') {
-  return '';
-}
-
 function getSizeRows(type, gender) {
   const clothing = findClothingConfig(type);
   const genderRows = clothing?.genderSizeRows?.[gender];
@@ -482,137 +453,6 @@ function patchSizeWithDefaultQty(item, size) {
   };
 }
 
-function ItemColorSelect({ employee, item, dispatch, compact = false, invalid = false }) {
-  const colors = getColorOptions(item.type);
-  if (colors.length <= 1) return null;
-  return (
-    <GridSelect
-      value={item.color || ''}
-      disabled={!employee.gender}
-      placeholder={employee.gender ? 'เลือกสี' : 'เลือกเพศก่อน'}
-      values={colors}
-      onChange={(color) =>
-        dispatch({ type: 'patchItem', id: employee.id, itemType: item.type, patch: { color } })
-      }
-      compact={compact}
-      invalid={invalid}
-    />
-  );
-}
-
-function formatOrderItemLabel(item) {
-  return [item.type, item.color ? `สี${item.color}` : '', item.size, `x${item.qty || 0}`]
-    .filter(Boolean)
-    .join(' ');
-}
-
-function EmployeeItemSummary({ employee, onEdit, dispatch, invalid = false }) {
-  if (!employee.items.length) {
-    return (
-      <button
-        onClick={onEdit}
-        className={cn(
-          'min-h-10 w-full rounded-lg border border-dashed px-3 text-sm font-bold transition',
-          invalid
-            ? 'border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C] hover:bg-[#FEE2E2]'
-            : 'border-[#A9B9D1] bg-white text-[#002B5B] hover:bg-[#F4F8FF]'
-        )}
-      >
-        <span className="inline-flex items-center justify-center gap-1.5">
-          <Plus className="size-4" /> เพิ่มรายการเสื้อ
-        </span>
-      </button>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex flex-wrap gap-2 flex-1 min-w-[14rem]">
-        {employee.items.map((item) => {
-          const sizeOptions = getSizeOptionsWithLabels(item.type, employee.gender);
-          return (
-            <div
-              key={`${item.type}-${item.color}`}
-              className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-[#CBD5E1] bg-white px-2 py-1.5 shadow-sm text-xs font-semibold"
-            >
-              <span className="font-extrabold text-[#071638]">{item.type}</span>
-              {item.color && (
-                <span className="text-[#64748B] font-bold">สี{item.color}</span>
-              )}
-              
-              {/* Inline Size Dropdown */}
-              <Select
-                value={item.size}
-                onChange={(val) =>
-                  dispatch({
-                    type: 'patchItem',
-                    id: employee.id,
-                    itemType: item.type,
-                    patch: { size: val },
-                  })
-                }
-                placeholder="ไซส์"
-                values={sizeOptions}
-                size="xs"
-              />
-
-              {/* customSize text input if OTHER_SIZE is selected */}
-              {item.size === OTHER_SIZE && (
-                <input
-                  type="text"
-                  value={item.customSize || ''}
-                  onChange={(e) =>
-                    dispatch({
-                      type: 'patchItem',
-                      id: employee.id,
-                      itemType: item.type,
-                      patch: { customSize: e.target.value },
-                    })
-                  }
-                  placeholder="ระบุไซส์"
-                  className="w-16 h-7 border border-[#CBD5E1] rounded px-1.5 text-xs font-semibold focus:border-[#002B5B]"
-                />
-              )}
-
-              {/* Inline Qty Input */}
-              <input
-                type="number"
-                value={item.qty || 0}
-                onChange={(e) =>
-                  dispatch({
-                    type: 'patchItem',
-                    id: employee.id,
-                    itemType: item.type,
-                    patch: { qty: digitsOnly(e.target.value) },
-                  })
-                }
-                className="w-10 h-7 border border-[#CBD5E1] rounded text-center font-bold text-xs"
-              />
-              
-              {/* Delete garment button */}
-              <button
-                onClick={() =>
-                  dispatch({ type: 'toggleType', id: employee.id, itemType: item.type })
-                }
-                className="text-[#94A3B8] hover:text-[#B91C1C] transition p-0.5"
-                title="ลบเสื้อตัวนี้"
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      <button
-        onClick={onEdit}
-        className="min-h-9 shrink-0 rounded-lg border border-[#D9E2EF] bg-white px-3 text-sm font-black text-[#0D152A] hover:bg-[#F8FAFC] transition"
-      >
-        จัดการแบบเสื้อ
-      </button>
-    </div>
-  );
-}
-
 function digitsOnly(value) {
   return String(value ?? '').replace(/\D/g, '');
 }
@@ -639,32 +479,27 @@ function createEmployee(index = 0) {
   };
 }
 
-function createOrderItem(type, gender, size = '', qty = 2, color = '') {
+function createOrderItem(type, gender, size = '', qty = 2) {
   const options = gender ? getSizeOptions(type, gender) : [];
-  const colors = getColorOptions(type);
   const nextSize = size && options.includes(size) ? size : gender ? defaultSize(type, gender) : '';
   return {
     type,
     size: nextSize,
     customSize: '',
-    color: resolveItemColor(type, color),
     qty: digitsOnly(qty || 2),
   };
 }
 
-function createQuickOrderItems({ presetId, gender, defaultSizeValue, customItems }) {
+function createQuickOrderItems({ gender, defaultSizeValue, customItems }) {
   const sourceItems = getClothingTypes()
     .map((type, index) => ({
       type,
       qty: customItems?.[index]?.qty || 2,
-      color: customItems?.[index]?.color || '',
       enabled: Boolean(customItems?.[index]?.enabled),
     }))
     .filter((item) => item.enabled);
 
-  return sourceItems.map((item) =>
-    createOrderItem(item.type, gender, defaultSizeValue, item.qty, item.color)
-  );
+  return sourceItems.map((item) => createOrderItem(item.type, gender, defaultSizeValue, item.qty));
 }
 
 function createEmployeeFromQuickOrder(name, index, quickOrder) {
@@ -841,7 +676,15 @@ function orderReducer(state, action) {
             ? {
                 ...employee,
                 items: employee.items.map((item) =>
-                  item.type === action.itemType ? { ...item, ...action.patch } : item
+                  item.type === action.itemType
+                    ? {
+                        ...item,
+                        ...action.patch,
+                        ...(action.patch?.type && action.patch.type !== item.type
+                          ? { size: '', customSize: '' }
+                          : {}),
+                      }
+                    : item
                 ),
               }
             : employee
@@ -887,7 +730,6 @@ function flattenBatches(batches) {
         gender: order.gender,
         type: item.type,
         size: item.size,
-        color: resolveItemColor(item.type, item.color || ''),
         qty: Number(item.qty || 0),
       }))
     )
@@ -905,7 +747,6 @@ function normalizeBatch(batch) {
                 .map((item) => ({
                   type: item.type || '-',
                   size: item.size || '-',
-                  color: resolveItemColor(item.type || '-', item.color || ''),
                   qty: Number(item.qty || 0),
                   status: ORDER_STATUSES.includes(item.status)
                     ? item.status
@@ -955,11 +796,10 @@ function buildOrderSummaryRows(employees) {
     employee.items
       .filter((item) => item.size)
       .map((item) => ({
-        id: `${employee.id}-${item.type}-${resolveItemColor(item.type, item.color || '')}`,
+        id: `${employee.id}-${item.type}-${item.size}`,
         name: employee.name || '-',
         type: item.type,
         size: item.size === OTHER_SIZE ? item.customSize || '-' : item.size,
-        color: resolveItemColor(item.type, item.color || ''),
         qty: Number(item.qty || 0),
       }))
   );
@@ -974,7 +814,6 @@ function isEmployeeComplete(employee) {
       (item) =>
         item.size &&
         Number(item.qty || 0) > 0 &&
-        (!needsColorSelection(item.type) || resolveItemColor(item.type, item.color || '')) &&
         (item.size !== OTHER_SIZE || item.customSize.trim())
     )
   );
@@ -990,12 +829,6 @@ function getEmployeeMissingFields(employee) {
   }
 
   if (employee.items.some((item) => !item.size)) missing.push('ไซส์');
-  if (
-    employee.items.some(
-      (item) => needsColorSelection(item.type) && !resolveItemColor(item.type, item.color || '')
-    )
-  )
-    missing.push('สี');
   if (employee.items.some((item) => Number(item.qty || 0) <= 0)) missing.push('จำนวน');
   if (employee.items.some((item) => item.size === OTHER_SIZE && !item.customSize.trim()))
     missing.push('ระบุไซส์เพิ่มเติม');
@@ -1007,13 +840,13 @@ function hasEmployeeData(employee) {
     employee.name.trim() ||
     employee.gender ||
     employee.items.some(
-      (item) => item.size || item.customSize.trim() || item.color || Number(item.qty || 0) > 0
+      (item) => item.size || item.customSize.trim() || Number(item.qty || 0) > 0
     )
   );
 }
 
 function isGasConfigured() {
-  return Boolean(APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('YOUR_SCRIPT_URL'));
+  return true;
 }
 
 function getDashboardLoadErrorDescription(error) {
@@ -1162,7 +995,6 @@ function App() {
 function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const [sizeOpen, setSizeOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalidEmployeeId, setInvalidEmployeeId] = useState('');
@@ -1177,7 +1009,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const [activeTab, setActiveTab] = useState('table'); // 'table', 'copy', 'excel'
   const [successData, setSuccessData] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
-  const [csvErrors, setCsvErrors] = useState([]);
+  const [, setCsvErrors] = useState([]);
 
   function handleEdit(id, mode = 'full') {
     setEditMode(mode);
@@ -1185,6 +1017,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   }
 
   const [state, dispatch] = useReducer(orderReducer, undefined, createInitialOrderState);
+  const clothingTypes = getClothingTypes();
 
   const isCompanyComplete = Boolean(
     state.companyName?.trim() &&
@@ -1197,10 +1030,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const totalPieces = summaryRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
   const completedEmployees = useMemo(
     () => state.employees.filter(isEmployeeComplete).length,
-    [state.employees]
-  );
-  const firstIncompleteEmployee = useMemo(
-    () => state.employees.find((employee) => !isEmployeeComplete(employee)) || null,
     [state.employees]
   );
   const selectedMobileEmployee =
@@ -1383,17 +1212,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     return true;
   }
 
-  function openSummary() {
-    if (!validateCompany() || !validateEmployees()) return;
-    if (!gasConfigured) {
-      toast.error('ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อม', {
-        description: 'กรุณาติดต่อผู้ดูแลระบบก่อนส่งคำสั่งเบิกเสื้อ',
-      });
-      return;
-    }
-    setSummaryOpen(true);
-  }
-
   async function submitOrder() {
     const payload = {
       batchId: `ORD-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Date.now().toString().slice(-5)}`,
@@ -1422,13 +1240,13 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       description: 'ระบบกำลังบันทึกคำสั่ง กรุณารอสักครู่',
     });
     try {
-      const postToGAS = async (data, attempts = 2, timeoutMs = 15000) => {
+      const submitOrderRequest = async (data, attempts = 2, timeoutMs = 15000) => {
         let lastErr = null;
         for (let i = 0; i < attempts; i++) {
           const controller = new AbortController();
           const id = setTimeout(() => controller.abort(), timeoutMs);
           try {
-            const res = await fetch(APPS_SCRIPT_URL, {
+            const res = await fetch('/api/order/submit', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json;charset=utf-8' },
               body: JSON.stringify(data),
@@ -1447,7 +1265,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         throw lastErr;
       };
 
-      await postToGAS(payload);
+      await submitOrderRequest(payload);
       toast.success('บันทึกคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
       setSuccessData(payload); // Save success data for the Success Screen
       setQuery('');
@@ -1455,7 +1273,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       setMobileEmployeeId('');
       setEditingCardId('');
     } catch {
-      toast.error('ส่งคำสั่งเบิกเสื้อไม่สำเร็จ', {
+      toast.error('ไม่สามารถส่งคำขอเบิกได้', {
         id: loadingToastId,
         description: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
       });
@@ -1580,7 +1398,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         rowNum,
         name,
         gender,
-        items: garmentType ? [{ type: garmentType, size, qty, color: '', customSize: '' }] : [],
+        items: garmentType ? [{ type: garmentType, size, qty, customSize: '' }] : [],
         errors: rowErrors,
         isValid: rowErrors.length === 0,
       });
@@ -2035,7 +1853,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                                                       type: nextType,
                                                       size: defaultSizeVal,
                                                       customSize: '',
-                                                      color: '',
                                                       qty: 1,
                                                     },
                                                   ],
@@ -2926,9 +2743,7 @@ function getFilteredEmployees(employees, query, showIncompleteOnly) {
       [
         employee.name,
         employee.gender,
-        ...employee.items.map(
-          (item) => `${item.type} ${item.color} ${item.size} ${item.customSize}`
-        ),
+        ...employee.items.map((item) => `${item.type} ${item.size} ${item.customSize}`),
       ]
         .join(' ')
         .toLowerCase()
@@ -2940,7 +2755,6 @@ function getFilteredEmployees(employees, query, showIncompleteOnly) {
 function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId }) {
   const item = employee.items.find((entry) => entry.type === type);
   const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
-  const colors = getColorOptions(type);
   const sizeOptions = getSizeOptionsWithLabels(type, employee.gender);
 
   if (!item) {
@@ -2949,9 +2763,10 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
         <button
           onClick={() => dispatch({ type: 'toggleType', id: employee.id, itemType: type })}
           disabled={!employee.gender}
+          aria-label={`เพิ่ม ${type}`}
           type="button"
           className={cn(
-            'flex h-9 w-full items-center justify-center gap-1 rounded-lg border border-dashed text-xs font-bold transition',
+            'flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 text-xs font-bold transition',
             !employee.gender
               ? 'border-[#D8DEEA] bg-[#F4F4F5] text-[#A1A1AA] cursor-not-allowed'
               : 'border-[#A9B9D1] bg-white text-[#002B5B] hover:bg-[#F4F8FF]'
@@ -2960,7 +2775,7 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
           {employee.gender ? (
             <>
               <Plus className="size-3.5" />
-              <span>เพิ่มเสื้อ</span>
+              <span className="truncate">เพิ่ม {type}</span>
             </>
           ) : (
             <span className="text-[11px] text-[#A1A1AA]">เลือกเพศก่อน</span>
@@ -2975,9 +2790,7 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
       className={cn(
         'flex flex-col gap-1.5 rounded-lg border bg-[#F8FAFC] p-2 shadow-sm min-w-[12rem]',
         showErrors &&
-          (!item.size ||
-            Number(item.qty || 0) <= 0 ||
-            (needsColorSelection(type) && !resolveItemColor(type, item.color || '')))
+          (!item.size || Number(item.qty || 0) <= 0)
           ? 'border-[#EF4444]'
           : 'border-[#E7EAF0]'
       )}
@@ -3002,7 +2815,6 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
           values={sizeOptions}
           compact
           invalid={showErrors && !item.size}
-          usePortal={false}
           onChange={(value) =>
             dispatch({
               type: 'patchItem',
@@ -3031,21 +2843,6 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
         />
       </div>
 
-      {needsColorSelection(type) && (
-        <GridSelect
-          value={item.color || ''}
-          disabled={!employee.gender}
-          placeholder="เลือกสี"
-          values={colors}
-          compact
-          invalid={showErrors && !resolveItemColor(type, item.color || '')}
-          usePortal={false}
-          onChange={(color) =>
-            dispatch({ type: 'patchItem', id: employee.id, itemType: type, patch: { color } })
-          }
-        />
-      )}
-
       {item.size === OTHER_SIZE && (
         <GridInput
           type="text"
@@ -3062,6 +2859,61 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
           }
         />
       )}
+    </div>
+  );
+}
+
+function GarmentItemsPicker({ employee, clothingTypes, dispatch, invalidEmployeeId }) {
+  const selectedTypes = employee.items.map((item) => item.type);
+  const availableTypes = clothingTypes.filter((type) => !selectedTypes.includes(type));
+  const hasAvailableTypes = availableTypes.length > 0;
+
+  return (
+    <div className="grid gap-2">
+      {employee.items.length ? (
+        employee.items.map((item) => (
+          <QuickGarmentCellInline
+            key={item.type}
+            employee={employee}
+            type={item.type}
+            dispatch={dispatch}
+            invalidEmployeeId={invalidEmployeeId}
+          />
+        ))
+      ) : (
+        <div className="rounded-lg border border-dashed border-[#D8DEEA] bg-[#F8FAFC] px-3 py-2 text-center text-xs font-bold text-[#94A3B8]">
+          ยังไม่ได้เลือกแบบเสื้อ
+        </div>
+      )}
+
+      <div className="grid gap-2 rounded-lg border border-dashed border-[#A9B9D1] bg-white p-2">
+        <div className="flex items-center justify-between gap-2 text-xs font-black text-[#002B5B]">
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <Plus className="size-3.5 shrink-0" />
+            <span className="truncate">เพิ่มรายการเสื้อ</span>
+          </span>
+          <span className="shrink-0 text-[11px] font-bold text-[#64748B]">
+            {hasAvailableTypes ? `เหลือ ${availableTypes.length} แบบ` : 'เลือกครบแล้ว'}
+          </span>
+        </div>
+        <Select
+          value=""
+          values={availableTypes}
+          disabled={!employee.gender || !hasAvailableTypes}
+          placeholder={
+            !employee.gender
+              ? 'เลือกเพศก่อน'
+              : hasAvailableTypes
+                ? 'เพิ่มแบบเสื้อ'
+                : 'เลือกแบบเสื้อครบแล้ว'
+          }
+          compact
+          onChange={(type) => {
+            if (!type) return;
+            dispatch({ type: 'toggleType', id: employee.id, itemType: type });
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -3243,7 +3095,6 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                   type: nextType,
                                   size: defaultSizeVal,
                                   customSize: '',
-                                  color: '',
                                   qty: 1,
                                 },
                               ],
@@ -3323,8 +3174,6 @@ function QuickMobileList({
   query,
   showIncompleteOnly,
   invalidEmployeeId,
-  editingCardId,
-  setEditingCardId,
 }) {
   const filteredEmployees = getFilteredEmployees(employees, query, showIncompleteOnly);
   const canDelete = canDeleteEmployee(employees);
@@ -3337,206 +3186,103 @@ function QuickMobileList({
         const complete = isEmployeeComplete(employee);
         const pieces = employee.items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
         const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
-        const isEditing = editingCardId === employee.id;
         return (
           <article
             key={employee.id}
             data-quick-employee-card={employee.id}
             className={cn(
-              'rounded-xl border bg-white p-3 text-left shadow-xs transition',
-              isEditing
-                ? 'border-[#002B5B] ring-2 ring-[#002B5B]/10'
-                : 'border-[#D8DEEA]',
+              'rounded-xl border border-[#D8DEEA] bg-white p-3 text-left shadow-xs transition',
               invalidEmployeeId === employee.id &&
                 'employee-attention border-[#EF4444] bg-[#FFF7F7]'
             )}
           >
-            {isEditing ? (
-              <div className="grid gap-3" onClick={(event) => event.stopPropagation()}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-black text-[#002B5B]">แก้ไขข้อมูล ลำดับที่ {index + 1}</p>
-                    <p className="mt-0.5 text-[11px] font-bold text-[#64748B]">
-                      แก้ชื่อ เพศ เสื้อ ไซส์ และจำนวนตัวได้จากการ์ดนี้
-                    </p>
-                  </div>
+            <div className="grid gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-extrabold text-[#071638]">
+                    ลำดับที่ {index + 1}
+                  </p>
+                  <p className="mt-0.5 truncate text-[11px] font-bold text-[#64748B]">
+                    {employee.items.length || 0} แบบ · {pieces} ชิ้น
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
                   <span
                     className={cn(
-                      'shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold',
+                      'rounded-full px-2.5 py-1 text-xs font-extrabold',
                       complete ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'
                     )}
                   >
                     {complete ? 'ครบ' : 'ยังไม่ครบ'}
                   </span>
-                </div>
-
-                <div className="grid gap-3 rounded-lg border border-[#E7EAF0] bg-[#F8FAFC] p-3">
-                  <Field label="ชื่อ-นามสกุล *">
-                    <TextInput
-                      value={employee.name}
-                      invalid={showErrors && !employee.name.trim()}
-                      onChange={(value) =>
-                        dispatch({ type: 'patchEmployee', id: employee.id, patch: { name: value } })
-                      }
-                      placeholder="ชื่อ-นามสกุล"
-                    />
-                  </Field>
-
-                  <Field label="เพศ *">
-                    <div className="grid grid-cols-2 gap-2">
-                      {GENDERS.map((gender) => (
-                        <button
-                          key={gender}
-                          type="button"
-                          onClick={() =>
-                            dispatch({ type: 'patchEmployee', id: employee.id, patch: { gender } })
-                          }
-                          className={cn(
-                            'h-10 rounded-lg border text-xs font-black transition active:scale-95',
-                            employee.gender === gender
-                              ? 'border-[#002B5B] bg-[#002B5B] text-white shadow-xs'
-                              : showErrors && !employee.gender
-                                ? 'border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C]'
-                                : 'border-[#CBD5E1] bg-white text-[#071638] hover:border-[#002B5B]'
-                          )}
-                        >
-                          {gender}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                </div>
-
-                <div className="grid gap-2 rounded-lg border border-[#E7EAF0] bg-white p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-black text-[#64748B]">เสื้อที่เบิก *</p>
-                    {showErrors && !employee.items.length && (
-                      <span className="text-[11px] font-bold text-[#B91C1C]">เลือกอย่างน้อย 1 รายการ</span>
-                    )}
-                  </div>
-                  <div className="grid gap-2">
-                    {clothingTypes.map((type) => (
-                      <QuickGarmentCellInline
-                        key={type}
-                        employee={employee}
-                        type={type}
-                        dispatch={dispatch}
-                        invalidEmployeeId={invalidEmployeeId}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-[1fr_1fr_2.5rem] gap-2 border-t border-neutral-100 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingCardId('')}
-                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-[#002B5B] text-xs font-extrabold text-white shadow-xs transition hover:bg-[#001f42]"
-                  >
-                    <Check className="size-3.5" />
-                    <span>เสร็จสิ้น</span>
-                  </button>
                   <button
                     type="button"
                     onClick={() => dispatch({ type: 'cloneEmployee', id: employee.id })}
-                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#44536A] transition hover:bg-neutral-50"
+                    className="grid size-8 place-items-center rounded-lg border border-[#CBD5E1] bg-white text-[#44536A] transition hover:bg-neutral-50"
+                    aria-label={`คัดลอกพนักงานลำดับที่ ${index + 1}`}
                   >
                     <Copy className="size-3.5" />
-                    <span>คัดลอก</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canDelete}
-                    onClick={() => {
-                      dispatch({ type: 'delete', id: employee.id });
-                      setEditingCardId('');
-                    }}
-                    className="grid h-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] transition hover:bg-[#FFE2E2] disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label="ลบ"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                <button
-                  type="button"
-                  onClick={() => setEditingCardId(employee.id)}
-                  className="w-full text-left"
-                  title="แก้ไขข้อมูลบนการ์ด"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-extrabold text-[#071638]">
-                        ลำดับที่ {index + 1}
-                      </p>
-                      <p className="mt-1 truncate text-sm font-extrabold text-[#071638]">
-                        {employee.name || 'ยังไม่ระบุชื่อ'}
-                      </p>
-                      <p className="mt-1 text-xs font-bold text-[#64748B]">
-                        เพศ: {employee.gender || 'ยังไม่เลือกเพศ'} · {pieces} ชิ้น
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        'shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold',
-                        complete ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'
-                      )}
-                    >
-                      {complete ? '✓ ครบ' : 'แก้'}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 grid gap-1.5">
-                    <span className="text-[11px] font-black text-[#94A3B8]">เสื้อที่เบิก:</span>
-                    {employee.items.length ? (
-                      employee.items.map((item, itemIndex) => (
-                        <div
-                          key={`${item.type}-${itemIndex}`}
-                          className="flex items-center justify-between gap-2 rounded border border-neutral-100 bg-neutral-50 px-2 py-1 text-xs font-bold text-neutral-700"
-                        >
-                          <span className="min-w-0 truncate">{item.type}</span>
-                          <span className="shrink-0 font-black text-[#002B5B]">
-                            ไซส์ {item.size === OTHER_SIZE ? item.customSize || OTHER_SIZE : item.size || '-'} x {item.qty || 0} ตัว
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs font-semibold italic text-neutral-400">ไม่มีเสื้อ</p>
-                    )}
-                  </div>
-                </button>
-
-                <div className="flex items-center gap-2 border-t border-neutral-100 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingCardId(employee.id)}
-                    className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#002B5B] transition hover:bg-[#002B5B]/5"
-                  >
-                    <Pencil className="size-3.5" />
-                    <span>แก้ไข</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => dispatch({ type: 'cloneEmployee', id: employee.id })}
-                    className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#44536A] transition hover:bg-neutral-50"
-                  >
-                    <Copy className="size-3.5" />
-                    <span>คัดลอก</span>
                   </button>
                   <button
                     type="button"
                     disabled={!canDelete}
                     onClick={() => dispatch({ type: 'delete', id: employee.id })}
-                    className="grid size-9 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] transition hover:bg-[#FFE2E2] disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label="ลบ"
+                    className="grid size-8 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] transition hover:bg-[#FFE2E2] disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={`ลบพนักงานลำดับที่ ${index + 1}`}
                   >
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
               </div>
-            )}
+
+              <div className="grid grid-cols-[minmax(0,1fr)_6.75rem] gap-2">
+                <TextInput
+                  value={employee.name}
+                  invalid={showErrors && !employee.name.trim()}
+                  onChange={(value) =>
+                    dispatch({ type: 'patchEmployee', id: employee.id, patch: { name: value } })
+                  }
+                  placeholder="ชื่อ-นามสกุล"
+                  title="ชื่อ-นามสกุล"
+                />
+                <div className="grid grid-cols-2 gap-1">
+                  {GENDERS.map((gender) => (
+                    <button
+                      key={gender}
+                      type="button"
+                      onClick={() =>
+                        dispatch({ type: 'patchEmployee', id: employee.id, patch: { gender } })
+                      }
+                      className={cn(
+                        'h-11 rounded-lg border text-xs font-black transition active:scale-95',
+                        employee.gender === gender
+                          ? 'border-[#002B5B] bg-[#002B5B] text-white shadow-xs'
+                          : showErrors && !employee.gender
+                            ? 'border-[#EF4444] bg-[#FFF7F7] text-[#B91C1C]'
+                            : 'border-[#CBD5E1] bg-white text-[#071638] hover:border-[#002B5B]'
+                      )}
+                    >
+                      {gender}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 rounded-lg border border-[#E7EAF0] bg-[#F8FAFC] p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-black text-[#64748B]">เสื้อที่เบิก *</p>
+                  {showErrors && !employee.items.length && (
+                    <span className="text-[11px] font-bold text-[#B91C1C]">เลือกอย่างน้อย 1 รายการ</span>
+                  )}
+                </div>
+                <GarmentItemsPicker
+                  employee={employee}
+                  clothingTypes={clothingTypes}
+                  dispatch={dispatch}
+                  invalidEmployeeId={invalidEmployeeId}
+                />
+              </div>
+            </div>
           </article>
         );
       })}
@@ -3775,18 +3521,6 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
     </Dialog.Root>
   );
 }
-
-
-
-function ReviewMetric({ label, value }) {
-  return (
-    <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3 border border-[#E2E8F0]">
-      <p className="text-xs font-bold text-[#64748B]">{label}</p>
-      <p className="mt-1 break-words font-extrabold text-[#071638] text-sm">{value}</p>
-    </div>
-  );
-}
-
 function DashboardApp({ onOpenOrder }) {
   const [adminToken, setDashboardToken] = useState(getAdminToken);
   const [dashboardView, setDashboardView] = useState('orders');
@@ -4037,26 +3771,6 @@ function SizeReference({ open, setOpen }) {
                         <h3 className="text-base font-black text-[#071638] sm:text-lg">
                           {tab.type}
                         </h3>
-                        {tab.colors?.length ? (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {tab.colors.map((color) => (
-                              <span
-                                key={`${tab.id}-${color.name}`}
-                                className="inline-flex items-center gap-2 rounded-full border border-[#D8DEEA] bg-white px-3 py-1 text-xs font-bold text-[#44536A]"
-                              >
-                                <span
-                                  className="size-4 rounded-full border border-[#CBD5E1]"
-                                  style={{ backgroundColor: color.value }}
-                                />
-                                {color.name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="mt-2 text-sm font-semibold text-[#64748B]">
-                            ยังไม่ได้กำหนดสีสำหรับเสื้อนี้
-                          </p>
-                        )}
                       </div>
                       <table className="size-reference-table w-full table-fixed text-center text-sm">
                         <thead>
@@ -4249,7 +3963,7 @@ function AdminManualDialog({ open, setOpen }) {
             <ManualSection icon={PackageSearch} title="หน้าแบบเสื้อ/สต็อก">
               <ManualList
                 items={[
-                  'แท็บข้อมูลเสื้อใช้แก้ชื่อแบบเสื้อ รูปภาพ สี และรายละเอียดไซส์ เช่น อกหรือเอว',
+                  'แท็บข้อมูลเสื้อใช้แก้ชื่อแบบเสื้อ รูปภาพ และรายละเอียดไซส์ เช่น อกหรือเอว',
                   'รายละเอียดไซส์แยกตามเพศ หากแก้ค่าอก/เอวตรงนี้ ผู้เบิกจะเห็นค่าที่อัปเดตในหน้าข้อมูลเสื้อ',
                   'แท็บสต็อกตามไซส์ใช้แก้เฉพาะจำนวนคงเหลือ เพื่อไม่ให้ข้อมูลอก/เอวปนกับงานคลัง',
                   'ใส่เลขบวก เช่น 20 แล้วกดเพิ่ม เพื่อบันทึกรับสต็อกเข้า',
@@ -4341,41 +4055,6 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
 
   function patchItem(id, patch) {
     commit(config.map((item) => (item.id === id ? { ...item, ...patch } : item)));
-  }
-
-  function patchColor(id, colorIndex, patch) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              colors: (item.colors || []).map((color, index) =>
-                index === colorIndex ? { ...color, ...patch } : color
-              ),
-            }
-          : item
-      )
-    );
-  }
-
-  function addColor(id) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? { ...item, colors: [...(item.colors || []), { name: '', value: '#0F172A' }] }
-          : item
-      )
-    );
-  }
-
-  function removeColor(id, colorIndex) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? { ...item, colors: (item.colors || []).filter((_, index) => index !== colorIndex) }
-          : item
-      )
-    );
   }
 
   function patchStock(id, rowIndex, patch) {
@@ -4479,29 +4158,6 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
     );
   }
 
-  function addDetailField(id) {
-    commit(
-      config.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              detailFields: [...(item.detailFields || []), 'รายละเอียด'],
-              genderSizeRows: GENDERS.reduce((rows, gender) => {
-                const sizeRows = item.genderSizeRows?.[gender] || item.sizeRows || [];
-                return {
-                  ...rows,
-                  [gender]: sizeRows.map((row) => ({
-                    ...row,
-                    details: { ...(row.details || {}), รายละเอียด: '' },
-                  })),
-                };
-              }, {}),
-            }
-          : item
-      )
-    );
-  }
-
   function removeDetailField(id, fieldIndex) {
     commit(
       config.map((item) => {
@@ -4576,7 +4232,6 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
         id,
         type: 'เสื้อใหม่',
         imageUrl: '',
-        colors: [],
         detailFields: ['อก'],
         sizeRows: [{ size: 'M', details: { อก: '' }, qty: 0 }],
         genderSizeRows: GENDERS.reduce(
@@ -4669,7 +4324,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
           <div>
             <h3>{selectedItem.type || 'ยังไม่ระบุชื่อ'}</h3>
             <p>
-              ใช้แท็บข้อมูลเสื้อสำหรับชื่อ รูป และสี ส่วนแท็บสต็อกใช้แก้จำนวนคงเหลือตามไซส์
+              ใช้แท็บข้อมูลเสื้อสำหรับชื่อและรูป ส่วนแท็บสต็อกใช้แก้จำนวนคงเหลือตามไซส์
             </p>
           </div>
           <button className={editing ? 'done' : ''} onClick={() => setEditing((value) => !value)}>
@@ -4701,7 +4356,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
           <div className="inventory-section-head">
             <div>
               <h4>ข้อมูลรายละเอียดเสื้อ</h4>
-              <p>แก้เฉพาะข้อมูลที่ผู้เบิกเห็น เช่น ชื่อแบบเสื้อ รูปภาพ และสี</p>
+              <p>แก้เฉพาะข้อมูลที่ผู้เบิกเห็น เช่น ชื่อแบบเสื้อและรูปภาพ</p>
             </div>
           </div>
           <div className="inventory-detail-grid">
@@ -4735,43 +4390,6 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
                   placeholder="เช่น เสื้อโปโล"
                 />
               </Field>
-              <div className="inventory-color-list">
-                <div className="inventory-inline-head">
-                  <span>สี</span>
-                  {editing && (
-                    <button onClick={() => addColor(selectedItem.id)}>
-                      <Plus className="size-4" /> เพิ่มสี
-                    </button>
-                  )}
-                </div>
-                {(selectedItem.colors || []).length ? (
-                  selectedItem.colors.map((color, index) => (
-                    <div className="inventory-color-row" key={`${selectedItem.id}-${index}`}>
-                      <input
-                        type="color"
-                        value={color.value || '#0F172A'}
-                        onChange={(event) =>
-                          patchColor(selectedItem.id, index, { value: event.target.value })
-                        }
-                        disabled={!editing}
-                      />
-                      <TextInput
-                        value={color.name}
-                        onChange={(value) => patchColor(selectedItem.id, index, { name: value })}
-                        disabled={!editing}
-                        placeholder="ชื่อสี"
-                      />
-                      {editing && (
-                        <button onClick={() => removeColor(selectedItem.id, index)}>
-                          <Trash2 className="size-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className="inventory-empty-note">ยังไม่มีสีที่กำหนด</p>
-                )}
-              </div>
             </div>
           </div>
           <div className="inventory-size-fields">
@@ -4934,22 +4552,14 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const [branchFilter, setBranchFilter] = useState('ทุกสาขา');
   const [statusFilter, setStatusFilter] = useState('ทุกสถานะ');
   const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('ทั้งหมด');
-  const [summaryGenderFilter, setSummaryGenderFilter] = useState('ทุกเพศ');
   const [monthFilter, setMonthFilter] = useState(() => formatMonthLabel(new Date()));
   const [exportBranchFilter, setExportBranchFilter] = useState('ทุกสาขา');
   const [exportStartMonth, setExportStartMonth] = useState(() => formatMonthInputValue(new Date()));
   const [exportEndMonth, setExportEndMonth] = useState(() => formatMonthInputValue(new Date()));
-  const [exportGenderFilter, setExportGenderFilter] = useState('ทุกเพศ');
-  const [exportTypeFilter, setExportTypeFilter] = useState('ทุกแบบ');
-  const [exportSizeFilter, setExportSizeFilter] = useState('ทุกไซส์');
-  const [exportStatusFilter, setExportStatusFilter] = useState('ทุกสถานะ');
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false);
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState('');
-  const [showOrderFilters, setShowOrderFilters] = useState(true);
   const [exportExpanded, setExportExpanded] = useState(false);
-  const [advancedExportExpanded, setAdvancedExportExpanded] = useState(false);
   const [orderPage, setOrderPage] = useState(1);
 
   async function loadData({ silent = false } = {}) {
@@ -5018,9 +4628,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             [
               order.name,
               order.gender,
-              ...order.items.map(
-                (item) => `${item.type} ${item.color || ''} ${item.size} ${item.qty}`
-              ),
+              ...order.items.map((item) => `${item.type} ${item.size} ${item.qty}`),
             ].join(' ')
           ),
         ]
@@ -5037,44 +4645,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   }, [branchFilter, statusFilter, monthFilter, query]);
 
   const rows = useMemo(() => flattenBatches(filteredBatches), [filteredBatches]);
-  const summaryGenderOptions = useMemo(
-    () => ['ทุกเพศ', ...uniqueSorted(rows.map((row) => row.gender).filter(Boolean))],
-    [rows]
-  );
-  const genderVisibleRows = useMemo(
-    () =>
-      summaryGenderFilter === 'ทุกเพศ'
-        ? rows
-        : rows.filter((row) => row.gender === summaryGenderFilter),
-    [rows, summaryGenderFilter]
-  );
-  const typeFilterOptions = useMemo(
-    () => buildTypeTotals(genderVisibleRows).map((row) => row.type),
-    [genderVisibleRows]
-  );
   const monthFilterOptions = useMemo(() => buildMonthFilterOptions(rows), [rows]);
-  const visibleRows = useMemo(
-    () =>
-      typeFilter === 'ทั้งหมด'
-        ? genderVisibleRows
-        : genderVisibleRows.filter((row) => row.type === typeFilter),
-    [genderVisibleRows, typeFilter]
-  );
-  const monthRows = useMemo(
-    () =>
-      monthFilter === 'ทุกเดือน'
-        ? visibleRows
-        : visibleRows.filter((row) => formatMonthLabel(row.submittedAt) === monthFilter),
-    [visibleRows, monthFilter]
-  );
   const metrics = useMemo(() => buildDashboardMetrics(filteredBatches), [filteredBatches]);
-  const monthTotalPieces = useMemo(
-    () => monthRows.reduce((sum, row) => sum + Number(row.qty || 0), 0),
-    [monthRows]
-  );
-  const summaryRows = useMemo(() => buildTotalSummary(monthRows), [monthRows]);
-  const typeTotals = useMemo(() => buildTypeTotals(monthRows), [monthRows]);
-  const sizeTotals = useMemo(() => buildSizeTotals(monthRows), [monthRows]);
   const allRows = useMemo(() => flattenBatches(batches), [batches]);
   const exportBranchOptions = useMemo(
     () => [
@@ -5083,70 +4655,21 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     ],
     [batches]
   );
-  const exportGenderOptions = useMemo(
-    () => ['ทุกเพศ', ...uniqueSorted(allRows.map((row) => row.gender).filter(Boolean))],
-    [allRows]
-  );
-  const exportTypeOptions = useMemo(
-    () => ['ทุกแบบ', ...uniqueSorted(allRows.map((row) => row.type).filter(Boolean))],
-    [allRows]
-  );
-  const exportSizeOptions = useMemo(
-    () => [
-      'ทุกไซส์',
-      ...uniqueSorted(allRows.map((row) => row.size).filter(Boolean), compareSizes),
-    ],
-    [allRows]
-  );
-  const exportStatusOptions = useMemo(
-    () => [
-      'ทุกสถานะ',
-      ...uniqueSorted(allRows.map((row) => row.status || ORDER_STATUS_PENDING).filter(Boolean)),
-    ],
-    [allRows]
-  );
   const exportRows = useMemo(() => {
     const startKey = getMonthKeyFromInput(exportStartMonth);
     const endKey = getMonthKeyFromInput(exportEndMonth);
     return allRows.filter((row) => {
       const rowKey = getMonthKey(row.submittedAt);
       const inBranch = exportBranchFilter === 'ทุกสาขา' || row.branch === exportBranchFilter;
-      const inGender = exportGenderFilter === 'ทุกเพศ' || row.gender === exportGenderFilter;
-      const inType = exportTypeFilter === 'ทุกแบบ' || row.type === exportTypeFilter;
-      const inSize = exportSizeFilter === 'ทุกไซส์' || row.size === exportSizeFilter;
-      const inStatus =
-        exportStatusFilter === 'ทุกสถานะ' ||
-        (row.status || ORDER_STATUS_PENDING) === exportStatusFilter;
       const inStart = !startKey || rowKey >= startKey;
       const inEnd = !endKey || rowKey <= endKey;
-      return inBranch && inGender && inType && inSize && inStatus && inStart && inEnd;
+      return inBranch && inStart && inEnd;
     });
-  }, [
-    allRows,
-    exportBranchFilter,
-    exportGenderFilter,
-    exportTypeFilter,
-    exportSizeFilter,
-    exportStatusFilter,
-    exportStartMonth,
-    exportEndMonth,
-  ]);
+  }, [allRows, exportBranchFilter, exportStartMonth, exportEndMonth]);
   const deleteConfirmBatch = useMemo(
     () => batches.find((batch) => batch.batchId === deleteConfirmBatchId) || null,
     [batches, deleteConfirmBatchId]
   );
-
-  useEffect(() => {
-    if (typeFilter !== 'ทั้งหมด' && !typeFilterOptions.includes(typeFilter)) {
-      setTypeFilter('ทั้งหมด');
-    }
-  }, [typeFilter, typeFilterOptions]);
-
-  useEffect(() => {
-    if (summaryGenderFilter !== 'ทุกเพศ' && !summaryGenderOptions.includes(summaryGenderFilter)) {
-      setSummaryGenderFilter('ทุกเพศ');
-    }
-  }, [summaryGenderFilter, summaryGenderOptions]);
 
   useEffect(() => {
     if (!monthFilterOptions.includes(monthFilter)) {
@@ -5346,7 +4869,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       description: 'ระบบกำลังบันทึกการเปลี่ยนแปลง กรุณารอสักครู่',
     });
     const batch = batches.find((batchItem) => batchItem.batchId === batchId);
-    const previousStatus = batch?.status || ORDER_STATUS_PENDING;
 
     const issues = findStockIssuesForStatusChange(clothingConfig, batch, status);
     if (issues.length) {
@@ -5608,7 +5130,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         id: item.id,
         type: item.type,
         imageUrl: item.imageUrl,
-        colors: item.colors || [],
         total,
         sizes,
       };
@@ -5942,7 +5463,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <div className="dashboard-panel-head">
             <div>
               <h2>จัดการแบบเสื้อและสต็อกไซส์</h2>
-              <p>เพิ่มแบบเสื้อ อัปโหลดรูปภาพ แก้สี ไซส์ และจำนวนคงเหลือ</p>
+              <p>เพิ่มแบบเสื้อ อัปโหลดรูปภาพ แก้ไซส์ และจำนวนคงเหลือ</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => onViewChange?.('orders')}>
@@ -6007,327 +5528,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
 
 }
 
-function TypeFilterChips({
-  value,
-  onChange,
-  options,
-  genderValue = '',
-  onGenderChange,
-  genderOptions = [],
-  monthFilter,
-  onMonthFilterChange,
-  monthOptions = [],
-  totalPieces,
-}) {
-  const choices = ['ทั้งหมด', ...options];
-  const showGenderFilter = Boolean(genderValue && onGenderChange && genderOptions.length);
-  const showMonthFilter = Boolean(monthFilter && onMonthFilterChange && monthOptions.length);
-  return (
-    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white p-3 shadow-sm lg:flex lg:items-end lg:justify-between lg:gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:min-w-[15rem] lg:shrink-0 lg:items-end">
-        <div className="min-w-0">
-          <h2 className="text-base font-extrabold text-[#071638]">กรองข้อมูล</h2>
-          <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
-            เลือกเดือน เพศ และแบบเสื้อที่ต้องการดู
-          </p>
-        </div>
-        {typeof totalPieces === 'number' && (
-          <div className="shrink-0 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-right">
-            <p className="text-xs font-bold text-[#71717A]">ยอดรวม</p>
-            <p className="text-xl font-black text-[#18181B]">
-              {totalPieces} <span className="text-xs font-bold text-[#71717A]">ชิ้น</span>
-            </p>
-          </div>
-        )}
-      </div>
-      <div className="mt-3 grid gap-2 sm:flex sm:items-end sm:flex-wrap lg:mt-0 lg:flex-nowrap lg:justify-end">
-        {showMonthFilter && (
-          <div className="w-full sm:w-44 lg:w-48">
-            <Field label="เดือน">
-              <Select value={monthFilter} onChange={onMonthFilterChange} values={monthOptions} />
-            </Field>
-          </div>
-        )}
-        {showGenderFilter && (
-          <div className="w-full sm:w-36 lg:w-36">
-            <Field label="เพศ">
-              <Select value={genderValue} onChange={onGenderChange} values={genderOptions} />
-            </Field>
-          </div>
-        )}
-        <div className="w-full sm:w-44 lg:w-48">
-          <Field label="แบบเสื้อ">
-            <Select value={value} onChange={onChange} values={choices} />
-          </Field>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmployeeWithdrawalList({ rows, totalRows = rows.length }) {
-  const [listQuery, setListQuery] = useState('');
-  const [genderFilter, setGenderFilter] = useState('ทุกเพศ');
-  const [branchFilter, setBranchFilter] = useState('ทุกสาขา');
-  const [sizeFilter, setSizeFilter] = useState('ทุกไซส์');
-  const [statusFilter, setStatusFilter] = useState('ทุกสถานะ');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const activeAdvancedCount = [
-    branchFilter !== 'ทุกสาขา',
-    sizeFilter !== 'ทุกไซส์',
-    statusFilter !== 'ทุกสถานะ',
-  ].filter(Boolean).length;
-  const normalizedQuery = listQuery.trim().toLowerCase();
-  const genderOptions = useMemo(
-    () => ['ทุกเพศ', ...uniqueSorted(rows.map((row) => row.gender).filter(Boolean))],
-    [rows]
-  );
-  const branchOptions = useMemo(
-    () => ['ทุกสาขา', ...uniqueSorted(rows.map((row) => row.branch).filter(Boolean))],
-    [rows]
-  );
-  const sizeOptions = useMemo(
-    () => ['ทุกไซส์', ...uniqueSorted(rows.map((row) => row.size).filter(Boolean), compareSizes)],
-    [rows]
-  );
-  const statusOptions = useMemo(
-    () => [
-      'ทุกสถานะ',
-      ...uniqueSorted(rows.map((row) => row.status || ORDER_STATUS_PENDING).filter(Boolean)),
-    ],
-    [rows]
-  );
-  const filteredRows = useMemo(
-    () =>
-      rows.filter((row) => {
-        const inGender = genderFilter === 'ทุกเพศ' || row.gender === genderFilter;
-        const inBranch = branchFilter === 'ทุกสาขา' || row.branch === branchFilter;
-        const inSize = sizeFilter === 'ทุกไซส์' || row.size === sizeFilter;
-        const inStatus =
-          statusFilter === 'ทุกสถานะ' || (row.status || ORDER_STATUS_PENDING) === statusFilter;
-        const searchText = [
-          row.batchId,
-          row.name,
-          row.gender,
-          row.branch,
-          row.companyName,
-          row.supervisorName,
-          row.supervisorPhone,
-          row.type,
-          row.size,
-          row.qty,
-          row.status,
-        ]
-          .join(' ')
-          .toLowerCase();
-        const inQuery = !normalizedQuery || searchText.includes(normalizedQuery);
-        return inGender && inBranch && inSize && inStatus && inQuery;
-      }),
-    [rows, normalizedQuery, genderFilter, branchFilter, sizeFilter, statusFilter]
-  );
-  const totalPieces = filteredRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
-
-  function clearListFilters() {
-    setListQuery('');
-    setGenderFilter('ทุกเพศ');
-    setBranchFilter('ทุกสาขา');
-    setSizeFilter('ทุกไซส์');
-    setStatusFilter('ทุกสถานะ');
-  }
-
-  if (!rows.length) return <EmptyDashboardState text="ยังไม่มีรายการเบิกตามเงื่อนไขที่เลือก" />;
-
-  const columns = [
-    { label: 'วันที่', className: 'min-w-[10rem]' },
-    { label: 'พนักงาน', className: 'min-w-[12rem]' },
-    { label: 'เพศ', className: 'min-w-[5rem]' },
-    { label: 'สาขา', className: 'min-w-[10rem]' },
-    { label: 'ประเภท', className: 'min-w-[9rem]' },
-    { label: 'ไซส์', className: 'min-w-[5rem]' },
-    { label: 'จำนวน', className: 'min-w-[5rem]' },
-    { label: 'สถานะ', className: 'min-w-[7rem]' },
-    { label: 'รหัสคำสั่ง', className: 'min-w-[10rem]' },
-  ];
-
-  return (
-    <Card className="overflow-hidden p-0">
-      <div className="grid gap-3 border-b border-[#E7EAF0] px-3 py-3 sm:px-4">
-        <div className="min-w-0">
-          <h2 className="text-lg font-extrabold text-[#071638]">รายการแยกรายคน</h2>
-          <p className="mt-1 hidden text-sm font-semibold text-[#64748B] sm:block">
-            ค้นหาและกรองข้อมูลพนักงานจากเพศ สาขา ไซส์ และสถานะในหน้าเดียว
-          </p>
-        </div>
-        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(14rem,1.5fr)_10rem_auto] sm:items-end">
-          <div className="relative min-w-0">
-            <span className="mb-1.5 block text-xs font-bold text-[#44536A]">ค้นหา</span>
-            <Search className="pointer-events-none absolute left-3 top-[2.25rem] size-4 text-[#71717A]" />
-            <GridInput
-              value={listQuery}
-              onChange={setListQuery}
-              placeholder="ค้นหาชื่อ สาขา บริษัท เสื้อ ไซส์ หรือรหัสคำสั่ง"
-              className="h-11 w-full rounded-lg border border-[#CBD5E1] bg-white pl-10 pr-3 text-sm font-semibold text-[#071638] outline-none transition placeholder:text-[#94A3B8] focus:border-[#18181B] focus:ring-2 focus:ring-[#18181B]/10"
-            />
-          </div>
-          <Field label="เพศ">
-            <Select value={genderFilter} onChange={setGenderFilter} values={genderOptions} />
-          </Field>
-          <button
-            onClick={() => setShowAdvancedFilters((v) => !v)}
-            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 text-sm font-bold text-[#002B5B] shadow-sm"
-          >
-            ตัวกรองเพิ่มเติม
-            {activeAdvancedCount > 0 && (
-              <span className="rounded-full bg-[#002B5B] px-1.5 py-0.5 text-[10px] font-black text-white">
-                {activeAdvancedCount}
-              </span>
-            )}
-            <ChevronDown
-              className={cn('size-3.5 transition', showAdvancedFilters && 'rotate-180')}
-            />
-          </button>
-        </div>
-        {showAdvancedFilters && (
-          <div className="grid min-w-0 gap-2 sm:grid-cols-[12rem_10rem_10rem_auto] sm:items-end">
-            <Field label="สาขา">
-              <Select value={branchFilter} onChange={setBranchFilter} values={branchOptions} />
-            </Field>
-            <Field label="ไซส์">
-              <Select value={sizeFilter} onChange={setSizeFilter} values={sizeOptions} />
-            </Field>
-            <Field label="สถานะ">
-              <Select value={statusFilter} onChange={setStatusFilter} values={statusOptions} />
-            </Field>
-            <button
-              onClick={clearListFilters}
-              className="min-h-11 rounded-lg border border-[#CBD5E1] bg-white px-4 text-sm font-bold text-[#002B5B] shadow-sm"
-            >
-              ล้างทั้งหมด
-            </button>
-          </div>
-        )}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-2 text-center text-sm font-black text-[#18181B]">
-            {filteredRows.length}/{totalRows} รายการ
-          </div>
-          <span className="rounded-lg bg-[#EEF4FF] px-3 py-2 text-sm font-black text-[#002B5B]">
-            รวม {totalPieces} ชิ้น
-          </span>
-        </div>
-      </div>
-      <div className="grid gap-2 p-3 md:hidden">
-        {filteredRows.map((row) => (
-          <WithdrawalMobileCard key={row.id} row={row} />
-        ))}
-        {!filteredRows.length && (
-          <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">
-            ไม่พบรายการตามตัวกรอง
-          </div>
-        )}
-      </div>
-      <div className="employee-scroll-region hidden overflow-auto md:block">
-        <table className="w-full min-w-[980px] table-fixed text-center text-sm">
-          <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
-            <tr>
-              {columns.map((column) => (
-                <th
-                  key={column.label}
-                  className={cn(
-                    'border-b border-[#D8DEEA] px-3 py-3.5 text-center align-middle',
-                    column.className
-                  )}
-                >
-                  {column.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row) => (
-              <tr
-                key={row.id}
-                className="border-b border-[#E7EAF0] align-middle hover:bg-[#F8FAFC]"
-              >
-                <td className="px-3 py-4 text-center font-semibold leading-6 text-[#44536A]">
-                  {new Date(row.submittedAt).toLocaleString('th-TH', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}
-                </td>
-                <td className="break-words px-3 py-4 text-center font-extrabold leading-6 text-[#071638]">
-                  {row.name || '-'}
-                </td>
-                <td className="px-3 py-4 text-center leading-6">{row.gender || '-'}</td>
-                <td className="break-words px-3 py-4 text-center font-bold leading-6 text-[#002B5B]">
-                  {row.branch || '-'}
-                </td>
-                <td className="break-words px-3 py-4 text-center font-bold leading-6">
-                  {row.type || '-'}
-                </td>
-                <td className="px-3 py-4 text-center font-bold leading-6">{row.size || '-'}</td>
-                <td className="px-3 py-4 text-center font-extrabold leading-6">{row.qty}</td>
-                <td className="px-3 py-4 text-center">
-                  <StatusBadge status={row.status || ORDER_STATUS_PENDING} />
-                </td>
-                <td className="break-words px-3 py-4 text-center font-bold leading-6 text-[#64748B]">
-                  {row.batchId}
-                </td>
-              </tr>
-            ))}
-            {!filteredRows.length && (
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-10 text-center font-bold text-[#64748B]"
-                >
-                  ไม่พบรายการตามตัวกรอง
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-function WithdrawalMobileCard({ row }) {
-  return (
-    <article className="min-w-0 rounded-lg border border-[#D8DEEA] bg-white p-3">
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="break-words text-sm font-extrabold leading-5 text-[#071638]">
-            {row.name || '-'}
-          </h3>
-          <p className="mt-1 break-words text-xs font-bold leading-5 text-[#64748B]">
-            {row.batchId}
-          </p>
-        </div>
-        <StatusBadge status={row.status || ORDER_STATUS_PENDING} />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <MobileInfo
-          label="วันที่"
-          value={new Date(row.submittedAt).toLocaleString('th-TH', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })}
-        />
-        <MobileInfo label="เพศ" value={row.gender || '-'} />
-        <MobileInfo label="สาขา" value={row.branch || '-'} />
-        <MobileInfo label="รหัสคำสั่ง" value={row.batchId || '-'} />
-      </div>
-      <div className="mt-3 rounded-lg bg-[#F4F7FC] p-3">
-        <p className="break-words text-sm font-extrabold text-[#071638]">{row.type || '-'}</p>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-          <MobileInfo label="ไซส์" value={row.size || '-'} compact />
-          <MobileInfo label="จำนวน" value={row.qty || '-'} compact strong />
-        </div>
-      </div>
-    </article>
-  );
-}
-
 function MobileInfo({ label, value, compact = false, strong = false }) {
   return (
     <div className={cn('min-w-0 rounded-lg bg-[#F8FAFC] px-2.5 py-2', compact && 'bg-white')}>
@@ -6340,143 +5540,6 @@ function MobileInfo({ label, value, compact = false, strong = false }) {
       >
         {value}
       </p>
-    </div>
-  );
-}
-
-function getBatchShipmentProgress(batch) {
-  const items = batch.orders.flatMap((o) => o.items);
-  if (!items.length) return { shipped: 0, total: 0, percent: 0 };
-  const total = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
-  const shipped = items
-    .filter((item) => item.status === ORDER_STATUS_DELIVERED)
-    .reduce((sum, item) => sum + Number(item.qty || 0), 0);
-  const percent = total > 0 ? Math.round((shipped / total) * 100) : 0;
-  return { shipped, total, percent };
-}
-
-function DashboardOrderCard({
-  batch,
-  onOpen,
-  onStatusChange,
-  onDelete,
-  statusLoadingId = '',
-  deleteLoadingId = '',
-  isSelected = false,
-  onToggleSelect = null,
-}) {
-  const totalPieces = getBatchPieces(batch);
-  const totalEmployees = batch.orders.length;
-  const isUpdatingStatus = statusLoadingId === batch.batchId;
-  const isDeleting = deleteLoadingId === batch.batchId;
-  const isBusy = isUpdatingStatus || isDeleting;
-  function confirmDelete() {
-    if (!isBusy) onDelete(batch.batchId);
-  }
-
-  return (
-    <div
-      data-dashboard-order={batch.status === ORDER_STATUS_DELIVERED ? 'delivered' : 'pending'}
-      className={cn(
-        'dashboard-order-card rounded-xl border p-3 text-left shadow-sm transition hover:border-[#9EB7DD]',
-        isSelected ? 'border-[#002B5B] bg-[#F4F8FF]' : 'border-[#D8DEEA] bg-white/96'
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          {onToggleSelect && (
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={onToggleSelect}
-              className="mt-1 size-4 shrink-0 rounded border-[#CBD5E1] text-[#002B5B] focus:ring-[#DCE8FF] cursor-pointer"
-            />
-          )}
-          <div className="min-w-0">
-            <p className="text-[12px] font-bold text-[#64748B]">{batch.batchId}</p>
-            <h3 className="mt-0.5 truncate text-base font-extrabold text-[#071638]">
-              {batch.companyName || 'ไม่ระบุบริษัท'}
-            </h3>
-            <p className="mt-0.5 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
-            <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
-              {new Date(batch.submittedAt).toLocaleString('th-TH', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
-            </p>
-          </div>
-        </div>
-        <StatusBadge status={batch.status} />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <MiniMetric label="บริษัท" value={batch.companyName || '-'} />
-        <MiniMetric label="ผู้ติดต่อ" value={batch.supervisorName || '-'} />
-        <MiniMetric label="พนักงาน" value={totalEmployees} />
-        <MiniMetric label="จำนวน" value={`${totalPieces} ชิ้น`} />
-      </div>
-      {/* Shipment Progress Bar */}
-      {(() => {
-        const { shipped, total, percent } = getBatchShipmentProgress(batch);
-        if (total === 0) return null;
-        return (
-          <div className="mt-3 rounded-xl bg-[#F1F5F9] p-2.5">
-            <div className="flex items-center justify-between text-xs font-bold text-[#44536A] mb-1">
-              <span>ความคืบหน้าการจัดส่ง</span>
-              <span>
-                {shipped} จาก {total} ตัว ({percent}%)
-              </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-[#E2E8F0] overflow-hidden">
-              <div
-                className="h-full rounded-full bg-[#10B981] transition-all duration-500"
-                style={{ width: `${percent}%` }}
-              />
-            </div>
-          </div>
-        );
-      })()}
-      <p className="mt-2 text-xs font-semibold text-[#64748B]">
-        อัปเดตสถานะ:{' '}
-        {new Date(batch.statusUpdatedAt).toLocaleString('th-TH', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-        })}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {buildTypeTotals(flattenBatches([batch])).map((row) => (
-          <span
-            key={row.type}
-            className="rounded-full border border-[#D8DEEA] px-2.5 py-1 text-xs font-bold text-[#44536A]"
-          >
-            {row.type}: {row.qty}
-          </span>
-        ))}
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-        <Field label="สถานะ">
-          <Select
-            value={batch.status}
-            values={ORDER_STATUSES}
-            disabled={isBusy}
-            onChange={(status) => onStatusChange(batch.batchId, status)}
-          />
-        </Field>
-        <button
-          onClick={onOpen}
-          disabled={isBusy}
-          className="min-h-11 rounded-lg bg-[#002B5B] px-4 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          ดูรายละเอียด
-        </button>
-        <button
-          onClick={confirmDelete}
-          disabled={isBusy}
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-4 font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
-          {isDeleting ? 'กำลังลบ' : 'ลบ'}
-        </button>
-      </div>
     </div>
   );
 }
@@ -6510,242 +5573,6 @@ function MiniMetric({ label, value }) {
     <div className="min-w-0 rounded-lg bg-[#F4F7FC] px-2.5 py-2">
       <p className="truncate text-xs font-bold text-[#64748B]">{label}</p>
       <p className="mt-0.5 truncate text-sm font-extrabold text-[#071638]">{value}</p>
-    </div>
-  );
-}
-
-function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, monthFilter }) {
-  const [typeChart, setTypeChart] = useState('donut');
-  const totalPieces = filteredRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
-  const chartColors = ['#002B5B', '#2F6FB0', '#7CA7D8', '#94A3B8', '#0F172A'];
-  const donutGradient = buildDonutGradient(typeTotals, chartColors);
-  const maxTypeQty = Math.max(1, ...typeTotals.map((row) => Number(row.qty || 0)));
-  const chartOptions = [
-    { value: 'donut', label: 'วงกลม', icon: PieChart },
-    { value: 'bar', label: 'แท่ง', icon: BarChart3 },
-    { value: 'list', label: 'รายการ', icon: ClipboardList },
-  ];
-  return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(22rem,.8fr)_minmax(0,1.2fr)] lg:items-start">
-      <Card className="p-3 sm:p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-base font-extrabold text-[#071638]">ยอดรวมตามประเภทเสื้อ</h2>
-            <div className="mt-2 inline-grid grid-cols-3 overflow-hidden rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] p-1">
-              {chartOptions.map(({ value, label, icon: Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setTypeChart(value)}
-                  aria-pressed={typeChart === value}
-                  className={cn(
-                    'flex min-h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-black text-[#64748B] transition',
-                    typeChart === value && 'bg-[#002B5B] text-white shadow-sm'
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <span className="shrink-0 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3 py-1 text-sm font-black text-[#18181B]">
-            {totalPieces} ชิ้น
-          </span>
-        </div>
-        {typeTotals.length ? (
-          <>
-            {typeChart === 'donut' && (
-              <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(11rem,.8fr)_minmax(0,1fr)] sm:items-center">
-                <div className="grid min-h-52 min-w-0 place-items-center">
-                  <div
-                    className="relative grid size-44 place-items-center rounded-full shadow-inner"
-                    style={{ background: donutGradient }}
-                    aria-label={`ยอดรวมตามประเภทเสื้อ ${totalPieces} ชิ้น`}
-                  >
-                    <div className="grid size-24 place-items-center rounded-full bg-white text-center shadow-sm">
-                      <div>
-                        <p className="text-xs font-bold text-[#64748B]">รวม</p>
-                        <p className="text-xl font-black leading-none text-[#071638]">
-                          {totalPieces}
-                        </p>
-                        <p className="mt-1 text-[11px] font-bold text-[#64748B]">ชิ้น</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <TypeTotalLegend rows={typeTotals} colors={chartColors} />
-              </div>
-            )}
-            {typeChart === 'bar' && (
-              <div className="mt-4 grid gap-3">
-                {typeTotals.map((row, index) => (
-                  <div key={row.type} className="grid gap-2">
-                    <div className="flex items-center justify-between gap-3 text-sm font-extrabold">
-                      <span className="flex min-w-0 items-center gap-2 text-[#071638]">
-                        <span
-                          className="size-3 shrink-0 rounded-full"
-                          style={{ backgroundColor: chartColors[index % chartColors.length] }}
-                        />
-                        <span className="truncate">{row.type}</span>
-                      </span>
-                      <span className="shrink-0 text-[#002B5B]">{row.qty} ชิ้น</span>
-                    </div>
-                    <div className="h-4 overflow-hidden rounded-full bg-[#E5ECF7]">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.max(7, (row.qty / maxTypeQty) * 100)}%`,
-                          backgroundColor: chartColors[index % chartColors.length],
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {typeChart === 'list' && (
-              <TypeTotalLegend rows={typeTotals} colors={chartColors} className="mt-4" />
-            )}
-          </>
-        ) : (
-          <EmptyDashboardState text="ยังไม่มียอดรวม" compact />
-        )}
-      </Card>
-
-      <Card className="p-3 sm:p-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-base font-extrabold text-[#071638]">ไซส์ที่เบิก: {monthFilter}</h2>
-            <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
-              รวมจำนวนตามไซส์ ก่อนลงรายละเอียดแบบเสื้อ
-            </p>
-          </div>
-          <span className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] px-3 text-sm font-black text-[#002B5B]">
-            <CalendarDays className="size-4" /> {totalPieces} ชิ้น
-          </span>
-        </div>
-
-        <div className="mt-3 overflow-hidden rounded-xl border border-[#E2E8F0]">
-          {sizeTotals.length ? (
-            <table className="w-full table-fixed text-center text-sm">
-              <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
-                <tr>
-                  <th className="px-4 py-2.5 text-center">เพศ</th>
-                  <th className="px-4 py-2.5 text-center">ไซส์</th>
-                  <th className="px-4 py-2.5 text-center">จำนวน</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sizeTotals.map((row) => (
-                  <tr key={`${row.gender}-${row.size}`} className="border-t border-[#E2E8F0]">
-                    <td className="px-4 py-3 font-black text-[#002B5B]">{row.gender || '-'}</td>
-                    <td className="px-4 py-3 font-bold">{row.size}</td>
-                    <td className="px-4 py-3 font-extrabold">{row.qty}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <EmptyDashboardState text="ยังไม่มีข้อมูลไซส์ในเดือนนี้" compact />
-          )}
-        </div>
-
-        <div className="mt-4 border-t border-[#E7EAF0] pt-3">
-          <h3 className="text-sm font-extrabold text-[#071638]">
-            รายละเอียดตามแบบเสื้อ และไซส์
-          </h3>
-        </div>
-        <div className="mt-3 grid gap-2 sm:hidden">
-          {summaryRows.length ? (
-            summaryRows.map((row) => (
-              <SummaryMobileRow key={`${row.type}-${row.size}`} row={row} />
-            ))
-          ) : (
-            <EmptyDashboardState text="ยังไม่มีข้อมูล" compact />
-          )}
-        </div>
-        <div className="mt-3 hidden overflow-hidden rounded-xl border border-[#E2E8F0] sm:block">
-          <table className="w-full table-fixed text-center text-sm">
-            <thead className="bg-[#EEF4FF] text-xs font-bold text-[#44536A]">
-              <tr>
-                <th className="px-4 py-2.5 text-center align-middle">ประเภท</th>
-                <th className="px-4 py-2.5 text-center align-middle">ไซส์</th>
-                <th className="px-4 py-2.5 text-center align-middle">จำนวน</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summaryRows.length ? (
-                summaryRows.map((row) => (
-                  <tr
-                    key={`${row.type}-${row.size}`}
-                    className="border-t border-[#E2E8F0]"
-                  >
-                    <td className="break-words px-4 py-3 text-center align-middle font-bold">
-                      {row.type}
-                    </td>
-                    <td className="px-4 py-3 text-center align-middle font-bold">{row.size}</td>
-                    <td className="px-4 py-3 text-center align-middle font-extrabold">{row.qty}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center font-bold text-[#64748B]">
-                    ยังไม่มีข้อมูล
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-function SummaryMobileRow({ row }) {
-  return (
-    <div className="rounded-lg border border-[#D8DEEA] bg-white p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="break-words text-sm font-extrabold text-[#071638]">
-            {row.name || row.type || '-'}
-          </p>
-          {row.name && (
-            <p className="mt-1 break-words text-xs font-bold text-[#64748B]">{row.type || '-'}</p>
-          )}
-        </div>
-        <span className="shrink-0 rounded-full bg-[#E5EFFD] px-3 py-1 text-sm font-black text-[#002B5B]">
-          {row.qty} ชิ้น
-        </span>
-      </div>
-      <div className="mt-3 grid grid-cols-1 gap-2 text-xs">
-        <MobileInfo label="ไซส์" value={row.size || '-'} compact />
-      </div>
-    </div>
-  );
-}
-
-function TypeTotalLegend({ rows, colors, className }) {
-  return (
-    <div className={cn('grid gap-2', className)}>
-      {rows.map((row, index) => (
-        <div
-          key={row.type}
-          className="flex items-center justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5"
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <span
-              className="size-3 shrink-0 rounded-full"
-              style={{ backgroundColor: colors[index % colors.length] }}
-            />
-            <span className="truncate text-sm font-extrabold text-[#071638]">{row.type}</span>
-          </span>
-          <span className="shrink-0 rounded-lg bg-white px-2.5 py-1 text-sm font-black text-[#002B5B]">
-            {row.qty} ชิ้น
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -7119,27 +5946,6 @@ function BatchDetailDialog({
   );
 }
 
-function EmptyDashboardState({ text, compact = false }) {
-  return (
-    <div
-      className={cn(
-        'empty-state rounded-2xl border border-dashed border-[#CBD5E1] bg-white/70 text-center font-bold text-[#64748B]',
-        compact ? 'p-4' : 'p-10'
-      )}
-    >
-      <span
-        className={cn(
-          'mx-auto mb-3 grid place-items-center rounded-2xl border border-[#D8E3F5] bg-white text-[#64748B]',
-          compact ? 'size-9' : 'size-12'
-        )}
-      >
-        <ClipboardList className={compact ? 'size-4' : 'size-5'} />
-      </span>
-      <span>{text}</span>
-    </div>
-  );
-}
-
 function DashboardDataNotice({ message, detail, onRetry, refreshing }) {
   return (
     <section className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-yellow-900 shadow-sm">
@@ -7170,63 +5976,11 @@ function getBatchPieces(batch) {
   return flattenBatches([batch]).reduce((sum, row) => sum + Number(row.qty || 0), 0);
 }
 
-function buildTypeTotals(rows) {
-  return uniqueSorted([...getClothingTypes(), ...rows.map((row) => row.type).filter(Boolean)])
-    .map((type) => ({
-      type,
-      qty: rows
-        .filter((row) => row.type === type)
-        .reduce((sum, row) => sum + Number(row.qty || 0), 0),
-    }))
-    .filter((row) => row.qty > 0);
-}
-
-function buildSizeTotals(rows) {
-  const map = new Map();
-  rows.forEach((row) => {
-    const gender = row.gender || '-';
-    const size = row.size || '-';
-    const key = `${gender}__${size}`;
-    const current = map.get(key) || { gender, size, qty: 0 };
-    current.qty += Number(row.qty || 0);
-    map.set(key, current);
-  });
-  return [...map.values()].sort(
-    (a, b) => String(a.gender).localeCompare(String(b.gender), 'th') || compareSizes(a.size, b.size)
-  );
-}
-
-function buildDonutGradient(rows, colors) {
-  const total = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
-  if (!total) return '#E5ECF7';
-  let current = 0;
-  const segments = rows.map((row, index) => {
-    const start = current;
-    const end = current + (Number(row.qty || 0) / total) * 100;
-    current = end;
-    const color = colors[index % colors.length];
-    return `${color} ${start}% ${end}%`;
-  });
-  return `conic-gradient(${segments.join(', ')})`;
-}
-
 function uniqueSorted(values, sorter) {
   const unique = [...new Set(values.filter(Boolean))];
   return sorter
     ? unique.sort(sorter)
     : unique.sort((a, b) => String(a).localeCompare(String(b), 'th', { numeric: true }));
-}
-
-function compareSizes(a, b) {
-  const order = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
-  const aIndex = order.indexOf(String(a).toUpperCase());
-  const bIndex = order.indexOf(String(b).toUpperCase());
-  if (aIndex !== -1 || bIndex !== -1) {
-    if (aIndex === -1) return 1;
-    if (bIndex === -1) return -1;
-    return aIndex - bIndex;
-  }
-  return String(a).localeCompare(String(b), 'th', { numeric: true });
 }
 
 function formatMonthLabel(value) {
@@ -7284,25 +6038,6 @@ function buildMonthFilterOptions(rows) {
     .concat('ทุกเดือน');
 }
 
-function buildTotalSummary(rows) {
-  const map = new Map();
-  rows.forEach((row) => {
-    const key = `${row.type}__${row.size}`;
-    const current = map.get(key) || {
-      type: row.type,
-      size: row.size,
-      qty: 0,
-    };
-    current.qty += Number(row.qty || 0);
-    map.set(key, current);
-  });
-  return [...map.values()].sort(
-    (a, b) =>
-      a.type.localeCompare(b.type, 'th') ||
-      String(a.size).localeCompare(String(b.size), 'th', { numeric: true })
-  );
-}
-
 function buildDashboardMetrics(batches) {
   const rows = flattenBatches(batches);
   return {
@@ -7358,7 +6093,12 @@ function SkeletonDashboard() {
   );
 }
 
-createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+if (!window.__giOrderRoot || window.__giOrderRootElement !== rootElement) {
+  window.__giOrderRoot = createRoot(rootElement);
+  window.__giOrderRootElement = rootElement;
+}
+window.__giOrderRoot.render(
   <AppErrorBoundary>
     <App />
   </AppErrorBoundary>

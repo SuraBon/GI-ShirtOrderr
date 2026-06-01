@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/build.mjs",
-    "lint": "eslint src --ext .js,.jsx --max-warnings=0 || true",
+    "lint": "eslint src api test --max-warnings=0",
     "format": "prettier --write \"src/**/*.{js,jsx,css,md,json}\"",
     "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1"
