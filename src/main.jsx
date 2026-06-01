@@ -36,6 +36,12 @@ import {
   UserPlus,
   Users,
   X,
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  Printer,
+  AlertTriangle,
+  Edit3,
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import {
@@ -369,7 +375,7 @@ function getColorOptions(type) {
 }
 
 function needsColorSelection(type) {
-  return getColorOptions(type).length > 1;
+  return false;
 }
 
 function resolveItemColor(type, color = '') {
@@ -767,6 +773,22 @@ function orderReducer(state, action) {
         ...state,
         employees: state.employees.filter((employee) => employee.id !== action.id),
       };
+    case 'cloneEmployee': {
+      const source = state.employees.find((employee) => employee.id === action.id);
+      if (!source) return state;
+      const index = state.employees.findIndex((employee) => employee.id === action.id);
+      const cloned = {
+        id: crypto.randomUUID(),
+        employeeId: '',
+        name: source.name ? `${source.name} (คัดลอก)` : '',
+        gender: source.gender,
+        expanded: false,
+        items: source.items.map((item) => ({ ...item })),
+      };
+      const employees = [...state.employees];
+      employees.splice(index + 1, 0, cloned);
+      return { ...state, employees };
+    }
     case 'toggleExpand':
       return {
         ...state,
@@ -1110,6 +1132,17 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   const [mobileEmployeeId, setMobileEmployeeId] = useState('');
   const [editMode, setEditMode] = useState('full'); // 'full' or 'garments-only'
   
+  // Wizard and UI step states
+  const [activeStep, setActiveStep] = useState(1);
+  const [activeTab, setActiveTab] = useState('table'); // 'table', 'copy', 'excel'
+  const [checked1, setChecked1] = useState(false);
+  const [checked2, setChecked2] = useState(false);
+  const [checked3, setChecked3] = useState(false);
+  const [successData, setSuccessData] = useState(null);
+  const [notes, setNotes] = useState('');
+  const [csvPreview, setCsvPreview] = useState([]);
+  const [csvErrors, setCsvErrors] = useState([]);
+
   function handleEdit(id, mode = 'full') {
     setEditMode(mode);
     setMobileEmployeeId(id);
@@ -1340,11 +1373,10 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       toast.success('บันทึกคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
       localStorage.removeItem(ORDER_DRAFT_KEY);
       skipDraftSaveRef.current = true;
-      setSummaryOpen(false);
+      setSuccessData(payload); // Save success data for the Success Screen
       setQuery('');
       setShowIncompleteOnly(false);
       setMobileEmployeeId('');
-      dispatch({ type: 'reset' });
     } catch {
       toast.error('ส่งคำสั่งเบิกเสื้อไม่สำเร็จ', {
         id: loadingToastId,
@@ -1355,6 +1387,204 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     }
   }
 
+  // Wizard Stock and Data Helpers
+  function getStockRemaining(type, gender, size) {
+    const clothing = findClothingConfig(type);
+    if (!clothing) return 0;
+    const sizeRows = clothing.genderSizeRows?.[gender] || clothing.sizeRows || [];
+    const stockRow = sizeRows.find((r) => r.size === size);
+    return stockRow ? Number(stockRow.qty ?? 0) : 0;
+  }
+
+  const aggregatedDemands = useMemo(() => {
+    const demands = {};
+    state.employees.forEach((emp) => {
+      emp.items.forEach((item) => {
+        if (!item.size) return;
+        const key = `${item.type}|${emp.gender}|${item.size}`;
+        demands[key] = (demands[key] || 0) + Number(item.qty || 0);
+      });
+    });
+    return demands;
+  }, [state.employees]);
+
+  const stockWarnings = useMemo(() => {
+    const warnings = [];
+    Object.entries(aggregatedDemands).forEach(([key, requested]) => {
+      const [type, gender, size] = key.split('|');
+      const available = getStockRemaining(type, gender, size);
+      if (requested > available) {
+        warnings.push({ type, gender, size, requested, available });
+      }
+    });
+    return warnings;
+  }, [aggregatedDemands]);
+
+  const employeesByGarmentType = useMemo(() => {
+    const groups = {};
+    state.employees.forEach((emp) => {
+      emp.items.forEach((item) => {
+        if (!item.size) return;
+        if (!groups[item.type]) {
+          groups[item.type] = [];
+        }
+        groups[item.type].push({ employee: emp, size: item.size, qty: Number(item.qty || 0) });
+      });
+    });
+    return groups;
+  }, [state.employees]);
+
+  const garmentSizeBreakdowns = useMemo(() => {
+    const breakdowns = {};
+    state.employees.forEach((emp) => {
+      emp.items.forEach((item) => {
+        if (!item.size) return;
+        if (!breakdowns[item.type]) {
+          breakdowns[item.type] = {};
+        }
+        breakdowns[item.type][item.size] = (breakdowns[item.type][item.size] || 0) + Number(item.qty || 0);
+      });
+    });
+    return breakdowns;
+  }, [state.employees]);
+
+  // CSV Template and Import Helpers
+  function downloadCsvTemplate() {
+    const csvContent = "\ufeff" + [
+      ['ชื่อ-นามสกุล', 'เพศ', 'แบบเสื้อ', 'ไซส์', 'จำนวน'],
+      ['สมชาย ดีใจ', 'ชาย', 'เสื้อโปโล', 'L', '2'],
+      ['สมหญิง รักดี', 'หญิง', 'เสื้อโปโล', 'M', '1'],
+      ['วิชัย มั่นคง', 'ชาย', 'เสื้อแจ็คเก็ต', 'XL', '1'],
+    ].map(e => e.join(",")).join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "template_เสื้อพนักงาน.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function handleCsvUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      parseCsvData(text);
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function parseCsvData(text) {
+    const lines = text.split(/\r?\n/);
+    const parsed = [];
+    const errors = [];
+    const clothingTypes = getClothingTypes();
+
+    let startIdx = 0;
+    if (lines[0] && (lines[0].includes('ชื่อ') || lines[0].includes('name') || lines[0].includes('เพศ'))) {
+      startIdx = 1;
+    }
+
+    for (let i = startIdx; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const cols = [];
+      let inQuotes = false;
+      let current = '';
+      for (let c = 0; c < line.length; c++) {
+        const char = line[c];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          cols.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      cols.push(current.trim());
+
+      const name = cols[0] || '';
+      const gender = cols[1] || '';
+      const garmentType = cols[2] || '';
+      const size = cols[3] || '';
+      const qtyStr = cols[4] || '1';
+      const qty = parseInt(digitsOnly(qtyStr), 10) || 1;
+
+      const rowNum = i + 1;
+      const rowErrors = [];
+
+      if (!name) rowErrors.push('ขาดชื่อพนักงาน');
+      if (gender !== 'ชาย' && gender !== 'หญิง') rowErrors.push('เพศต้องระบุเป็น ชาย หรือ หญิง');
+      if (garmentType && !clothingTypes.includes(garmentType)) {
+        rowErrors.push(`ไม่รู้จักแบบเสื้อ "${garmentType}"`);
+      }
+      if (gender && garmentType && size) {
+        const allowedSizes = getSizeOptions(garmentType, gender);
+        if (!allowedSizes.includes(size)) {
+          rowErrors.push(`ไซส์ ${size} ไม่มีสำหรับ ${garmentType} ({$gender})`);
+        }
+      }
+
+      parsed.push({
+        rowNum,
+        name,
+        gender,
+        items: garmentType ? [{ type: garmentType, size, qty, color: '', customSize: '' }] : [],
+        errors: rowErrors,
+        isValid: rowErrors.length === 0,
+      });
+
+      if (rowErrors.length > 0) {
+        errors.push(`แถวที่ ${rowNum}: ${rowErrors.join(', ')}`);
+      }
+    }
+
+    setCsvPreview(parsed);
+    setCsvErrors(errors);
+    toast.info(`กรองไฟล์นำเข้าเรียบร้อย: พบทั้งหมด ${parsed.length} รายการ`);
+  }
+
+  function confirmImportCsv() {
+    if (!csvPreview.length) return;
+    const validRows = csvPreview.filter((row) => row.isValid);
+    if (!validRows.length) {
+      toast.error('❌ ไม่พบรายการพนักงานที่สมบูรณ์สำหรับนำเข้า');
+      return;
+    }
+    
+    const newEmployees = validRows.map((row, idx) => ({
+      id: crypto.randomUUID(),
+      employeeId: '',
+      name: row.name,
+      gender: row.gender,
+      expanded: idx === 0,
+      items: row.items,
+    }));
+    
+    const isFirstEmpty = state.employees.length === 1 && !state.employees[0].name.trim() && !state.employees[0].items.length;
+    if (isFirstEmpty) {
+      dispatch({ type: 'patchBatch', patch: { employees: newEmployees } });
+    } else {
+      dispatch({ type: 'patchBatch', patch: { employees: [...state.employees, ...newEmployees] } });
+    }
+    
+    toast.success(`✅ นำเข้ารายชื่อพนักงาน ${newEmployees.length} คนสำเร็จ!`);
+    setCsvPreview([]);
+    setCsvErrors([]);
+    setActiveTab('table');
+  }
+
+  function handleSaveDraft() {
+    localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(state));
+    toast.success('💾 บันทึกร่างข้อมูลสำเร็จเรียบร้อยแล้ว');
+  }
+
   return (
     <>
       <OrderHeader
@@ -1363,48 +1593,726 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         onOpenDashboard={onOpenDashboard}
         onManualOpen={() => setManualOpen(true)}
       />
-      <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-3 px-3 pb-40 pt-3 sm:px-5 lg:gap-4 lg:pb-36">
-        {!gasConfigured && <SetupWarning />}
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
-          <QuickOrderSetupPanel state={state} dispatch={dispatch} />
-          <QuickOrderActionsPanel
-            employees={state.employees}
-            dispatch={dispatch}
-            showIncompleteOnly={showIncompleteOnly}
-            setShowIncompleteOnly={setShowIncompleteOnly}
-            onQuickOrder={() => setQuickOpen(true)}
-            query={query}
-            setQuery={setQuery}
-            onEdit={(id) => handleEdit(id, 'full')}
-          />
+
+      {successData ? (
+        <div className="mx-auto max-w-2xl bg-white border border-green-200 rounded-3xl p-6 sm:p-8 shadow-md text-center my-8">
+          <div className="inline-flex size-20 items-center justify-center rounded-full bg-green-100 text-green-600 mb-6 animate-pulse">
+            <Check className="size-12" />
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black text-[#071638]">ส่งคำขอเบิกเสื้อเรียบร้อยแล้ว!</h2>
+          <p className="text-sm font-semibold text-neutral-500 mt-2">ขอบคุณที่ทำรายการ คำขอเบิกได้รับการประมวลผลแล้ว</p>
+          
+          <div className="my-6 rounded-2xl bg-neutral-50 border border-neutral-100 p-4 text-left">
+            <div className="flex justify-between items-center border-b border-neutral-200 pb-3 mb-3">
+              <span className="text-xs font-black text-neutral-400">เลขที่อ้างอิงคำขอเบิก:</span>
+              <span className="font-extrabold text-sm sm:text-base text-[#002B5B] bg-[#EEF4FF] px-3 py-1 rounded-lg">{successData.batchId}</span>
+            </div>
+            
+            <div className="grid gap-2 text-xs sm:text-sm font-bold text-neutral-700">
+              <div className="flex justify-between"><span className="text-neutral-400 font-medium">บริษัท/หน่วยงาน:</span><span>{successData.companyName}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-400 font-medium">สาขาจัดส่ง:</span><span>{successData.branch}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-400 font-medium">ผู้ขอเบิก:</span><span>คุณ{successData.supervisorName}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-400 font-medium">เบอร์ติดต่อ:</span><span>{formatPhone(successData.supervisorPhone)}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-400 font-medium">วันที่ทำรายการ:</span><span>{new Date(successData.submittedAt).toLocaleString('th-TH')}</span></div>
+              <div className="flex justify-between border-t border-neutral-200 pt-2.5 mt-1 font-black text-[#071638]">
+                <span>จำนวนเสื้อเบิกรวม:</span>
+                <span className="text-[#002B5B]">{successData.orders.reduce((sum, order) => sum + order.items.reduce((s, it) => s + it.qty, 0), 0)} ตัว</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 px-5 py-3 font-extrabold transition shadow-xs cursor-pointer"
+            >
+              <Printer className="size-4" />
+              <span>พิมพ์ใบคำขอเบิก (PDF)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSuccessData(null);
+                setActiveStep(1);
+                setChecked1(false);
+                setChecked2(false);
+                setChecked3(false);
+                setNotes('');
+                dispatch({ type: 'reset' });
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#002B5B] text-white hover:bg-[#001f42] px-6 py-3 font-extrabold transition shadow-md cursor-pointer"
+            >
+              <span>เบิกเสื้อรายการใหม่</span>
+            </button>
+          </div>
         </div>
-        <QuickEmployeeTable
-          employees={state.employees}
-          dispatch={dispatch}
-          query={query}
-          showIncompleteOnly={showIncompleteOnly}
-          invalidEmployeeId={invalidEmployeeId}
-          onEdit={(id) => handleEdit(id, 'garments-only')}
-        />
-        <QuickMobileList
-          employees={state.employees}
-          query={query}
-          showIncompleteOnly={showIncompleteOnly}
-          invalidEmployeeId={invalidEmployeeId}
-          onEdit={(id) => handleEdit(id, 'full')}
-        />
-      </main>
-      <QuickSummaryBar
-        totalPieces={totalPieces}
-        completedEmployees={completedEmployees}
-        totalEmployees={state.employees.length}
-        hasIncompleteEmployee={Boolean(firstIncompleteEmployee)}
-        isSubmitting={isSubmitting}
-        onJumpIncomplete={() =>
-          firstIncompleteEmployee && jumpToEmployee(firstIncompleteEmployee.id)
-        }
-        onSubmit={openSummary}
-      />
+      ) : (
+        <main className="relative z-10 mx-auto grid w-full max-w-[1280px] gap-4 px-3 pb-40 pt-3 sm:px-5">
+          {!gasConfigured && <SetupWarning />}
+          
+          {/* Step Progress Bar */}
+          <div className="mb-4 rounded-2xl bg-white border border-[#E2E8F0] p-4 sm:p-5 shadow-sm">
+            <div className="relative flex items-center justify-between">
+              {/* Connection Line */}
+              <div className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-neutral-200 z-0">
+                <div 
+                  className="h-full bg-[#002B5B] transition-all duration-500" 
+                  style={{ width: `${((activeStep - 1) / 2) * 100}%` }}
+                />
+              </div>
+              
+              {/* Step Items */}
+              {[
+                { number: 1, label: 'ข้อมูลผู้เบิก', desc: 'ผู้ติดต่อ & สถานที่จัดส่ง' },
+                { number: 2, label: 'รายการเสื้อพนักงาน', desc: 'ระบุรายชื่อและไซส์เสื้อ' },
+                { number: 3, label: 'ตรวจสอบและส่ง', desc: 'ตรวจสอบจำนวนและสต็อก' }
+              ].map((step) => {
+                const isActive = activeStep === step.number;
+                const isCompleted = activeStep > step.number;
+                return (
+                  <div key={step.number} className="relative z-10 flex flex-col items-center">
+                    <button
+                      type="button"
+                      disabled={step.number > activeStep && !validateCompany()}
+                      onClick={() => {
+                        if (step.number === 1) {
+                          setActiveStep(1);
+                        } else if (step.number === 2) {
+                          if (validateCompany()) setActiveStep(2);
+                        } else if (step.number === 3) {
+                          if (validateCompany() && validateEmployees()) setActiveStep(3);
+                        }
+                      }}
+                      className={cn(
+                        "flex size-10 items-center justify-center rounded-full font-bold text-sm transition-all duration-300 border-2 cursor-pointer",
+                        isCompleted 
+                          ? "bg-green-500 border-green-500 text-white shadow-[0_0_12px_rgba(34,197,94,0.3)]"
+                          : isActive
+                          ? "bg-[#002B5B] border-[#002B5B] text-white shadow-[0_0_12px_rgba(0,43,91,0.3)] scale-105"
+                          : "bg-white border-neutral-300 text-neutral-400"
+                      )}
+                    >
+                      {isCompleted ? <Check className="size-5" /> : step.number}
+                    </button>
+                    <span className={cn(
+                      "mt-2 text-xs sm:text-sm font-black whitespace-nowrap",
+                      isActive ? "text-[#002B5B]" : isCompleted ? "text-green-600" : "text-neutral-500"
+                    )}>
+                      {step.label}
+                    </span>
+                    <span className="hidden sm:inline mt-0.5 text-[10px] font-semibold text-neutral-400">
+                      {step.desc}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Wizard Steps */}
+          {activeStep === 1 && (
+            <div className="space-y-6">
+              <QuickOrderSetupPanel state={state} dispatch={dispatch} forceExpand={true} />
+              <div className="flex justify-end mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (validateCompany()) {
+                      setActiveStep(2);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#002B5B] text-white hover:bg-[#001f42] px-6 py-3 font-extrabold shadow-md transition active:scale-95 text-sm sm:text-base cursor-pointer"
+                >
+                  <span>ถัดไป: รายการเสื้อพนักงาน</span>
+                  <ArrowRight className="size-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeStep === 2 && (
+            <div className="space-y-4">
+              {/* Collapsed Requester Summary */}
+              <div className="rounded-xl border border-green-200 bg-green-50/20 p-4 shadow-sm flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-black text-[#071638] flex items-center gap-1.5">
+                    <span className="inline-flex size-5 items-center justify-center rounded-full bg-green-100 text-green-700 text-xs font-bold">1</span>
+                    ข้อมูลผู้ติดต่อ / ผู้เบิก
+                  </h3>
+                  <p className="mt-1 text-xs sm:text-sm font-semibold text-[#64748B] truncate">
+                    {state.companyName} ({state.branch}) · คุณ{state.supervisorName} ({formatPhone(state.supervisorPhone)})
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(1)}
+                  className="flex items-center gap-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1.5 text-xs font-black text-[#002B5B] transition shrink-0 cursor-pointer"
+                >
+                  <Edit3 className="size-3" />
+                  <span>แก้ไข</span>
+                </button>
+              </div>
+
+              {/* Step 2 Entry Tabs */}
+              <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+                {/* Tab Header Buttons */}
+                <div className="flex border-b border-neutral-200 bg-neutral-50/50 p-1.5 gap-1.5">
+                  {[
+                    { id: 'table', label: '📝 กรอกตาราง' },
+                    { id: 'copy', label: '👥 คัดลอกแถว' },
+                    { id: 'excel', label: '📥 นำเข้า CSV (Excel)' }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        "flex-1 py-2 px-3 text-xs sm:text-sm font-extrabold rounded-lg transition-all cursor-pointer",
+                        activeTab === tab.id 
+                          ? "bg-[#002B5B] text-white shadow-xs" 
+                          : "text-neutral-600 hover:bg-neutral-100"
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tab Content */}
+                <div className="p-4 sm:p-5">
+                  {activeTab === 'table' && (
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-100">
+                        <div>
+                          <h3 className="text-sm sm:text-base font-extrabold text-[#071638]">รายชื่อพนักงานและเสื้อที่เบิก</h3>
+                          <p className="text-xs text-neutral-500 font-semibold mt-0.5">กรอกชื่อพนักงาน เลือกเพศ และกดเครื่องหมาย + เพื่อเบิกเสื้อเพิ่มได้</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setQuickOpen(true)}
+                            className="inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#44536A] hover:bg-neutral-50 px-3 text-xs font-black transition shadow-xs cursor-pointer"
+                          >
+                            <Plus className="size-3.5" />
+                            <span>เพิ่มพนักงานหลายคน</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dispatch({ type: 'add' })}
+                            className="inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] px-3.5 text-xs font-black transition shadow-xs cursor-pointer"
+                          >
+                            <Plus className="size-3.5" />
+                            <span>เพิ่มแถว</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Filters */}
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="relative flex-1 min-w-[200px]">
+                          <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-400">
+                            <Search className="size-4" />
+                          </span>
+                          <input
+                            type="text"
+                            placeholder="ค้นหารายชื่อพนักงาน..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            className="w-full h-9 pl-9 pr-4 text-xs font-bold bg-neutral-50 border border-neutral-300 rounded-lg focus:bg-white focus:border-[#002B5B] focus:ring-1 focus:ring-[#002B5B] outline-none transition"
+                          />
+                        </div>
+                        
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-600 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={showIncompleteOnly}
+                            onChange={(e) => setShowIncompleteOnly(e.target.checked)}
+                            className="size-4 rounded border-neutral-300 accent-[#002B5B]"
+                          />
+                          <span>แสดงเฉพาะแถวที่ไม่ครบถ้วน ({state.employees.length - completedEmployees})</span>
+                        </label>
+                      </div>
+
+                      <QuickEmployeeTable
+                        employees={state.employees}
+                        dispatch={dispatch}
+                        query={query}
+                        showIncompleteOnly={showIncompleteOnly}
+                        invalidEmployeeId={invalidEmployeeId}
+                      />
+                      <QuickMobileList
+                        employees={state.employees}
+                        query={query}
+                        showIncompleteOnly={showIncompleteOnly}
+                        invalidEmployeeId={invalidEmployeeId}
+                        onEdit={(id) => handleEdit(id, 'full')}
+                      />
+                    </div>
+                  )}
+
+                  {activeTab === 'copy' && (
+                    <div className="space-y-4">
+                      <div className="pb-3 border-b border-neutral-100 flex justify-between items-center">
+                        <div>
+                          <h3 className="text-sm sm:text-base font-extrabold text-[#071638]">คัดลอกรายชื่อ / เสื้อแบบรวดเร็ว</h3>
+                          <p className="text-xs text-neutral-500 font-semibold mt-0.5">คัดลอกรายการพนักงานเป็นคนใหม่ และลบรายการตามสะดวก</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: 'add' })}
+                          className="inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] px-3.5 text-xs font-black transition shadow-xs cursor-pointer"
+                        >
+                          <Plus className="size-3.5" />
+                          <span>เพิ่มแถวใหม่</span>
+                        </button>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-thin">
+                        {state.employees.map((employee, index) => {
+                          const complete = isEmployeeComplete(employee);
+                          return (
+                            <div 
+                              key={employee.id} 
+                              data-quick-employee-card={employee.id}
+                              className={cn(
+                                "p-4 rounded-xl border flex flex-col justify-between transition-all hover:shadow-md bg-white",
+                                complete ? "border-neutral-200" : "border-yellow-300 bg-yellow-50/10"
+                              )}
+                            >
+                              <div>
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="text-xs font-bold text-[#64748B]">ลำดับที่ {index + 1}</span>
+                                  <span className={cn(
+                                    "rounded-full px-2 py-0.5 text-[10px] font-black",
+                                    complete ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                                  )}>
+                                    {complete ? "✓ ครบ" : "⚠️ ไม่ครบ"}
+                                  </span>
+                                </div>
+                                <h4 className="font-extrabold text-sm text-[#071638] mt-1.5 truncate">
+                                  {employee.name || <span className="text-neutral-400 italic">ไม่มีชื่อ</span>}
+                                </h4>
+                                <p className="text-xs font-bold text-neutral-500 mt-0.5">เพศ: {employee.gender || '-'}</p>
+                                
+                                <div className="mt-3 space-y-1">
+                                  <span className="text-[11px] font-black text-neutral-400">เสื้อที่เบิก:</span>
+                                  {employee.items.length === 0 ? (
+                                    <p className="text-xs text-neutral-400 italic">ไม่มีเสื้อ</p>
+                                  ) : (
+                                    employee.items.map((item, itemIdx) => (
+                                      <div key={itemIdx} className="text-xs font-bold text-neutral-700 bg-neutral-50 border border-neutral-100 rounded px-2 py-1 flex items-center justify-between animate-fade-in">
+                                        <span className="truncate">{item.type}</span>
+                                        <span className="shrink-0 text-[#002B5B] ml-2 font-black">ไซส์ {item.size} x {item.qty} ตัว</span>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-neutral-100">
+                                <button
+                                  type="button"
+                                  onClick={() => dispatch({ type: 'cloneEmployee', id: employee.id })}
+                                  className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-[#CBD5E1] bg-white text-[#44536A] hover:bg-neutral-50 text-xs font-extrabold transition cursor-pointer"
+                                >
+                                  <Copy className="size-3.5" />
+                                  <span>คัดลอกรายการนี้</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={state.employees.length <= 1}
+                                  onClick={() => dispatch({ type: 'delete', id: employee.id })}
+                                  className="grid size-9 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-50 transition hover:bg-[#FFE2E2] cursor-pointer"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'excel' && (
+                    <div className="space-y-4">
+                      <div className="pb-3 border-b border-neutral-100">
+                        <h3 className="text-sm sm:text-base font-extrabold text-[#071638]">นำเข้าข้อมูลจาก Excel / CSV</h3>
+                        <p className="text-xs text-neutral-500 font-semibold mt-0.5">ดาวน์โหลดไฟล์ตัวอย่าง กรอกข้อมูลพนักงานแล้วอัปโหลดกลับเข้าระบบ</p>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/50 flex flex-col justify-between">
+                          <div>
+                            <h4 className="font-extrabold text-sm text-[#071638]">1. ดาวน์โหลดเทมเพลตไฟล์</h4>
+                            <p className="text-xs font-semibold text-neutral-500 mt-1 leading-5">นำตารางไปกรอกรายชื่อผู้เบิกเสื้อ เพื่อประหยัดเวลาการพิมพ์ในระบบทีละแถว</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={downloadCsvTemplate}
+                            className="mt-4 inline-flex items-center justify-center gap-2 h-10 rounded-lg border border-[#002B5B] text-[#002B5B] hover:bg-[#002B5B]/5 text-xs font-extrabold transition shadow-xs cursor-pointer"
+                          >
+                            <Download className="size-4" />
+                            <span>ดาวน์โหลดเทมเพลต CSV</span>
+                          </button>
+                        </div>
+                        
+                        <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/50 flex flex-col justify-between">
+                          <div>
+                            <h4 className="font-extrabold text-sm text-[#071638]">2. อัปโหลดและนำเข้าข้อมูล</h4>
+                            <p className="text-xs font-semibold text-neutral-500 mt-1 leading-5">อัปโหลดไฟล์ตารางพนักงานของคุณเพื่อแสดงผลการกรองและนำเข้าตารางหลัก</p>
+                          </div>
+                          <label className="mt-4 inline-flex items-center justify-center gap-2 h-10 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] text-xs font-extrabold cursor-pointer transition shadow-xs">
+                            <Upload className="size-4" />
+                            <span>เลือกไฟล์อัปโหลด (.csv)</span>
+                            <input
+                              type="file"
+                              accept=".csv"
+                              onChange={handleCsvUpload}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Preview CSV */}
+                      {csvPreview.length > 0 && (
+                        <div className="mt-4 border border-[#CBD5E1] rounded-xl overflow-hidden shadow-xs">
+                          <div className="bg-[#EEF4FF] px-4 py-3 border-b border-[#CBD5E1] flex justify-between items-center">
+                            <span className="text-xs sm:text-sm font-extrabold text-[#44536A]">ตัวอย่างข้อมูลนำเข้า ({csvPreview.length} รายการ)</span>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCsvPreview([]);
+                                  setCsvErrors([]);
+                                }}
+                                className="h-8 px-3 rounded-lg border border-neutral-300 text-neutral-600 bg-white hover:bg-neutral-50 text-xs font-bold transition cursor-pointer"
+                              >
+                                ยกเลิก
+                              </button>
+                              <button
+                                type="button"
+                                onClick={confirmImportCsv}
+                                className="h-8 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition cursor-pointer"
+                              >
+                                ยืนยันนำเข้า
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="max-h-[300px] overflow-y-auto">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead className="bg-neutral-100 text-neutral-600 uppercase sticky top-0 font-extrabold">
+                                <tr>
+                                  <th className="px-3 py-2 border-b border-[#CBD5E1] w-12 text-center">แถว</th>
+                                  <th className="px-3 py-2 border-b border-[#CBD5E1] w-1/4">ชื่อ-นามสกุล</th>
+                                  <th className="px-3 py-2 border-b border-[#CBD5E1] w-16">เพศ</th>
+                                  <th className="px-3 py-2 border-b border-[#CBD5E1]">เสื้อที่เบิก</th>
+                                  <th className="px-3 py-2 border-b border-[#CBD5E1] w-1/3">ตรวจสอบ</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {csvPreview.map((row) => (
+                                  <tr key={row.rowNum} className={cn("hover:bg-neutral-50", row.isValid ? "bg-white" : "bg-red-50/40")}>
+                                    <td className="px-3 py-2 border-b border-[#E2E8F0] text-center font-bold text-[#64748B]">{row.rowNum}</td>
+                                    <td className="px-3 py-2 border-b border-[#E2E8F0] font-bold text-neutral-800">{row.name}</td>
+                                    <td className="px-3 py-2 border-b border-[#E2E8F0] text-neutral-600">{row.gender}</td>
+                                    <td className="px-3 py-2 border-b border-[#E2E8F0] text-neutral-700">
+                                      {row.items.map((item, idx) => (
+                                        <span key={idx} className="inline-block bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded text-[10px] font-bold mr-1">
+                                          {item.type} {item.size ? `ไซส์ ${item.size}` : ''} x {item.qty} ตัว
+                                        </span>
+                                      ))}
+                                    </td>
+                                    <td className="px-3 py-2 border-b border-[#E2E8F0]">
+                                      {row.isValid ? (
+                                        <span className="text-green-600 font-extrabold">✓ ถูกต้อง</span>
+                                      ) : (
+                                        <span className="text-red-500 font-bold block">{row.errors.join(', ')}</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Additional notes */}
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm">
+                <h3 className="text-sm sm:text-base font-extrabold text-[#071638] mb-1.5">หมายเหตุเพิ่มเติม (ถ้ามี)</h3>
+                <TextArea
+                  value={notes}
+                  onChange={setNotes}
+                  placeholder="เช่น เบิกด่วนพิเศษสีกรม หรือความต้องการเพิ่มเติมอื่น ๆ"
+                  title="กรอกรายละเอียดเพิ่มเติมสำหรับคำสั่งเบิก"
+                  rows={2}
+                />
+              </div>
+
+              {/* Navigation Footer Step 2 */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-neutral-200 pt-4 bg-white p-4 rounded-xl shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(1)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition cursor-pointer"
+                >
+                  <ArrowLeft className="size-4" />
+                  <span>ย้อนกลับ</span>
+                </button>
+                
+                <div className="flex w-full sm:w-auto gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#002B5B] text-[#002B5B] hover:bg-[#002B5B]/5 px-5 py-2.5 font-extrabold transition cursor-pointer"
+                  >
+                    <Save className="size-4" />
+                    <span>บันทึกร่าง</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (validateCompany() && validateEmployees()) {
+                        setActiveStep(3);
+                      }
+                    }}
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-[#002B5B] text-white hover:bg-[#001f42] px-6 py-2.5 font-extrabold transition shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <span>ถัดไป: ตรวจสอบและส่ง</span>
+                    <ArrowRight className="size-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeStep === 3 && (
+            <div className="space-y-4">
+              {/* Collapsed Requester Info */}
+              <div className="rounded-xl border border-green-200 bg-green-50/20 p-4 shadow-sm flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-black text-[#071638] flex items-center gap-1.5">
+                    <span className="inline-flex size-5 items-center justify-center rounded-full bg-green-100 text-green-700 text-xs font-bold">1</span>
+                    ข้อมูลผู้ติดต่อ / ผู้เบิก
+                  </h3>
+                  <p className="mt-1 text-xs sm:text-sm font-semibold text-[#64748B] truncate">
+                    {state.companyName} ({state.branch}) · คุณ{state.supervisorName} ({formatPhone(state.supervisorPhone)})
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(1)}
+                  className="flex items-center gap-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1.5 text-xs font-black text-[#002B5B] transition shrink-0 cursor-pointer"
+                >
+                  <Edit3 className="size-3" />
+                  <span>แก้ไข</span>
+                </button>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                {[
+                  { title: 'พนักงานเบิกเสื้อ', value: `${state.employees.length} คน` },
+                  { title: 'จำนวนรวมทั้งหมด', value: `${totalPieces} ตัว` },
+                  { title: 'ประเภทเสื้อที่เบิก', value: `${Object.keys(garmentSizeBreakdowns).length} แบบ` },
+                  { title: 'วันที่ทำรายการ', value: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) }
+                ].map((stat, idx) => (
+                  <div key={idx} className="rounded-xl border border-neutral-200 bg-white p-4 shadow-xs">
+                    <p className="text-xs font-bold text-neutral-400">{stat.title}</p>
+                    <p className="text-lg sm:text-xl font-black text-[#002B5B] mt-1">{stat.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Stock Warning Alert Banner */}
+              {stockWarnings.length > 0 && (
+                <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 flex items-start gap-3 shadow-sm animate-fade-in">
+                  <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5 animate-bounce" />
+                  <div>
+                    <h4 className="text-sm font-extrabold text-yellow-800">⚠️ สต็อกเสื้อบางรายการมีไม่เพียงพอ</h4>
+                    <p className="text-xs text-yellow-700 font-semibold mt-1 leading-5">
+                      พบจำนวนเสื้อที่ขอเบิกมากกว่าสต็อกเสื้อที่พร้อมส่ง ณ ขณะนี้ รายการที่ขาดจะเปลี่ยนสถานะเป็น <strong className="text-[#D97706]">"รอผลิต (Backorder)"</strong> โดยอัตโนมัติ และจะทำการส่งมอบในรอบถัดไป
+                    </p>
+                    <div className="mt-3 overflow-hidden rounded-lg border border-yellow-200 bg-white text-xs">
+                      <table className="w-full text-left">
+                        <thead className="bg-yellow-100/50 text-yellow-800 font-extrabold border-b border-yellow-100">
+                          <tr>
+                            <th className="px-3 py-1.5">แบบเสื้อ</th>
+                            <th className="px-3 py-1.5">ไซส์</th>
+                            <th className="px-3 py-1.5 text-center">ต้องการ</th>
+                            <th className="px-3 py-1.5 text-center">คลัง</th>
+                            <th className="px-3 py-1.5 text-center text-red-600">ขาด</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stockWarnings.map((w, idx) => (
+                            <tr key={idx} className="border-t border-yellow-100 hover:bg-neutral-50/50">
+                              <td className="px-3 py-1.5 font-bold text-neutral-800">{w.type} ({w.gender})</td>
+                              <td className="px-3 py-1.5 font-bold text-neutral-800">{w.size}</td>
+                              <td className="px-3 py-1.5 text-center font-bold text-[#002B5B]">{w.requested}</td>
+                              <td className="px-3 py-1.5 text-center text-neutral-600">{w.available}</td>
+                              <td className="px-3 py-1.5 text-center font-black text-red-600">-{w.requested - w.available}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Breakdown sorted by clothing types */}
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm">
+                <h3 className="text-sm sm:text-base font-extrabold text-[#071638] mb-3">📋 จำแนกรายการขอเบิกตามประเภทเสื้อ</h3>
+                <div className="space-y-4">
+                  {Object.entries(employeesByGarmentType).map(([type, list]) => (
+                    <div key={type} className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-3xs">
+                      <div className="bg-[#EEF4FF] px-4 py-2.5 border-b border-neutral-200 flex justify-between items-center">
+                        <span className="font-extrabold text-sm text-[#071638]">{type}</span>
+                        <span className="bg-[#002B5B] text-white px-2.5 py-0.5 rounded-full text-xs font-black">
+                          รวม {list.reduce((sum, item) => sum + item.qty, 0)} ตัว
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto max-h-56">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-neutral-50 text-neutral-500 font-extrabold border-b border-neutral-200 sticky top-0">
+                            <tr>
+                              <th className="px-4 py-2 w-12 text-center">#</th>
+                              <th className="px-4 py-2">ชื่อพนักงาน</th>
+                              <th className="px-4 py-2">เพศ</th>
+                              <th className="px-4 py-2">ไซส์</th>
+                              <th className="px-4 py-2 text-center">จำนวน</th>
+                              <th className="px-4 py-2 text-center">สถานะสต็อก</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {list.map((item, idx) => {
+                              const available = getStockRemaining(type, item.employee.gender, item.size);
+                              const isAvailable = available >= item.qty;
+                              return (
+                                <tr key={idx} className="border-b border-neutral-100 hover:bg-neutral-50/50">
+                                  <td className="px-4 py-2 text-center text-neutral-400">{idx + 1}</td>
+                                  <td className="px-4 py-2 font-bold text-neutral-800">{item.employee.name}</td>
+                                  <td className="px-4 py-2 text-neutral-500">{item.employee.gender}</td>
+                                  <td className="px-4 py-2 font-bold text-neutral-700">{item.size}</td>
+                                  <td className="px-4 py-2 text-center font-bold text-[#002B5B]">{item.qty} ตัว</td>
+                                  <td className="px-4 py-2 text-center">
+                                    <span className={cn(
+                                      "inline-block rounded-full px-2 py-0.5 text-[10px] font-black",
+                                      isAvailable 
+                                        ? "bg-green-100 text-green-800" 
+                                        : "bg-yellow-100 text-[#D97706]"
+                                    )}>
+                                      {isAvailable ? "พร้อมส่ง" : `รอผลิต (คลังมี ${available})`}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Size summary cards */}
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm">
+                <h3 className="text-sm sm:text-base font-extrabold text-[#071638] mb-3">📏 สรุปไซส์ที่เบิกต่อประเภทเสื้อ</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {Object.entries(garmentSizeBreakdowns).map(([type, sizes]) => (
+                    <div key={type} className="p-3 border border-neutral-200 rounded-xl bg-neutral-50/40">
+                      <h4 className="font-extrabold text-xs text-[#002B5B] mb-2">{type}</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(sizes).map(([size, qty]) => (
+                          <span key={size} className="inline-flex items-center gap-1.5 bg-white border border-neutral-200 rounded-lg px-2 py-1 text-xs font-black shadow-3xs">
+                            <span className="text-neutral-500">ไซส์ {size}:</span>
+                            <span className="text-[#002B5B] font-extrabold">{qty} ตัว</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Confirmation checkboxes card */}
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm space-y-3.5">
+                <h3 className="text-sm sm:text-base font-extrabold text-[#071638] flex items-center gap-2">
+                  <Check className="size-5 text-[#002B5B] rounded border border-[#002B5B] p-0.5" />
+                  <span>ยืนยันข้อมูลเพื่อส่งคำขอเบิก</span>
+                </h3>
+                
+                <div className="space-y-3 pt-1">
+                  {[
+                    { state: checked1, setState: setChecked1, label: 'ข้าพเจ้ายืนยันว่ารายชื่อพนักงานและขนาดไซส์เสื้อถูกต้องสมบูรณ์แล้ว' },
+                    { state: checked2, setState: setChecked2, label: 'ข้าพเจ้ารับทราบข้อมูลสต็อก กรณีไม่มีสินค้าพร้อมจัดส่ง จะต้องรอเข้าคิวผลิตตามลำดับความต้องการ' },
+                    { state: checked3, setState: setChecked3, label: 'ข้าพเจ้ายืนยันว่าบริษัท สาขาจัดส่ง และข้อมูลผู้ประสานงานถูกต้องสำหรับการจัดส่งเสื้อพนักงาน' }
+                  ].map((chk, idx) => (
+                    <label key={idx} className="flex items-start gap-3 text-xs sm:text-sm font-bold text-neutral-600 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={chk.state}
+                        onChange={(e) => chk.setState(e.target.checked)}
+                        className="size-5 rounded border-neutral-300 accent-[#002B5B] shrink-0 mt-0.5"
+                      />
+                      <span>{chk.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Navigation Footer Step 3 */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-neutral-200 pt-4 bg-white p-4 rounded-xl shadow-xs">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setActiveStep(2)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition disabled:opacity-50 cursor-pointer"
+                >
+                  <ArrowLeft className="size-4" />
+                  <span>ย้อนกลับ</span>
+                </button>
+                
+                <button
+                  type="button"
+                  disabled={isSubmitting || !checked1 || !checked2 || !checked3 || !gasConfigured}
+                  onClick={submitOrder}
+                  className={cn(
+                    "w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-7 py-3 font-extrabold text-white transition shadow-md active:scale-95 text-base cursor-pointer",
+                    (checked1 && checked2 && checked3 && gasConfigured && !isSubmitting)
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-neutral-300 cursor-not-allowed"
+                  )}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="animate-spin size-4 mr-2" />
+                      <span>กำลังส่งคำขอเบิก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="size-4" />
+                      <span>ส่งคำขอเบิกเสื้อ</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </main>
+      )}
+
+      {/* Editor & dialog boxes */}
       <QuickMobileEditor
         employee={selectedMobileEmployee}
         employees={state.employees}
@@ -1417,20 +2325,25 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       <QuickOrderDialog open={quickOpen} setOpen={setQuickOpen} state={state} dispatch={dispatch} />
       <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
       <UserManualDialog open={manualOpen} setOpen={setManualOpen} />
-      <QuickOrderSummaryDialog
-        open={summaryOpen}
-        setOpen={setSummaryOpen}
-        state={state}
-        rows={summaryRows}
-        totalPieces={totalPieces}
-        isSubmitting={isSubmitting}
-        onConfirm={submitOrder}
-      />
     </>
   );
 }
 
-function QuickOrderSetupPanel({ state, dispatch }) {
+function SetupWarning() {
+  return (
+    <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 flex items-start gap-3 shadow-sm animate-fade-in">
+      <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5" />
+      <div>
+        <h4 className="text-sm font-extrabold text-yellow-800">⚠️ ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อมใช้งาน</h4>
+        <p className="text-xs text-yellow-700 font-semibold mt-1 leading-5">
+          กรุณาตั้งค่าลิงก์ Web App URL ของ Google Apps Script ในไฟล์ .env (`VITE_GAS_URL`) ก่อนส่งคำขอเบิกเสื้อจริง คุณยังสามารถกรอกข้อมูลและทดสอบการใช้งานแบบร่างได้ปกติ
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function QuickOrderSetupPanel({ state, dispatch, forceExpand = false }) {
   const complete = Boolean(
     state.companyName.trim() &&
     state.branch &&
@@ -1438,17 +2351,19 @@ function QuickOrderSetupPanel({ state, dispatch }) {
     state.supervisorPhone.length === PHONE_LENGTH
   );
 
-  const [isExpanded, setIsExpanded] = useState(!complete);
+  const [isExpandedLocal, setIsExpandedLocal] = useState(!complete);
   const prevCompleteRef = useRef(complete);
 
   useEffect(() => {
     if (complete && !prevCompleteRef.current) {
-      setIsExpanded(false);
+      setIsExpandedLocal(false);
     } else if (!complete && prevCompleteRef.current) {
-      setIsExpanded(true);
+      setIsExpandedLocal(true);
     }
     prevCompleteRef.current = complete;
   }, [complete]);
+
+  const isExpanded = forceExpand ? true : isExpandedLocal;
 
   return (
     <section
@@ -1461,8 +2376,11 @@ function QuickOrderSetupPanel({ state, dispatch }) {
       )}
     >
       <div
-        className="flex items-center justify-between gap-3 cursor-pointer select-none"
-        onClick={() => setIsExpanded(!isExpanded)}
+        className={cn(
+          "flex items-center justify-between gap-3 select-none",
+          !forceExpand && "cursor-pointer"
+        )}
+        onClick={() => !forceExpand && setIsExpandedLocal(!isExpandedLocal)}
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -1490,13 +2408,15 @@ function QuickOrderSetupPanel({ state, dispatch }) {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1.5 text-xs font-black text-[#002B5B] transition shrink-0"
-        >
-          <span>{isExpanded ? 'ย่อไว้' : 'แก้ไขข้อมูล'}</span>
-          <ChevronDown className={cn('size-3.5 transition-transform duration-200', isExpanded && 'rotate-180')} />
-        </button>
+        {!forceExpand && (
+          <button
+            type="button"
+            className="flex items-center gap-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1.5 text-xs font-black text-[#002B5B] transition shrink-0"
+          >
+            <span>{isExpanded ? 'ย่อไว้' : 'แก้ไขข้อมูล'}</span>
+            <ChevronDown className={cn('size-3.5 transition-transform duration-200', isExpanded && 'rotate-180')} />
+          </button>
+        )}
       </div>
 
       {isExpanded && (
@@ -2122,22 +3042,23 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
   );
 }
 
-function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, invalidEmployeeId, onEdit }) {
+function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, invalidEmployeeId }) {
   const filteredEmployees = getFilteredEmployees(employees, query, showIncompleteOnly);
   const canDelete = canDeleteEmployee(employees);
+  const clothingTypes = getClothingTypes();
 
   return (
-    <section className="hidden overflow-hidden rounded-lg border border-[#D8DEEA] bg-white lg:block">
+    <section className="hidden overflow-hidden rounded-xl border border-[#D8DEEA] bg-white lg:block shadow-sm">
       <div className="employee-scroll-region max-h-[58vh] overflow-auto">
         <table className="w-full min-w-[980px] table-fixed text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
               <th className="w-14 border-b border-[#D8DEEA] px-3 py-3 text-center">ลำดับ</th>
-              <th className="w-[15rem] border-b border-[#D8DEEA] px-3 py-3">ชื่อพนักงาน</th>
-              <th className="w-32 border-b border-[#D8DEEA] px-3 py-3">เพศ</th>
+              <th className="w-[16rem] border-b border-[#D8DEEA] px-3 py-3">ชื่อ-นามสกุล *</th>
+              <th className="w-36 border-b border-[#D8DEEA] px-3 py-3">เพศ *</th>
               <th className="w-auto border-b border-[#D8DEEA] px-3 py-3">รายการเสื้อที่เบิก</th>
-              <th className="w-32 border-b border-[#D8DEEA] px-3 py-3 text-center">สถานะ</th>
-              <th className="w-16 border-b border-[#D8DEEA] px-3 py-3 text-center"></th>
+              <th className="w-28 border-b border-[#D8DEEA] px-3 py-3 text-center">สถานะ</th>
+              <th className="w-28 border-b border-[#D8DEEA] px-3 py-3 text-center">การจัดการ</th>
             </tr>
           </thead>
           <tbody>
@@ -2146,20 +3067,23 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
               const complete = isEmployeeComplete(employee);
               const missingFields = getEmployeeMissingFields(employee);
               const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
-              const hasGarmentIssue = missingFields.some((f) => f !== 'ชื่อ' && f !== 'เพศ');
+
               return (
                 <tr
                   key={employee.id}
                   data-quick-employee-row={employee.id}
                   className={cn(
-                    'border-b border-[#E7EAF0] align-middle transition hover:bg-[#F8FAFC] even:bg-[#F8FAFC]',
+                    'border-b border-[#E7EAF0] align-middle transition hover:bg-[#F8FAFC] even:bg-[#F8FAFC]/30',
                     invalidEmployeeId === employee.id &&
                       'employee-attention bg-[#FFF7F7] outline outline-2 outline-[#EF4444] outline-offset-[-2px]'
                   )}
                 >
+                  {/* Row index */}
                   <td className="px-3 py-3 text-center font-extrabold text-[#64748B]">
                     {index + 1}
                   </td>
+
+                  {/* Name Input */}
                   <td className="px-3 py-3">
                     <GridInput
                       value={employee.name}
@@ -2170,29 +3094,155 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                       }
                     />
                   </td>
+
+                  {/* Gender Select */}
                   <td className="px-3 py-3">
-                    <GridSelect
+                    <select
                       value={employee.gender}
-                      values={GENDERS}
-                      placeholder="เลือกเพศ"
-                      invalid={showErrors && !employee.gender}
-                      onChange={(value) =>
+                      onChange={(e) =>
                         dispatch({
                           type: 'patchEmployee',
                           id: employee.id,
-                          patch: { gender: value },
+                          patch: { gender: e.target.value },
                         })
                       }
-                    />
+                      className={cn(
+                        'h-11 w-full border rounded-lg bg-white px-2.5 text-sm font-bold text-neutral-900 focus:border-[#002B5B] focus:ring-2 focus:ring-[#002B5B]/15 outline-none cursor-pointer',
+                        showErrors && !employee.gender ? 'border-red-500' : 'border-neutral-300'
+                      )}
+                    >
+                      <option value="" disabled>เลือกเพศ</option>
+                      {GENDERS.map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
                   </td>
+
+                  {/* Scrollable Garment List Cell */}
                   <td className="px-3 py-3">
-                    <EmployeeItemSummary
-                      employee={employee}
-                      dispatch={dispatch}
-                      onEdit={() => onEdit(employee.id)}
-                      invalid={showErrors && hasGarmentIssue}
-                    />
+                    <div className="max-h-28 overflow-y-auto pr-1 grid gap-1.5 scrollbar-thin">
+                      {employee.items.map((item, itemIdx) => {
+                        const sizeOptions = getSizeOptions(item.type, employee.gender);
+                        return (
+                          <div
+                            key={`${item.type}-${itemIdx}`}
+                            className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs"
+                          >
+                            {/* Clothing Type Select */}
+                            <select
+                              value={item.type}
+                              onChange={(e) =>
+                                dispatch({
+                                  type: 'patchItem',
+                                  id: employee.id,
+                                  itemType: item.type,
+                                  patch: { type: e.target.value },
+                                })
+                              }
+                              className="text-xs font-bold h-8 rounded border border-neutral-300 bg-white px-1.5 max-w-[12rem] cursor-pointer focus:border-[#002B5B] outline-none"
+                            >
+                              {clothingTypes.map((t) => (
+                                <option key={t} value={t}>{t}</option>
+                              ))}
+                            </select>
+
+                            {/* Size Select */}
+                            <select
+                              value={item.size}
+                              disabled={!employee.gender}
+                              onChange={(e) =>
+                                dispatch({
+                                  type: 'patchItem',
+                                  id: employee.id,
+                                  itemType: item.type,
+                                  patch: { size: e.target.value },
+                                })
+                              }
+                              className={cn(
+                                'text-xs font-bold h-8 rounded border bg-white px-1 cursor-pointer focus:border-[#002B5B] outline-none min-w-[4.5rem]',
+                                showErrors && !item.size ? 'border-red-500' : 'border-neutral-300'
+                              )}
+                            >
+                              <option value="" disabled>{employee.gender ? 'ไซส์' : 'เพศก่อน'}</option>
+                              {sizeOptions.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+
+                            {/* Quantity Input */}
+                            <input
+                              type="number"
+                              value={item.qty}
+                              onChange={(e) =>
+                                dispatch({
+                                  type: 'patchItem',
+                                  id: employee.id,
+                                  itemType: item.type,
+                                  patch: { qty: digitsOnly(e.target.value) },
+                                })
+                              }
+                              className="w-12 h-8 border border-neutral-300 rounded text-center font-bold text-xs focus:border-[#002B5B] outline-none"
+                              min="1"
+                            />
+
+                            {/* Delete single item button */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                dispatch({
+                                  type: 'patchEmployee',
+                                  id: employee.id,
+                                  patch: {
+                                    items: employee.items.filter((it, idx) => idx !== itemIdx),
+                                  },
+                                })
+                              }
+                              className="text-neutral-400 hover:text-red-500 p-1 rounded hover:bg-neutral-100 transition ml-auto"
+                              title="ลบรายการเสื้อนี้"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      {/* Add shirt button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!clothingTypes.length) return;
+                          const nextType =
+                            clothingTypes.find(
+                              (t) => !employee.items.some((item) => item.type === t)
+                            ) || clothingTypes[0];
+                          const defaultSizeVal =
+                            getSizeOptions(nextType, employee.gender)[0] || 'M';
+                          dispatch({
+                            type: 'patchEmployee',
+                            id: employee.id,
+                            patch: {
+                              items: [
+                                ...employee.items,
+                                {
+                                  type: nextType,
+                                  size: defaultSizeVal,
+                                  customSize: '',
+                                  color: '',
+                                  qty: 1,
+                                },
+                              ],
+                            },
+                          });
+                        }}
+                        disabled={!employee.gender}
+                        className="inline-flex items-center justify-center gap-1 border border-dashed border-[#002B5B]/30 text-[#002B5B] hover:bg-[#EEF4FF] bg-white rounded-lg h-7 px-2.5 text-[11px] font-black transition disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <Plus className="size-3" /> เพิ่มเสื้อ
+                      </button>
+                    </div>
                   </td>
+
+                  {/* Status column */}
                   <td className="px-3 py-3 text-center">
                     <span
                       className={cn(
@@ -2203,38 +3253,43 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                       {complete ? 'ครบ' : 'ยังไม่ครบ'}
                     </span>
                     {!complete && (
-                      <p className="mt-2 text-xs font-bold leading-5 text-[#B91C1C]">
+                      <p className="mt-1 text-[11px] font-bold leading-4 text-[#B91C1C]">
                         ขาด: {missingFields.join(', ')}
                       </p>
                     )}
                   </td>
+
+                  {/* Actions column (Copy and Delete buttons) */}
                   <td className="px-3 py-3 text-center">
-                    <button
-                      onClick={() => dispatch({ type: 'delete', id: employee.id })}
-                      disabled={!canDelete}
-                      aria-label={
-                        canDelete ? 'Delete employee' : 'At least one employee is required'
-                      }
-                      className="grid size-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:border-[#E2E8F0] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8] transition hover:bg-[#FFE2E2] active:scale-95"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: 'cloneEmployee', id: employee.id })}
+                        className="grid size-10 place-items-center rounded-lg border border-[#CBD5E1] bg-white text-[#44536A] hover:bg-neutral-50 transition active:scale-95 shadow-xs"
+                        title="คัดลอกพนักงานคนนี้ (คัดลอกแถว)"
+                      >
+                        <Copy className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: 'delete', id: employee.id })}
+                        disabled={!canDelete}
+                        aria-label="ลบ"
+                        className="grid size-10 place-items-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#B91C1C] disabled:cursor-not-allowed disabled:border-[#E2E8F0] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8] transition hover:bg-[#FFE2E2] active:scale-95"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
             })}
             {!filteredEmployees.length && (
               <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-10 text-center font-bold text-[#64748B]"
-                >
+                <td colSpan={6} className="px-4 py-10 text-center font-bold text-[#64748B]">
                   <div className="flex flex-col items-center gap-2">
                     <span className="text-2xl">🔍</span>
                     <span>ไม่พบพนักงานตามเงื่อนไข</span>
-                    <p className="text-xs font-normal text-[#94A3B8]">
-                      ลองเปลี่ยนตัวกรองหรือเพิ่มพนักงานใหม่
-                    </p>
                   </div>
                 </td>
               </tr>
