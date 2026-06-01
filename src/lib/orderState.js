@@ -10,8 +10,8 @@ import {
   resolveItemColor,
   needsColorSelection,
 } from './config';
-import { digitsOnly, phoneDigitsOnly } from './utils';
-import { ORDER_DRAFT_KEY, ORDER_STORAGE_KEY } from './api';
+import { digitsOnly } from './utils';
+import { ORDER_STORAGE_KEY } from './api';
 
 export const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
 export const ORDER_STATUS_PENDING = 'รอจัดส่ง';
@@ -75,47 +75,6 @@ export function createInitialOrderState() {
     supervisorPhone: '',
     employees: Array.from({ length: 1 }, (_, index) => createEmployee(index)),
   };
-}
-
-export function normalizeDraftEmployee(employee, index) {
-  return {
-    id: employee.id || crypto.randomUUID(),
-    employeeId: employee.employeeId || '',
-    name: employee.name || '',
-    gender: GENDERS.includes(employee.gender) ? employee.gender : '',
-    expanded: Boolean(employee.expanded ?? (index === 0)),
-    items: Array.isArray(employee.items)
-      ? employee.items
-          .map((item) => ({
-            type: item.type || '',
-            size: item.size || '',
-            customSize: item.customSize || '',
-            color: resolveItemColor(item.type || '', item.color || ''),
-            qty: digitsOnly(item.qty || ''),
-          }))
-          .filter((item) => getClothingTypes().includes(item.type))
-      : [],
-  };
-}
-
-export function readOrderDraft() {
-  try {
-    const draft = JSON.parse(localStorage.getItem(ORDER_DRAFT_KEY) || 'null');
-    if (!draft || typeof draft !== 'object') return createInitialOrderState();
-    const employees =
-      Array.isArray(draft.employees) && draft.employees.length
-        ? draft.employees.map(normalizeDraftEmployee)
-        : createInitialOrderState().employees;
-    return {
-      companyName: draft.companyName || DEFAULT_COMPANY_NAME,
-      branch: BRANCHES.includes(draft.branch) ? draft.branch : BRANCHES[0],
-      supervisorName: draft.supervisorName || '',
-      supervisorPhone: phoneDigitsOnly(draft.supervisorPhone || ''),
-      employees,
-    };
-  } catch {
-    return createInitialOrderState();
-  }
 }
 
 export function canDeleteEmployee(employees) {

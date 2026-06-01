@@ -1441,13 +1441,19 @@ body {
 
 .app-shadcn-theme [data-quick-employee-row] :where(td:nth-child(4)),
 .app-shadcn-theme table:has([data-quick-employee-row]) :where(th:nth-child(4)) {
-  width: 34%;
-  min-width: 24rem;
+  width: 48%;
+  min-width: 0;
+}
+
+.app-shadcn-theme [data-quick-employee-row] :where(td:nth-child(3)),
+.app-shadcn-theme table:has([data-quick-employee-row]) :where(th:nth-child(3)) {
+  width: 8%;
+  min-width: 5.5rem;
 }
 
 .app-shadcn-theme [data-quick-employee-row] :where(td:nth-child(5)),
 .app-shadcn-theme table:has([data-quick-employee-row]) :where(th:nth-child(5)) {
-  width: 11rem;
+  width: 7rem;
 }
 
 .app-shadcn-theme [data-quick-employee-row] :where(.rounded-full) {
@@ -2892,7 +2898,7 @@ body {
 }
 
 .app-shadcn-theme table:has([data-quick-employee-row]) {
-  min-width: 1180px;
+  min-width: 980px;
   table-layout: fixed;
 }
 
@@ -2903,14 +2909,20 @@ body {
 
 .app-shadcn-theme [data-quick-employee-row] :where(td:nth-child(4)),
 .app-shadcn-theme table:has([data-quick-employee-row]) :where(th:nth-child(4)) {
-  width: 32% !important;
-  min-width: 22rem !important;
+  width: 48% !important;
+  min-width: 0 !important;
+}
+
+.app-shadcn-theme [data-quick-employee-row] :where(td:nth-child(3)),
+.app-shadcn-theme table:has([data-quick-employee-row]) :where(th:nth-child(3)) {
+  width: 8% !important;
+  min-width: 5.5rem !important;
 }
 
 .app-shadcn-theme [data-quick-employee-row] :where(td:nth-child(5)),
 .app-shadcn-theme table:has([data-quick-employee-row]) :where(th:nth-child(5)) {
-  width: 9.5rem !important;
-  min-width: 9.5rem !important;
+  width: 7rem !important;
+  min-width: 7rem !important;
 }
 
 .app-shadcn-theme [data-quick-employee-row] :where(.flex-wrap) {

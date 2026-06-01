@@ -368,8 +368,7 @@ function findClothingConfig(type) {
 }
 
 function getColorOptions(type) {
-  const clothing = findClothingConfig(type);
-  return (clothing?.colors || []).map((color) => color.name).filter(Boolean);
+  return [];
 }
 
 function needsColorSelection(type) {
@@ -377,9 +376,7 @@ function needsColorSelection(type) {
 }
 
 function resolveItemColor(type, color = '') {
-  const colors = getColorOptions(type);
-  if (colors.length === 1) return colors[0];
-  return colors.includes(color) ? color : '';
+  return '';
 }
 
 function getSizeRows(type, gender) {
@@ -904,12 +901,6 @@ function readStoredBatches() {
   }
 }
 
-function saveStoredBatch(batch) {
-  const stored = readStoredBatches();
-  const next = [normalizeBatch(batch), ...stored.filter((item) => item.batchId !== batch.batchId)];
-  localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
-}
-
 function saveStoredBatches(batches) {
   localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(batches.map(normalizeBatch)));
 }
@@ -1126,11 +1117,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
   // Wizard and UI step states
   const [activeStep, setActiveStep] = useState(1);
   const [activeTab, setActiveTab] = useState('table'); // 'table', 'copy', 'excel'
-  const [checked1, setChecked1] = useState(false);
-  const [checked2, setChecked2] = useState(false);
-  const [checked3, setChecked3] = useState(false);
   const [successData, setSuccessData] = useState(null);
-  const [notes, setNotes] = useState('');
   const [csvPreview, setCsvPreview] = useState([]);
   const [csvErrors, setCsvErrors] = useState([]);
 
@@ -1367,7 +1354,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           .map((item) => ({
             type: item.type,
             size: item.size === OTHER_SIZE ? item.customSize || '-' : item.size,
-            color: resolveItemColor(item.type, item.color || ''),
             qty: Number(item.qty || 0),
           })),
       })),
@@ -1403,8 +1389,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
         throw lastErr;
       };
 
-      const result = await postToGAS(payload);
-      saveStoredBatch(payload);
+      await postToGAS(payload);
       toast.success('บันทึกคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
       setSuccessData(payload); // Save success data for the Success Screen
       setQuery('');
@@ -1632,10 +1617,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
               onClick={() => {
                 setSuccessData(null);
                 setActiveStep(1);
-                setChecked1(false);
-                setChecked2(false);
-                setChecked3(false);
-                setNotes('');
                 dispatch({ type: 'reset' });
               }}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#002B5B] text-white hover:bg-[#001f42] px-6 py-3 font-extrabold transition shadow-md cursor-pointer"
@@ -1672,18 +1653,18 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                     className={cn(
                       "relative flex min-h-16 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border p-2 text-center shadow-xs transition-all duration-300 md:min-h-[4.75rem] md:justify-start md:gap-3 md:p-3 md:text-left",
                       isCompleted 
-                        ? "bg-[#f0fdf4] border-green-200/80 text-green-950 hover:bg-[#e6fdf0]"
+                        ? "bg-white border-emerald-200 text-[#0F5132] hover:bg-emerald-50/40"
                         : isActive
-                        ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10 scale-[1.01]"
+                        ? "bg-[#F8FBFF] border-[#9DB7DD] text-[#0F2D52] shadow-sm shadow-[#1D4E89]/10"
                         : "bg-white border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:border-neutral-300"
                     )}
                   >
                     <div className={cn(
                         "flex size-8 shrink-0 items-center justify-center rounded-full font-bold transition-all duration-300 md:size-9 md:rounded-xl",
                       isCompleted
-                        ? "bg-green-500 text-white"
+                        ? "bg-emerald-100 text-emerald-700"
                         : isActive
-                        ? "bg-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.5)] animate-pulse-subtle"
+                        ? "bg-[#E8F1FF] text-[#1D4E89]"
                         : "bg-neutral-100 text-neutral-400"
                     )}>
                       {isCompleted ? (
@@ -1698,25 +1679,25 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                     <div className="hidden min-w-0 flex-1 md:block">
                       <span className={cn(
                         "text-[10px] font-extrabold uppercase tracking-wider block leading-none",
-                        isActive ? "text-blue-400" : isCompleted ? "text-green-600" : "text-neutral-400"
+                        isActive ? "text-[#3B6EA8]" : isCompleted ? "text-emerald-700" : "text-neutral-400"
                       )}>
                         ขั้นตอนที่ {step.number}
                       </span>
                       <h3 className={cn(
                         "text-sm font-black mt-1 leading-tight",
-                        isActive ? "text-white" : isCompleted ? "text-green-900" : "text-neutral-800"
+                        isActive ? "text-[#0F2D52]" : isCompleted ? "text-[#0F5132]" : "text-neutral-800"
                       )}>
                         {step.label}
                       </h3>
                       <p className={cn(
                         "text-[11px] font-semibold mt-0.5 truncate",
-                        isActive ? "text-slate-300" : isCompleted ? "text-green-700/80" : "text-neutral-400"
+                        isActive ? "text-[#5D718C]" : isCompleted ? "text-emerald-700/80" : "text-neutral-400"
                       )}>
                         {step.desc}
                       </p>
                     </div>
                     {isActive && (
-                      <div className="absolute bottom-0 left-0 h-1 w-full bg-blue-500 animate-pulse-subtle md:left-auto md:right-0 md:top-0 md:h-full md:w-1.5" />
+                      <div className="absolute bottom-0 left-0 h-1 w-full bg-[#3B82C4] md:left-auto md:right-0 md:top-0 md:h-full md:w-1" />
                     )}
                   </button>
                 );
@@ -1729,9 +1710,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
             <div className="space-y-6">
               <QuickOrderSetupPanel state={state} dispatch={dispatch} forceExpand={true} />
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 bg-white p-4 rounded-xl border border-neutral-200/80 shadow-xs">
-                <span className="text-[11px] text-neutral-400 font-semibold hidden sm:inline">
-                  💡 กด <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">Alt</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">→</kbd> เพื่อสลับไปยังขั้นตอนถัดไป
-                </span>
+                <span className="hidden sm:block" />
                 <button
                   type="button"
                   onClick={() => {
@@ -2292,18 +2271,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                 </div>
               </div>
 
-              {/* Additional notes */}
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm">
-                <h3 className="text-sm sm:text-base font-extrabold text-[#071638] mb-1.5">หมายเหตุเพิ่มเติม (ถ้ามี)</h3>
-                <TextArea
-                  value={notes}
-                  onChange={setNotes}
-                  placeholder="เช่น เบิกด่วนพิเศษสีกรม หรือความต้องการเพิ่มเติมอื่น ๆ"
-                  title="กรอกรายละเอียดเพิ่มเติมสำหรับคำสั่งเบิก"
-                  rows={2}
-                />
-              </div>
-
               {/* Navigation Footer Step 2 */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-neutral-200 pt-4 bg-white p-4 rounded-xl shadow-xs">
                 <div className="flex items-center gap-2">
@@ -2315,9 +2282,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                     <ArrowLeft className="size-4" />
                     <span>ย้อนกลับ</span>
                   </button>
-                  <span className="text-[11px] text-neutral-400 font-semibold hidden lg:inline ml-2">
-                    💡 กด <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">Alt</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">← / →</kbd> หรือ <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">1/2/3</kbd> เพื่อสลับขั้นตอน
-                  </span>
                 </div>
                 
                 <div className="flex w-full sm:w-auto gap-3">
@@ -2437,32 +2401,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                 </div>
               </div>
 
-              {/* Confirmation checkboxes card */}
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm space-y-3.5">
-                <h3 className="text-sm sm:text-base font-extrabold text-[#071638] flex items-center gap-2">
-                  <Check className="size-5 text-[#002B5B] rounded border border-[#002B5B] p-0.5" />
-                  <span>ยืนยันข้อมูลเพื่อส่งคำขอเบิก</span>
-                </h3>
-                
-                <div className="space-y-3 pt-1">
-                  {[
-                    { state: checked1, setState: setChecked1, label: 'ข้าพเจ้ายืนยันว่ารายชื่อพนักงานและขนาดไซส์เสื้อถูกต้องสมบูรณ์แล้ว' },
-                    { state: checked2, setState: setChecked2, label: 'ข้าพเจ้ารับทราบข้อมูลสต็อก กรณีไม่มีสินค้าพร้อมจัดส่ง จะต้องรอเข้าคิวผลิตตามลำดับความต้องการ' },
-                    { state: checked3, setState: setChecked3, label: 'ข้าพเจ้ายืนยันว่าบริษัท สาขาจัดส่ง และข้อมูลผู้ประสานงานถูกต้องสำหรับการจัดส่งเสื้อพนักงาน' }
-                  ].map((chk, idx) => (
-                    <label key={idx} className="flex items-start gap-3 text-xs sm:text-sm font-bold text-neutral-600 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={chk.state}
-                        onChange={(e) => chk.setState(e.target.checked)}
-                        className="size-5 rounded border-neutral-300 accent-[#002B5B] shrink-0 mt-0.5"
-                      />
-                      <span>{chk.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
               {/* Navigation Footer Step 3 */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-neutral-200 pt-4 bg-white p-4 rounded-xl shadow-xs">
                 <div className="flex items-center gap-2">
@@ -2475,18 +2413,15 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
                     <ArrowLeft className="size-4" />
                     <span>ย้อนกลับ</span>
                   </button>
-                  <span className="text-[11px] text-neutral-400 font-semibold hidden lg:inline ml-2">
-                    💡 กด <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">Alt</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">←</kbd> หรือ <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 border text-[10px] font-mono">1/2/3</kbd> เพื่อสลับขั้นตอน
-                  </span>
                 </div>
                 
                 <button
                   type="button"
-                  disabled={isSubmitting || !checked1 || !checked2 || !checked3 || !gasConfigured}
+                  disabled={isSubmitting || !gasConfigured}
                   onClick={submitOrder}
                   className={cn(
                     "w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-7 py-3 font-extrabold text-white transition shadow-md active:scale-95 text-base cursor-pointer",
-                    (checked1 && checked2 && checked3 && gasConfigured && !isSubmitting)
+                    (gasConfigured && !isSubmitting)
                       ? "bg-green-600 hover:bg-green-700"
                       : "bg-neutral-300 cursor-not-allowed"
                   )}
@@ -2671,10 +2606,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
   const [defaultSizeValue, setDefaultSizeValue] = useState('M');
   const clothingTypes = getClothingTypes();
   const [customItems, setCustomItems] = useState(() =>
-    clothingTypes.map((type) => {
-      const colors = getColorOptions(type);
-      return { enabled: false, qty: '2', color: colors.length === 1 ? colors[0] : '' };
-    })
+    clothingTypes.map(() => ({ enabled: false, qty: '2' }))
   );
   const quickSizes = [
     'S',
@@ -2703,13 +2635,10 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
   useEffect(() => {
     setCustomItems((items) =>
       clothingTypes.map((type, index) => {
-        const colors = getColorOptions(type);
         const current = items[index] || {};
         return {
           enabled: Boolean(current.enabled),
           qty: current.qty || '2',
-          color:
-            colors.length === 1 ? colors[0] : colors.includes(current.color) ? current.color : '',
         };
       })
     );
@@ -2719,18 +2648,6 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
     if (!names.length) {
       toast.error('❌ ยังไม่มีรายชื่อพนักงาน', {
         description: 'โปรดวางรายชื่อพนักงานอย่างน้อย 1 คน (หนึ่งชื่อต่อบรรทัด)',
-      });
-      return;
-    }
-    const missingColorType = clothingTypes.find(
-      (type, index) =>
-        customItems[index]?.enabled &&
-        getColorOptions(type).length > 1 &&
-        !customItems[index]?.color
-    );
-    if (missingColorType) {
-      toast.error('❌ ยังไม่ได้เลือกสี', {
-        description: `โปรดเลือกสีสำหรับ ${missingColorType} ก่อนเพิ่มรายการ`,
       });
       return;
     }
@@ -2846,20 +2763,17 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
                       👕 เลือกประเภทเสื้อ
                     </h2>
                     <p className="text-sm font-semibold text-[#64748B] mt-1">
-                      กด "สี" เพื่อเลือก และระบุจำนวน
+                      เลือกแบบเสื้อและระบุจำนวน
                     </p>
                   </div>
                 </div>
                 <div className="grid max-h-[20rem] gap-2 overflow-y-auto rounded-xl border border-[#D8DEEA] bg-white p-2">
                   {clothingTypes.map((type, index) => {
-                    const colors = getColorOptions(type);
-                    const selectedColor =
-                      colors.length === 1 ? colors[0] : customItems[index]?.color || '';
                     return (
                       <div
                         key={type}
                         className={cn(
-                          'grid gap-2 rounded-lg border p-2 text-sm font-bold text-[#071638] sm:grid-cols-[minmax(0,1fr)_minmax(8rem,.8fr)_5.5rem] sm:items-center',
+                          'grid gap-2 rounded-lg border p-2 text-sm font-bold text-[#071638] sm:grid-cols-[minmax(0,1fr)_5.5rem] sm:items-center',
                           customItems[index]?.enabled
                             ? 'border-[#BFD0EA] bg-[#F8FBFF]'
                             : 'border-[#EEF2F7] bg-white'
@@ -2876,7 +2790,6 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
                                     ? {
                                         ...item,
                                         enabled: event.target.checked,
-                                        color: colors.length === 1 ? colors[0] : item.color || '',
                                       }
                                     : item
                                 )
@@ -2886,27 +2799,6 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
                           />
                           <span className="min-w-0 truncate">{type}</span>
                         </label>
-                        {colors.length > 1 ? (
-                          <CustomSelect
-                            value={selectedColor}
-                            values={colors}
-                            placeholder="สี"
-                            compact
-                            disabled={!customItems[index]?.enabled}
-                            usePortal={false}
-                            onChange={(color) =>
-                              setCustomItems((items) =>
-                                items.map((item, itemIndex) =>
-                                  itemIndex === index ? { ...item, color } : item
-                                )
-                              )
-                            }
-                          />
-                        ) : (
-                          <div className="flex min-h-11 items-center rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] px-3 text-sm font-bold text-[#44536A]">
-                            <span className="truncate">{colors[0] || 'ไม่มีสี'}</span>
-                          </div>
-                        )}
                         <GridInput
                           type="number"
                           value={customItems[index]?.qty || '2'}
@@ -3111,15 +3003,15 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
   return (
     <section className="hidden overflow-hidden rounded-xl border border-[#D8DEEA] bg-white lg:block shadow-sm">
       <div className="employee-scroll-region max-h-[58vh] overflow-auto">
-        <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
+        <table className="w-full min-w-[980px] table-fixed text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#EEF4FF] text-xs font-extrabold text-[#44536A]">
             <tr>
               <th className="w-14 border-b border-[#D8DEEA] px-3 py-3 text-center">ลำดับ</th>
-              <th className="w-[16rem] border-b border-[#D8DEEA] px-3 py-3">ชื่อ-นามสกุล *</th>
-              <th className="w-32 border-b border-[#D8DEEA] px-3 py-3">เพศ *</th>
-              <th className="w-[34rem] border-b border-[#D8DEEA] px-3 py-3">รายการเสื้อที่เบิก</th>
-              <th className="w-28 border-b border-[#D8DEEA] px-3 py-3 text-center">สถานะ</th>
-              <th className="w-28 border-b border-[#D8DEEA] px-3 py-3 text-center">การจัดการ</th>
+              <th className="w-[21%] border-b border-[#D8DEEA] px-3 py-3">ชื่อ-นามสกุล *</th>
+              <th className="w-[8%] border-b border-[#D8DEEA] px-3 py-3">เพศ *</th>
+              <th className="w-[48%] border-b border-[#D8DEEA] px-3 py-3">รายการเสื้อที่เบิก</th>
+              <th className="w-[7%] border-b border-[#D8DEEA] px-3 py-3 text-center">สถานะ</th>
+              <th className="w-[10%] border-b border-[#D8DEEA] px-3 py-3 text-center">การจัดการ</th>
             </tr>
           </thead>
           <tbody>
@@ -3176,13 +3068,13 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
 
                   {/* Scrollable Garment List Cell */}
                   <td className="px-3 py-3">
-                    <div className="max-h-28 overflow-y-auto pr-1 grid gap-1.5 scrollbar-thin">
+                    <div className="max-h-28 overflow-y-auto overflow-x-hidden pr-1 grid gap-1.5 scrollbar-thin">
                       {employee.items.map((item, itemIdx) => {
                         const sizeOptions = getSizeOptions(item.type, employee.gender);
                         return (
                           <div
                             key={`${item.type}-${itemIdx}`}
-                            className="grid grid-cols-[minmax(12rem,1fr)_6rem_4.75rem_2rem] items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs shrink-0"
+                            className="grid min-w-0 grid-cols-[minmax(0,1fr)_4.75rem_4rem_1.75rem] items-center gap-1.5 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs"
                           >
                             {/* Clothing Type Select */}
                             <div className="min-w-0">
@@ -3889,7 +3781,6 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
       if (!response.ok || !data?.token) throw new Error(data?.error || 'Invalid passcode');
       setError('');
       onUnlock(data.token);
-      toast.success('เข้าสู่แดชบอร์ดแล้ว');
     } catch {
       setError('รหัสไม่ถูกต้อง หรือระบบยืนยันสิทธิ์ไม่พร้อม');
     } finally {
@@ -4239,9 +4130,6 @@ function UserManualDialog({ open, setOpen }) {
               <ul className="list-decimal pl-8 space-y-1.5 text-xs sm:text-sm text-[#44536A] font-semibold">
                 <li>
                   <strong className="text-[#071638]">ตรวจสอบยอดรวมและสถิติ:</strong> ระบบจะสรุปจำนวนยอดสั่งรวมแยกตามไซส์และรูปแบบเสื้อให้อย่างชัดเจน
-                </li>
-                <li>
-                  <strong className="text-[#071638]">ยอมรับข้อตกลง:</strong> ทำเครื่องหมายถูกที่กล่องยืนยันทั้ง 3 ข้อเพื่อปลดล็อกปุ่มส่งข้อมูล
                 </li>
                 <li>
                   <strong className="text-[#002B5B]">ส่งเบิกเสื้อ:</strong> กดปุ่มสีน้ำเงิน <strong className="text-[#002B5B]">"ส่งข้อมูลการเบิกเสื้อ"</strong> เพื่อบันทึกเข้าฐานข้อมูลหลักและรับรหัสคำสั่ง (Batch ID)
@@ -5427,20 +5315,18 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
       ? toast.loading('กำลังโหลดข้อมูล...', { description: 'ระบบกำลังเตรียมข้อมูล กรุณารอสักครู่' })
       : null;
     try {
-      const storedBatches = readStoredBatches();
       if (!demoMode) {
         const response = await authFetch('/api/dashboard/orders', { cache: 'no-store' });
         const result = await response.json();
         if (!response.ok || result?.success === false)
           throw new Error(result?.error || 'GAS request failed');
         const data = Array.isArray(result) ? result : result?.data;
-        const remoteBatches = Array.isArray(data)
-          ? data.map(normalizeBatch).filter((batch) => batch.orders.length)
-          : storedBatches;
+        if (!Array.isArray(data)) throw new Error('Invalid dashboard data');
+        const remoteBatches = data.map(normalizeBatch).filter((batch) => batch.orders.length);
         setBatches(remoteBatches);
-        if (Array.isArray(data)) saveStoredBatches(remoteBatches);
       } else {
         await new Promise((resolve) => setTimeout(resolve, 400));
+        const storedBatches = readStoredBatches();
         setBatches(storedBatches);
       }
       if (loadingToastId) toast.success('โหลดข้อมูลแดชบอร์ดแล้ว', { id: loadingToastId });
@@ -5454,8 +5340,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
         });
         return;
       }
-      const storedBatches = readStoredBatches();
-      setBatches(storedBatches);
+      if (!batches.length) setBatches([]);
       toast.error('โหลดข้อมูลแดชบอร์ดไม่สำเร็จ', {
         id: loadingToastId || undefined,
         description: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
@@ -6027,7 +5912,6 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
       'ชื่อพนักงาน',
       'เพศ',
       'ประเภท',
-      'สี',
       'ไซส์',
       'จำนวน',
     ];
@@ -6048,7 +5932,6 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
           row.name,
           row.gender,
           row.type,
-          row.color || '',
           row.size,
           row.qty,
         ];
@@ -7514,7 +7397,7 @@ function TotalSummaryView({ summaryRows, typeTotals, sizeTotals, filteredRows, m
           <div className="min-w-0">
             <h2 className="text-base font-extrabold text-[#071638]">ไซส์ที่เบิก: {monthFilter}</h2>
             <p className="mt-0.5 text-xs font-semibold text-[#64748B]">
-              รวมจำนวนตามไซส์ ก่อนลงรายละเอียดแบบเสื้อและสี
+              รวมจำนวนตามไซส์ ก่อนลงรายละเอียดแบบเสื้อ
             </p>
           </div>
           <span className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#D8E3F5] bg-[#F8FAFC] px-3 text-sm font-black text-[#002B5B]">
@@ -7666,7 +7549,6 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
           employeeName: order.name,
           gender,
           type: item.type,
-          color: item.color || '',
           size: item.size,
           requestedQty,
           currentStock,
@@ -7695,7 +7577,6 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
         employeeName: item.employeeName,
         gender: item.gender,
         type: item.type,
-        color: item.color,
         size: item.size,
         shippedQty: item.shippedQty,
         pendingQty: item.requestedQty - item.shippedQty,
@@ -8159,10 +8040,9 @@ function buildMonthFilterOptions(rows) {
 function buildTotalSummary(rows) {
   const map = new Map();
   rows.forEach((row) => {
-    const key = `${row.type}__${row.color || ''}__${row.size}`;
+    const key = `${row.type}__${row.size}`;
     const current = map.get(key) || {
       type: row.type,
-      color: row.color || '',
       size: row.size,
       qty: 0,
     };
@@ -8172,7 +8052,6 @@ function buildTotalSummary(rows) {
   return [...map.values()].sort(
     (a, b) =>
       a.type.localeCompare(b.type, 'th') ||
-      String(a.color).localeCompare(String(b.color), 'th') ||
       String(a.size).localeCompare(String(b.size), 'th', { numeric: true })
   );
 }

@@ -3,7 +3,6 @@ export const DASHBOARD_PATH = '#/dashboard';
 export const ORDER_PATH = '/';
 export const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
 export const ORDER_STORAGE_KEY = 'gi-shirt-order-batches';
-export const ORDER_DRAFT_KEY = 'gi-shirt-order-draft';
 
 export function getAdminToken() {
   return sessionStorage.getItem(DASHBOARD_SESSION_KEY) || '';
