@@ -1,5 +1,4 @@
 import { getAdminToken } from './api';
-import { digitsOnly } from './utils';
 
 export const CLOTHING_CONFIG_KEY = 'gi-shirt-clothing-config';
 export const CLOTHING_SIZE_TABLE_VERSION_KEY = 'gi-shirt-clothing-size-table-version';
@@ -85,7 +84,6 @@ export function buildDefaultClothingItem(type, item = {}) {
     id: item.id || crypto.randomUUID(),
     type,
     imageUrl: item.imageUrl || '',
-    colors: Array.isArray(item.colors) ? item.colors : [],
     detailFields,
     sizeRows: genderSizeRows[GENDERS[0]],
     genderSizeRows,
@@ -144,12 +142,6 @@ export function normalizeClothingConfig(config) {
         id: item?.id || crypto.randomUUID(),
         type,
         imageUrl: item?.imageUrl || '',
-        colors: Array.isArray(item?.colors)
-          ? item.colors.map((color) => ({
-              name: String(color?.name || '').trim(),
-              value: String(color?.value || '#0F172A').trim() || '#0F172A',
-            }))
-          : [],
         detailFields,
         sizeRows: genderSizeRows[GENDERS[0]] || fallbackRows,
         genderSizeRows,
@@ -231,20 +223,6 @@ export function findClothingConfig(type) {
   return readClothingConfig().find((item) => item.type === type);
 }
 
-export function getColorOptions(type) {
-  const clothing = findClothingConfig(type);
-  return (clothing?.colors || []).map((color) => color.name).filter(Boolean);
-}
-
-export function needsColorSelection(type) {
-  return getColorOptions(type).length > 1;
-}
-
-export function resolveItemColor(type, color = '') {
-  const colors = getColorOptions(type);
-  if (colors.length === 1) return colors[0];
-  return colors.includes(color) ? color : '';
-}
 
 export function getSizeRows(type, gender) {
   const clothing = findClothingConfig(type);

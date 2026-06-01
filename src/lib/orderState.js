@@ -1,14 +1,9 @@
 import { BRANCHES } from '../constants/branches';
 import {
-  CLOTHING_TYPES,
-  GENDERS,
   OTHER_SIZE,
-  getClothingTypes,
   getSizeOptions,
-  getColorOptions,
+  getClothingTypes,
   defaultSize,
-  resolveItemColor,
-  needsColorSelection,
 } from './config';
 import { digitsOnly } from './utils';
 
@@ -29,31 +24,27 @@ export function createEmployee(index = 0) {
   };
 }
 
-export function createOrderItem(type, gender, size = '', qty = 2, color = '') {
+export function createOrderItem(type, gender, size = '', qty = 2) {
   const options = gender ? getSizeOptions(type, gender) : [];
   const nextSize = size && options.includes(size) ? size : gender ? defaultSize(type, gender) : '';
   return {
     type,
     size: nextSize,
     customSize: '',
-    color: resolveItemColor(type, color),
     qty: digitsOnly(qty || 2),
   };
 }
 
-export function createQuickOrderItems({ presetId, gender, defaultSizeValue, customItems }) {
+export function createQuickOrderItems({ gender, defaultSizeValue, customItems }) {
   const sourceItems = getClothingTypes()
     .map((type, index) => ({
       type,
       qty: customItems?.[index]?.qty || 2,
-      color: customItems?.[index]?.color || '',
       enabled: Boolean(customItems?.[index]?.enabled),
     }))
     .filter((item) => item.enabled);
 
-  return sourceItems.map((item) =>
-    createOrderItem(item.type, gender, defaultSizeValue, item.qty, item.color)
-  );
+  return sourceItems.map((item) => createOrderItem(item.type, gender, defaultSizeValue, item.qty));
 }
 
 export function createEmployeeFromQuickOrder(name, index, quickOrder) {
@@ -260,7 +251,6 @@ export function flattenBatches(batches) {
         gender: order.gender,
         type: item.type,
         size: item.size,
-        color: resolveItemColor(item.type, item.color || ''),
         qty: Number(item.qty || 0),
       }))
     )
@@ -278,7 +268,6 @@ export function normalizeBatch(batch) {
                 .map((item) => ({
                   type: item.type || '-',
                   size: item.size || '-',
-                  color: resolveItemColor(item.type || '-', item.color || ''),
                   qty: Number(item.qty || 0),
                   status: ORDER_STATUSES.includes(item.status)
                     ? item.status
@@ -328,11 +317,10 @@ export function buildOrderSummaryRows(employees) {
     employee.items
       .filter((item) => item.size)
       .map((item) => ({
-        id: `${employee.id}-${item.type}-${resolveItemColor(item.type, item.color || '')}`,
+        id: `${employee.id}-${item.type}-${item.size}`,
         name: employee.name || '-',
         type: item.type,
         size: item.size === OTHER_SIZE ? item.customSize || '-' : item.size,
-        color: resolveItemColor(item.type, item.color || ''),
         qty: Number(item.qty || 0),
       }))
   );
@@ -347,7 +335,6 @@ export function isEmployeeComplete(employee) {
       (item) =>
         item.size &&
         Number(item.qty || 0) > 0 &&
-        (!needsColorSelection(item.type) || resolveItemColor(item.type, item.color || '')) &&
         (item.size !== OTHER_SIZE || item.customSize.trim())
     )
   );
@@ -363,12 +350,6 @@ export function getEmployeeMissingFields(employee) {
   }
 
   if (employee.items.some((item) => !item.size)) missing.push('ไซส์');
-  if (
-    employee.items.some(
-      (item) => needsColorSelection(item.type) && !resolveItemColor(item.type, item.color || '')
-    )
-  )
-    missing.push('สี');
   if (employee.items.some((item) => Number(item.qty || 0) <= 0)) missing.push('จำนวน');
   if (employee.items.some((item) => item.size === OTHER_SIZE && !item.customSize.trim()))
     missing.push('ระบุไซส์เพิ่มเติม');
@@ -380,7 +361,7 @@ export function hasEmployeeData(employee) {
     employee.name.trim() ||
     employee.gender ||
     employee.items.some(
-      (item) => item.size || item.customSize.trim() || item.color || Number(item.qty || 0) > 0
+      (item) => item.size || item.customSize.trim() || Number(item.qty || 0) > 0
     )
   );
 }
