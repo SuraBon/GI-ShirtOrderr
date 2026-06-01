@@ -1000,11 +1000,12 @@ body {
   width: min(28rem, calc(100vw - 32px)) !important;
   min-height: 58px !important;
   padding: 14px 42px 14px 16px !important;
-  border-radius: 16px !important;
-  border-width: 1px !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.14) !important;
-  backdrop-filter: blur(14px);
+  border-radius: 12px !important;
+  border-width: 0 !important;
+  background: linear-gradient(180deg, var(--gi-navy), rgba(13,37,104,0.95)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 24px 60px rgba(8, 30, 66, 0.28) !important;
+  backdrop-filter: blur(6px);
 }
 
 [data-sonner-toast].gi-toast [data-icon] {

@@ -198,20 +198,49 @@ export async function loadSharedClothingConfig() {
 export async function publishSharedClothingConfig(config) {
   const normalized = normalizeClothingConfig(config);
   const token = getAdminToken();
-  const response = await fetch('/api/blob/config', {
+  // Attempt publish with optimistic concurrency; retry once on 409 after reloading
+  const expected = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
+  let response = await fetch('/api/blob/config', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ config: normalized }),
+    body: JSON.stringify({ config: normalized, expectedUpdatedAt: expected }),
   });
+
+  if (response.status === 409) {
+    // Server indicates version mismatch; re-fetch latest, update local cache, and retry once
+    const server = await response.json().catch(() => null);
+    try {
+      await loadSharedClothingConfig();
+    } catch (err) {
+      const error = new Error(server?.error || 'Version conflict and failed to reload latest config');
+      error.status = 409;
+      error.server = server;
+      throw error;
+    }
+    const newExpected = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
+    response = await fetch('/api/blob/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ config: normalized, expectedUpdatedAt: newExpected }),
+    });
+  }
+
   if (!response.ok) {
     const data = await response.json().catch(() => null);
     const error = new Error(data?.error || 'Shared clothing config sync failed');
     error.status = response.status;
+    error.server = data;
     throw error;
   }
+
+  const result = await response.json().catch(() => null);
+  if (result?.updatedAt) localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedAt));
   return normalized;
 }
 

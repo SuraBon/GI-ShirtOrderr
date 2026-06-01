@@ -1037,11 +1037,11 @@ function App() {
       <Toaster
         richColors
         closeButton
-        position="top-center"
+        position="top-right"
         toastOptions={{
-          duration: 4200,
+          duration: 4800,
           classNames: {
-            toast: 'gi-toast rounded-2xl border text-[14px] font-semibold',
+            toast: 'gi-toast text-sm font-semibold',
             title: 'gi-toast-title font-extrabold',
             description: 'gi-toast-description font-semibold',
           },
