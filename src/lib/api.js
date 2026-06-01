@@ -2,7 +2,6 @@ export const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || 'YOUR_SCRIPT_URL_
 export const DASHBOARD_PATH = '#/dashboard';
 export const ORDER_PATH = '/';
 export const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
-export const ORDER_STORAGE_KEY = 'gi-shirt-order-batches';
 
 export function getAdminToken() {
   return sessionStorage.getItem(DASHBOARD_SESSION_KEY) || '';

@@ -69,7 +69,6 @@ const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || 'YOUR_SCRIPT_URL_HERE';
 const DASHBOARD_PATH = '#/dashboard';
 const ORDER_PATH = '/';
 const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
-const ORDER_STORAGE_KEY = 'gi-shirt-order-batches';
 const CLOTHING_CONFIG_KEY = 'gi-shirt-clothing-config';
 const CLOTHING_SIZE_TABLE_VERSION_KEY = 'gi-shirt-clothing-size-table-version';
 const CLOTHING_SIZE_TABLE_VERSION = '2026-05-standard-shirt-table-v2';
@@ -951,21 +950,6 @@ function normalizeBatch(batch) {
   };
 }
 
-function readStoredBatches() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(ORDER_STORAGE_KEY) || '[]');
-    return Array.isArray(parsed)
-      ? parsed.map(normalizeBatch).filter((batch) => batch.orders.length)
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredBatches(batches) {
-  localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(batches.map(normalizeBatch)));
-}
-
 function buildOrderSummaryRows(employees) {
   return employees.flatMap((employee) =>
     employee.items
@@ -1032,6 +1016,20 @@ function isGasConfigured() {
   return Boolean(APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes('YOUR_SCRIPT_URL'));
 }
 
+function getDashboardLoadErrorDescription(error) {
+  const message = String(error?.message || '');
+  if (message.includes('not configured') || message.includes('YOUR_SCRIPT_URL')) {
+    return 'ยังไม่ได้ตั้งค่า VITE_GAS_URL หรือ GAS_ADMIN_TOKEN สำหรับอ่านข้อมูลจริงจาก Google Sheets';
+  }
+  if (message.includes('Invalid dashboard data')) {
+    return 'รูปแบบข้อมูลจาก Google Sheets ไม่ตรงกับที่ระบบต้องการ กรุณาตรวจ Apps Script';
+  }
+  if (message.includes('Timeout')) {
+    return 'การเชื่อมต่อ Google Sheets หมดเวลา กรุณาลองโหลดใหม่อีกครั้ง';
+  }
+  return 'ระบบอ่านข้อมูลจาก Google Sheets ไม่สำเร็จ กรุณาลองใหม่หรือติดต่อผู้ดูแลระบบ';
+}
+
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -1056,7 +1054,7 @@ class AppErrorBoundary extends React.Component {
             </div>
             <h1 className="text-lg font-black text-[#071638]">หน้าจอมีข้อผิดพลาด</h1>
             <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">
-              ข้อมูลแบบร่างยังอยู่ในเครื่อง ลองกลับไปหน้าสั่งเบิกหรือโหลดหน้าใหม่อีกครั้ง
+              ระบบไม่สามารถแสดงหน้านี้ได้ กรุณาโหลดหน้าใหม่อีกครั้ง หากยังพบปัญหาให้ติดต่อผู้ดูแลระบบ
             </p>
             <div className="mt-4 flex gap-2">
               <button
@@ -1135,7 +1133,6 @@ function App() {
       {isDashboard ? (
         <DashboardApp
           key={`dashboard-${configVersion}`}
-          demoMode={!gasConfigured}
           onOpenOrder={() => navigate(ORDER_PATH)}
         />
       ) : (
@@ -2539,7 +2536,7 @@ function SetupWarning() {
       <div>
         <h4 className="text-sm font-extrabold text-yellow-800">ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อมใช้งาน</h4>
         <p className="text-xs text-yellow-700 font-semibold mt-1 leading-5">
-          กรุณาตั้งค่าลิงก์ Web App URL ของ Google Apps Script ในไฟล์ .env (`VITE_GAS_URL`) ก่อนส่งคำขอเบิกเสื้อจริง คุณยังสามารถกรอกข้อมูลและทดสอบการใช้งานแบบร่างได้ปกติ
+          กรุณาตั้งค่าลิงก์ Web App URL ของ Google Apps Script ในไฟล์ .env (`VITE_GAS_URL`) ก่อนส่งคำขอเบิกเสื้อ
         </p>
       </div>
     </div>
@@ -3790,7 +3787,7 @@ function ReviewMetric({ label, value }) {
   );
 }
 
-function DashboardApp({ demoMode, onOpenOrder }) {
+function DashboardApp({ onOpenOrder }) {
   const [adminToken, setDashboardToken] = useState(getAdminToken);
   const [dashboardView, setDashboardView] = useState('orders');
   const [manualOpen, setManualOpen] = useState(false);
@@ -3826,7 +3823,6 @@ function DashboardApp({ demoMode, onOpenOrder }) {
       <main className="relative z-10 mx-auto flex w-full max-w-[1520px] flex-col gap-3 px-2 pb-10 pt-3 sm:px-4 lg:gap-4 lg:px-6 lg:pt-5">
         <Dashboard
           activeView={dashboardView}
-          demoMode={demoMode}
           onAuthExpired={handleAuthExpired}
           onViewChange={setDashboardView}
         />
@@ -4926,10 +4922,11 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
   );
 }
 
-function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChange }) {
+function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [dataError, setDataError] = useState('');
   const [statusLoadingId, setStatusLoadingId] = useState('');
   const [deleteLoadingId, setDeleteLoadingId] = useState('');
   const [clothingConfig, setClothingConfig] = useState(readClothingConfig);
@@ -4964,20 +4961,15 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
       ? toast.loading('กำลังโหลดข้อมูล...', { description: 'ระบบกำลังเตรียมข้อมูล กรุณารอสักครู่' })
       : null;
     try {
-      if (!demoMode) {
-        const response = await authFetch('/api/dashboard/orders', { cache: 'no-store' });
-        const result = await response.json();
-        if (!response.ok || result?.success === false)
-          throw new Error(result?.error || 'GAS request failed');
-        const data = Array.isArray(result) ? result : result?.data;
-        if (!Array.isArray(data)) throw new Error('Invalid dashboard data');
-        const remoteBatches = data.map(normalizeBatch).filter((batch) => batch.orders.length);
-        setBatches(remoteBatches);
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        const storedBatches = readStoredBatches();
-        setBatches(storedBatches);
-      }
+      const response = await authFetch('/api/dashboard/orders', { cache: 'no-store' });
+      const result = await response.json();
+      if (!response.ok || result?.success === false)
+        throw new Error(result?.error || 'GAS request failed');
+      const data = Array.isArray(result) ? result : result?.data;
+      if (!Array.isArray(data)) throw new Error('Invalid dashboard data');
+      const remoteBatches = data.map(normalizeBatch).filter((batch) => batch.orders.length);
+      setBatches(remoteBatches);
+      setDataError('');
       if (loadingToastId) toast.success('โหลดข้อมูลแดชบอร์ดแล้ว', { id: loadingToastId });
     } catch (error) {
       if (isAuthFailure(error)) {
@@ -4990,9 +4982,10 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
         return;
       }
       if (!batches.length) setBatches([]);
+      setDataError(error?.message || 'ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้');
       toast.error('โหลดข้อมูลแดชบอร์ดไม่สำเร็จ', {
         id: loadingToastId || undefined,
-        description: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
+        description: getDashboardLoadErrorDescription(error),
       });
     } finally {
       setLoading(false);
@@ -5004,7 +4997,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
   useEffect(() => {
     setLoading(true);
     loadData();
-  }, [demoMode]);
+  }, []);
 
   const filteredBatches = useMemo(
     () =>
@@ -5012,7 +5005,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
         const inBranch = branchFilter === 'ทุกสาขา' || batch.branch === branchFilter;
         const inStatus = statusFilter === 'ทุกสถานะ' || batch.status === statusFilter;
         const inMonth =
-          monthFilter === 'à¸—à¸¸à¸à¹€à¸”à¸·à¸­à¸™' ||
+          monthFilter === 'ทุกเดือน' ||
           formatMonthLabel(batch.submittedAt) === monthFilter;
         const searchText = [
           batch.batchId,
@@ -5162,7 +5155,6 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
   }, [monthFilter, monthFilterOptions]);
 
   async function syncDashboardAction(payload) {
-    if (demoMode || !isGasConfigured()) return;
     const response = await authFetch('/api/dashboard/action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5324,9 +5316,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
 
       setClothingConfig(nextConfig);
       saveClothingConfig(nextConfig);
-      if (!demoMode && isGasConfigured()) {
-        await publishSharedClothingConfig(nextConfig);
-      }
+      await publishSharedClothingConfig(nextConfig);
 
       await loadData({ silent: true });
       setSelectedBatchIds(new Set());
@@ -5395,8 +5385,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
     const nextConfig = adjustStockForStatusChange(clothingConfig, batch, status);
     setClothingConfig(nextConfig);
     saveClothingConfig(nextConfig);
-    if (!demoMode && isGasConfigured()) {
-      publishSharedClothingConfig(nextConfig).catch((error) => {
+    publishSharedClothingConfig(nextConfig).catch((error) => {
         if (isAuthFailure(error)) {
           setAdminToken('');
           onAuthExpired?.();
@@ -5408,8 +5397,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
         toast.error('บันทึกสต็อกไม่สำเร็จ', {
           description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
         });
-      });
-    }
+    });
 
     // Reload entire data to refresh the batch statuses from Sheet
     await loadData({ silent: true });
@@ -5453,9 +5441,7 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
       setClothingConfig(nextConfig);
       saveClothingConfig(nextConfig);
 
-      if (!demoMode && isGasConfigured()) {
-        await publishSharedClothingConfig(nextConfig);
-      }
+      await publishSharedClothingConfig(nextConfig);
 
       // 3. Reload batch data to get updated row statuses from sheet
       await loadData({ silent: true });
@@ -5508,7 +5494,6 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
 
     setBatches((current) => {
       const next = current.filter((batch) => batch.batchId !== batchId);
-      saveStoredBatches(next);
       return next;
     });
     setSelectedBatch(null);
@@ -5663,6 +5648,15 @@ function Dashboard({ activeView = 'orders', demoMode, onAuthExpired, onViewChang
 
   return (
     <>
+      {dataError && (
+        <DashboardDataNotice
+          message={getDashboardLoadErrorDescription({ message: dataError })}
+          detail="แดชบอร์ดจะแสดงเฉพาะข้อมูลจริงจาก Google Sheets เท่านั้น ไม่มีการดึงข้อมูลคำสั่งเบิกจากเครื่องนี้"
+          onRetry={() => loadData({ silent: true })}
+          refreshing={refreshing}
+        />
+      )}
+
       {activeView === 'dashboard' && (
         <section className="dashboard-overview-page">
           <div className="dashboard-overview-hero">
@@ -7143,6 +7137,32 @@ function EmptyDashboardState({ text, compact = false }) {
       </span>
       <span>{text}</span>
     </div>
+  );
+}
+
+function DashboardDataNotice({ message, detail, onRetry, refreshing }) {
+  return (
+    <section className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-yellow-900 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-yellow-700" />
+          <div>
+            <h2 className="text-sm font-black">ยังโหลดข้อมูลจริงจาก Google Sheets ไม่สำเร็จ</h2>
+            <p className="mt-1 text-xs font-bold leading-5">{message}</p>
+            {detail && <p className="mt-1 text-xs font-semibold leading-5 text-yellow-800">{detail}</p>}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={refreshing}
+          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-yellow-300 bg-white px-3 text-xs font-black text-yellow-900 shadow-xs transition hover:bg-yellow-100 disabled:opacity-60"
+        >
+          {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+          โหลดใหม่
+        </button>
+      </div>
+    </section>
   );
 }
 

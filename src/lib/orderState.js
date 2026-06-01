@@ -11,7 +11,6 @@ import {
   needsColorSelection,
 } from './config';
 import { digitsOnly } from './utils';
-import { ORDER_STORAGE_KEY } from './api';
 
 export const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
 export const ORDER_STATUS_PENDING = 'รอจัดส่ง';
@@ -322,27 +321,6 @@ export function normalizeBatch(batch) {
     statusUpdatedAt: batch.statusUpdatedAt || batch.submittedAt || new Date().toISOString(),
     orders: normalizedOrders,
   };
-}
-
-export function readStoredBatches() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(ORDER_STORAGE_KEY) || '[]');
-    return Array.isArray(parsed)
-      ? parsed.map(normalizeBatch).filter((batch) => batch.orders.length)
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveStoredBatch(batch) {
-  const stored = readStoredBatches();
-  const next = [normalizeBatch(batch), ...stored.filter((item) => item.batchId !== batch.batchId)];
-  localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
-}
-
-export function saveStoredBatches(batches) {
-  localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(batches.map(normalizeBatch)));
 }
 
 export function buildOrderSummaryRows(employees) {
