@@ -105,19 +105,21 @@ function updateBatchStatus_(sheet, payload) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
 
-  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const rowCount = lastRow - 1;
+  const values = sheet.getRange(2, 1, rowCount, 3).getValues();
   const statusUpdatedAt = payload.statusUpdatedAt || new Date().toISOString();
   let updatedRows = 0;
 
-  values.forEach((row, index) => {
+  const statusValues = values.map((row) => {
     if (String(row[0]) !== String(payload.batchId)) return;
-    const rowNumber = index + 2;
-    sheet.getRange(rowNumber, 2).setValue(payload.status);
-    sheet.getRange(rowNumber, 3).setValue(statusUpdatedAt);
     updatedRows += 1;
+    return [payload.status, statusUpdatedAt];
   });
 
   if (!updatedRows) throw new Error("Batch not found");
+  sheet.getRange(2, 2, rowCount, 2).setValues(
+    statusValues.map((row, index) => row || [values[index][1], values[index][2]])
+  );
   return updatedRows;
 }
 
@@ -139,16 +141,38 @@ function deleteBatch_(sheet, batchId) {
   if (lastRow < 2) return 0;
 
   const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  let deletedRows = 0;
-
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    if (String(values[index][0]) !== String(batchId)) continue;
-    sheet.deleteRow(index + 2);
-    deletedRows += 1;
-  }
+  const deletedRows = deleteMatchingRows_(sheet, values, function(row) {
+    return String(row[0]) === String(batchId);
+  });
 
   if (!deletedRows) throw new Error("Batch not found");
   return deletedRows;
+}
+
+function deleteMatchingRows_(sheet, values, predicate) {
+  const ranges = [];
+  let runStart = null;
+  let runLength = 0;
+
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    if (!predicate(values[index], index)) {
+      if (runStart !== null) ranges.push([runStart, runLength]);
+      runStart = null;
+      runLength = 0;
+      continue;
+    }
+
+    runStart = index + 2;
+    runLength += 1;
+  }
+
+  if (runStart !== null) ranges.push([runStart, runLength]);
+  ranges.forEach(function(range) {
+    sheet.deleteRows(range[0], range[1]);
+  });
+  return ranges.reduce(function(sum, range) {
+    return sum + range[1];
+  }, 0);
 }
 
 function getOrdersSheet_() {
@@ -268,6 +292,8 @@ function shipBatchItems_(sheet, payload) {
   const batchId = payload.batchId;
   const items = payload.items; // array of { employeeName, gender, type, size, shippedQty, pendingQty, canceledQty }
   const statusUpdatedAt = payload.statusUpdatedAt || new Date().toISOString();
+  if (!batchId) throw new Error("Missing batchId");
+  if (!Array.isArray(items) || !items.length) throw new Error("Missing shipment items");
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) throw new Error("No orders found");
@@ -351,12 +377,10 @@ function shipBatchItems_(sheet, payload) {
     }
   });
 
-  // Delete all rows matching batchId (backwards to preserve indices)
-  for (let index = values.length - 1; index >= 0; index--) {
-    if (String(values[index][0]) === String(batchId)) {
-      sheet.deleteRow(index + 2);
-    }
-  }
+  // Delete all rows matching batchId in contiguous chunks to avoid slow per-row deletes.
+  deleteMatchingRows_(sheet, values, function(row) {
+    return String(row[0]) === String(batchId);
+  });
 
   // Write new rows
   if (newBatchRows.length > 0) {
@@ -374,9 +398,9 @@ function syncStockSheet_(spreadsheet, config) {
     // Unprotect the sheet if it was protected so we can clear/overwrite it
     try {
       const protections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
-      if (protections.length > 0) {
-        protections[0].remove();
-      }
+      protections.forEach(function(protection) {
+        protection.remove();
+      });
     } catch (e) {
       console.warn("Could not remove sheet protection:", e);
     }
@@ -403,7 +427,6 @@ function syncStockSheet_(spreadsheet, config) {
 
   if (config && config.length) {
     const stockRows = [];
-    let rowIndex = 3; // Starts at Row 3
     config.forEach((item) => {
       const type = item.type || "";
       const genders = ["ชาย", "หญิง"];
@@ -428,7 +451,6 @@ function syncStockSheet_(spreadsheet, config) {
             total,
             qty
           ]);
-          rowIndex++;
         });
       });
     });
