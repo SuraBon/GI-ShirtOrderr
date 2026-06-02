@@ -93,15 +93,12 @@ const ORDER_TABLE_COLUMNS = [
 ];
 const EMPLOYEE_TABLE_COLUMNS = [
   { id: 'name', label: 'ชื่อพนักงาน' },
-  { id: 'company', label: 'บริษัท' },
   { id: 'gender', label: 'เพศ' },
   { id: 'type', label: 'เสื้อ' },
   { id: 'size', label: 'ไซส์' },
   { id: 'qty', label: 'จำนวน' },
   { id: 'status', label: 'สถานะ' },
-  { id: 'branch', label: 'สาขา' },
-  { id: 'batchId', label: 'เลขที่คำสั่ง' },
-  { id: 'date', label: 'วันที่เบิก' },
+  { id: 'date', label: 'อัปเดตล่าสุด' },
 ];
 
 function normalizeOrderStatus(status, fallback = ORDER_STATUS_PENDING) {
@@ -163,6 +160,17 @@ function genderSymbol(gender) {
 }
 const OTHER_SIZE = 'อื่นๆ';
 const PHONE_LENGTH = 10;
+
+function formatDashboardDate(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 function normalizeStockLedger(row, qty = Number(row?.qty || 0)) {
   const stockAdded = Number(row?.stockAdded || 0);
@@ -536,7 +544,7 @@ function flattenBatches(batches) {
         supervisorPhone: batch.supervisorPhone,
         status: batch.status,
         itemStatus: normalizeOrderStatus(item.status, normalizeOrderStatus(batch.status)),
-        statusUpdatedAt: batch.statusUpdatedAt,
+        statusUpdatedAt: item.statusUpdatedAt || batch.statusUpdatedAt,
         name: order.name,
         gender: order.gender,
         type: item.type,
@@ -597,59 +605,6 @@ function normalizeBatch(batch) {
     statusUpdatedAt: batch.statusUpdatedAt || batch.submittedAt || new Date().toISOString(),
     orders: normalizedOrders,
   };
-}
-
-function shortBatchId(id) {
-  // Accept either a batch object or a string id
-  const BATCH_ID_FORMAT_KEY = 'gi-batch-id-format';
-  function getBatchFormat() {
-    return (
-      localStorage.getItem(BATCH_ID_FORMAT_KEY) || import.meta.env.VITE_BATCH_ID_FORMAT || 'day-tail'
-    );
-  }
-
-  const format = getBatchFormat();
-  let batchId = '';
-  let submittedAt = '';
-  if (typeof id === 'object' && id !== null) {
-    batchId = String(id.batchId || '');
-    submittedAt = id.submittedAt || '';
-  } else {
-    batchId = String(id || '');
-  }
-
-  const s = batchId;
-  // Try multiple patterns: ORD-YYYYMMDD-XXXXX or ORD-YYYY-MM-DD-XXXXX or any-YYYYMMDD-XXXXX
-  const ordMatch = s.match(/(?:.*-)?(\d{8})-(\d+)$/);
-  if (ordMatch && format.startsWith('day')) {
-    const yyyymmdd = ordMatch[1];
-    const day = yyyymmdd.slice(6, 8);
-    const tail = ordMatch[2];
-    return `${day}-${tail}`;
-  }
-
-  // Try pattern with dashes YYYY-MM-DD-XXXXX
-  const dashMatch = s.match(/(?:.*-)?(\d{4}-\d{2}-\d{2})-(\d+)$/);
-  if (dashMatch && format.startsWith('day')) {
-    const ymd = dashMatch[1];
-    const day = String(new Date(ymd).getDate()).padStart(2, '0');
-    const tail = dashMatch[2];
-    return `${day}-${tail}`;
-  }
-
-  // If configured day-tail and we have submittedAt fallback
-  if (format === 'day-tail' && submittedAt) {
-    const date = new Date(submittedAt);
-    if (!Number.isNaN(date.getTime())) {
-      const day = String(date.getDate()).padStart(2, '0');
-      const tail = s.replace(/\D/g, '').slice(-5) || s.slice(-5);
-      return `${day}-${tail}`;
-    }
-  }
-
-  // Default: ellipsis last 5 characters
-  if (s.length <= 5) return s;
-  return `…${s.slice(-5)}`;
 }
 
 function buildOrderSummaryRows(employees) {
@@ -3465,7 +3420,7 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
   }
 
   return (
-    <main className="relative z-10 mx-auto grid min-h-screen w-full px-4 py-10">
+    <main className="relative z-10 mx-auto grid min-h-[100dvh] w-full place-items-center px-4 py-10">
       <Card className="w-full max-w-[34rem] p-6 sm:p-8">
         <div className="mb-7 flex items-center justify-between gap-4">
           <Logo />
@@ -4590,6 +4545,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   );
   const [orderPage, setOrderPage] = useState(1);
   const [employeePage, setEmployeePage] = useState(1);
+  const [pagingLoading, setPagingLoading] = useState({ orders: false, employees: false });
+  const pagingTimersRef = useRef({});
 
   async function loadData({ silent = false } = {}) {
     if (refreshing) return;
@@ -4637,6 +4594,13 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     setLoading(true);
     loadData();
   }, []);
+
+  useEffect(
+    () => () => {
+      Object.values(pagingTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+    },
+    []
+  );
 
   useEffect(() => {
     function onResize() {
@@ -4689,6 +4653,15 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     setOrderPage(1);
     setEmployeePage(1);
   }, [branchFilter, statusFilter, monthFilter, query]);
+
+  function setPageWithSkeleton(type, setter, value) {
+    window.clearTimeout(pagingTimersRef.current[type]);
+    setPagingLoading((current) => ({ ...current, [type]: true }));
+    setter(value);
+    pagingTimersRef.current[type] = window.setTimeout(() => {
+      setPagingLoading((current) => ({ ...current, [type]: false }));
+    }, 160);
+  }
 
   const rows = useMemo(() => flattenBatches(filteredBatches), [filteredBatches]);
   const batchById = useMemo(
@@ -4763,6 +4736,119 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     if (result?.updatedConfig && result?.updatedConfig.updatedAt) {
       localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedConfig.updatedAt));
     }
+  }
+
+  function deriveBatchStatusFromOrders(orders, fallback = ORDER_STATUS_PENDING) {
+    const statuses = orders.flatMap((order) =>
+      order.items.map((item) => normalizeOrderStatus(item.status, fallback))
+    );
+    if (!statuses.length) return normalizeOrderStatus(fallback);
+    const uniqueStatuses = new Set(statuses);
+    return uniqueStatuses.size === 1 ? statuses[0] : ORDER_STATUS_PENDING;
+  }
+
+  function replaceDashboardBatch(batchId, updater) {
+    setBatches((current) =>
+      current.map((batch) => {
+        if (batch.batchId !== batchId) return batch;
+        return normalizeBatch(updater(batch));
+      })
+    );
+    setSelectedBatch((selected) =>
+      selected?.batchId === batchId ? normalizeBatch(updater(selected)) : selected
+    );
+  }
+
+  function applyBatchStatusLocally(batchId, status, statusUpdatedAt) {
+    replaceDashboardBatch(batchId, (batch) => ({
+      ...batch,
+      status,
+      statusUpdatedAt,
+      orders: batch.orders.map((order) => ({
+        ...order,
+        items: order.items.map((item) => ({
+          ...item,
+          status,
+          statusUpdatedAt,
+        })),
+      })),
+    }));
+  }
+
+  function applyShipmentLocally(batchId, shipmentItems, statusUpdatedAt) {
+    const shipmentByKey = new Map(
+      shipmentItems.map((item) => [
+        [item.employeeName, item.gender, item.type, item.size].join('::'),
+        item,
+      ])
+    );
+
+    replaceDashboardBatch(batchId, (batch) => {
+      const nextOrders = batch.orders
+        .map((order) => {
+          const gender = order.gender || GENDERS[0];
+          const nextItems = order.items.flatMap((item) => {
+            const key = [order.name, gender, item.type, item.size].join('::');
+            const shipment = shipmentByKey.get(key);
+            if (!shipment) return [item];
+
+            const splitItems = [];
+            const shippedQty = Number(shipment.shippedQty || 0);
+            const pendingQty = Number(shipment.pendingQty || 0);
+            const canceledQty = Number(shipment.canceledQty || 0);
+            if (shippedQty > 0) {
+              splitItems.push({
+                ...item,
+                qty: shippedQty,
+                status: ORDER_STATUS_DELIVERED,
+                statusUpdatedAt,
+              });
+            }
+            if (pendingQty > 0) {
+              splitItems.push({
+                ...item,
+                qty: pendingQty,
+                status: ORDER_STATUS_PENDING,
+                statusUpdatedAt,
+              });
+            }
+            if (canceledQty > 0) {
+              splitItems.push({
+                ...item,
+                qty: canceledQty,
+                status: ORDER_STATUS_CANCELED,
+                statusUpdatedAt,
+              });
+            }
+            return splitItems;
+          });
+          return { ...order, items: nextItems };
+        })
+        .filter((order) => order.items.length);
+
+      return {
+        ...batch,
+        status: deriveBatchStatusFromOrders(nextOrders, batch.status),
+        statusUpdatedAt,
+        orders: nextOrders,
+      };
+    });
+  }
+
+  function publishStockConfigInBackground(nextConfig) {
+    publishSharedClothingConfig(nextConfig).catch((error) => {
+      if (isAuthFailure(error)) {
+        setAdminToken('');
+        onAuthExpired?.();
+        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
+          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
+        });
+        return;
+      }
+      toast.error('บันทึกสต๊อกไม่สำเร็จ', {
+        description: error?.message || 'กรุณากดโหลดใหม่เพื่อตรวจข้อมูลอีกครั้ง',
+      });
+    });
   }
 
   function findStockIssuesForStatusChange(config, batch, targetStatus) {
@@ -5016,9 +5102,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
 
       setClothingConfig(nextConfig);
       saveClothingConfig(nextConfig);
-      await publishSharedClothingConfig(nextConfig);
+      publishStockConfigInBackground(nextConfig);
 
-      await loadData({ silent: true });
+      ids.forEach((id) => applyBatchStatusLocally(id, status, statusUpdatedAt));
       setSelectedBatchIds(new Set());
       toast.success(`อัปเดตสถานะสำเร็จ ${successCount} รายการ`, { id: loadingToastId });
     } catch (error) {
@@ -5085,22 +5171,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     const nextConfig = adjustStockForStatusChange(latestConfig, batch, status);
     setClothingConfig(nextConfig);
     saveClothingConfig(nextConfig);
-    publishSharedClothingConfig(nextConfig).catch((error) => {
-        if (isAuthFailure(error)) {
-          setAdminToken('');
-          onAuthExpired?.();
-          toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
-            description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
-          });
-          return;
-        }
-        toast.error('บันทึกสต๊อกไม่สำเร็จ', {
-          description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
-        });
-    });
+    publishStockConfigInBackground(nextConfig);
 
-    // Reload entire data to refresh the batch statuses from Sheet
-    await loadData({ silent: true });
+    applyBatchStatusLocally(batchId, status, statusUpdatedAt);
     setStatusLoadingId('');
     toast.success('อัปเดตสถานะคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
   }
@@ -5146,10 +5219,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       setClothingConfig(nextConfig);
       saveClothingConfig(nextConfig);
 
-      await publishSharedClothingConfig(nextConfig);
+      publishStockConfigInBackground(nextConfig);
 
-      // 3. Reload batch data to get updated row statuses from sheet
-      await loadData({ silent: true });
+      // 3. Reflect the saved sheet update locally without reloading all dashboard rows.
+      applyShipmentLocally(batchId, shipmentItems, statusUpdatedAt);
 
       toast.success('บันทึกการจัดส่งสินค้าเรียบร้อยแล้ว', { id: loadingToastId });
     } catch (error) {
@@ -5308,6 +5381,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const safeOrderPage = Math.min(orderPage, orderPageCount);
   const orderStartIndex = (safeOrderPage - 1) * orderPageSize;
   const orderRows = filteredBatches.slice(orderStartIndex, orderStartIndex + orderPageSize);
+  const isOrderPageLoading = pagingLoading.orders;
   const employeePageSize = 12;
   const employeePageCount = Math.max(1, Math.ceil(employeeRows.length / employeePageSize));
   const safeEmployeePage = Math.min(employeePage, employeePageCount);
@@ -5316,16 +5390,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     employeeStartIndex,
     employeeStartIndex + employeePageSize
   );
-  const formatDashboardDate = (value) => {
-    if (!value) return '-';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleDateString('th-TH', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
+  const isEmployeePageLoading = pagingLoading.employees;
   const countByStatus = (status) => filteredBatches.filter((batch) => batch.status === status).length;
   const inventoryRows = clothingConfig
     .map((item) => {
@@ -5596,7 +5661,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             </div>
           )}
 
-          {useSplitOrderColumns ? (
+          {isOrderPageLoading ? (
+            <DashboardPageSkeleton rows={Math.min(orderPageSize, Math.max(3, orderRows.length || 3))} />
+          ) : useSplitOrderColumns ? (
             <div className="dashboard-orders-columns">
               {(() => {
                 const half = Math.ceil(orderRows.length / 2);
@@ -5610,15 +5677,16 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                           <th>
                             <input
                               type="checkbox"
+                              className="dashboard-row-checkbox"
                               checked={
-                                filteredBatches.length > 0 &&
-                                filteredBatches.every((batch) => selectedBatchIds.has(batch.batchId))
+                                orderRows.length > 0 &&
+                                orderRows.every((batch) => selectedBatchIds.has(batch.batchId))
                               }
                               onChange={() => {
-                                const allSelected = filteredBatches.every((batch) => selectedBatchIds.has(batch.batchId));
+                                const allSelected = orderRows.every((batch) => selectedBatchIds.has(batch.batchId));
                                 setSelectedBatchIds((prev) => {
                                   const next = new Set(prev);
-                                  filteredBatches.forEach((batch) => {
+                                  orderRows.forEach((batch) => {
                                     if (allSelected) next.delete(batch.batchId);
                                     else next.add(batch.batchId);
                                   });
@@ -5651,6 +5719,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                             <td>
                               <input
                                 type="checkbox"
+                                className="dashboard-row-checkbox"
                                 checked={selectedBatchIds.has(batch.batchId)}
                                 onClick={(event) => event.stopPropagation()}
                                 onChange={() => {
@@ -5665,28 +5734,13 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                             </td>
                             {isOrderColumnVisible('code') && (
                             <td>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  className="dashboard-link"
-                                  title={String(batch.batchId)}
-                                  type="button"
-                                >
-                                  {shortBatchId(batch)}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="dashboard-icon-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigator.clipboard?.writeText(String(batch.batchId)).then(() => {
-                                      toast.success('คัดลอกรหัสเรียบร้อย');
-                                    });
-                                  }}
-                                  title="คัดลอกรหัสเต็ม"
-                                >
-                                  <Copy className="size-4" />
-                                </button>
-                              </div>
+                              <button
+                                className="dashboard-link"
+                                title={String(batch.batchId)}
+                                type="button"
+                              >
+                                {String(batch.batchId)}
+                              </button>
                             </td>
                             )}
                             {isOrderColumnVisible('date') && <td>{formatDashboardDate(batch.submittedAt)}</td>}
@@ -5716,6 +5770,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                               </div>
                             </td>
                           </tr>
+                          {expandedBatchIds.has(batch.batchId) && (
                           <tr className="batch-detail-row" key={`${batch.batchId}-details`}>
                             <td colSpan={orderTableColSpan} className="p-0">
                               <div className="batch-detail-container">
@@ -5729,10 +5784,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                         <th>ไซส์</th>
                                         <th>จำนวน</th>
                                         <th>สถานะ</th>
-                                        <th>บริษัท</th>
-                                        <th>สาขา</th>
-                                        <th>เลขที่คำสั่ง</th>
-                                        <th>วันที่เบิก</th>
+                                        <th>อัปเดตล่าสุด</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -5820,10 +5872,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                   </div>
                                                 </div>
                                               </td>
-                                              <td>{batch.companyName || '-'}</td>
-                                              <td>{batch.branch || '-'}</td>
-                                              <td>{String(batch.batchId)}</td>
-                                              <td>{formatDashboardDate(batch.submittedAt)}</td>
+                                              <td>{formatDashboardDate(item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt)}</td>
                                             </tr>
                                           );
                                         })
@@ -5834,6 +5883,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                               </div>
                             </td>
                           </tr>
+                          )}
                           </React.Fragment>
                         ))}
                       </tbody>
@@ -5857,15 +5907,16 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   <th>
                     <input
                       type="checkbox"
+                      className="dashboard-row-checkbox"
                       checked={
-                        filteredBatches.length > 0 &&
-                        filteredBatches.every((batch) => selectedBatchIds.has(batch.batchId))
+                        orderRows.length > 0 &&
+                        orderRows.every((batch) => selectedBatchIds.has(batch.batchId))
                       }
                       onChange={() => {
-                        const allSelected = filteredBatches.every((batch) => selectedBatchIds.has(batch.batchId));
+                        const allSelected = orderRows.every((batch) => selectedBatchIds.has(batch.batchId));
                         setSelectedBatchIds((prev) => {
                           const next = new Set(prev);
-                          filteredBatches.forEach((batch) => {
+                          orderRows.forEach((batch) => {
                             if (allSelected) next.delete(batch.batchId);
                             else next.add(batch.batchId);
                           });
@@ -5898,6 +5949,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                     <td>
                       <input
                         type="checkbox"
+                        className="dashboard-row-checkbox"
                         checked={selectedBatchIds.has(batch.batchId)}
                         onClick={(event) => event.stopPropagation()}
                         onChange={() => {
@@ -5912,28 +5964,13 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                     </td>
                     {isOrderColumnVisible('code') && (
                     <td>
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="dashboard-link"
-                          title={String(batch.batchId)}
-                          type="button"
-                        >
-                          {shortBatchId(batch)}
-                        </button>
-                        <button
-                          type="button"
-                          className="dashboard-icon-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard?.writeText(String(batch.batchId)).then(() => {
-                              toast.success('คัดลอกรหัสเรียบร้อย');
-                            });
-                          }}
-                          title="คัดลอกรหัสเต็ม"
-                        >
-                          <Copy className="size-4" />
-                        </button>
-                      </div>
+                      <button
+                        className="dashboard-link"
+                        title={String(batch.batchId)}
+                        type="button"
+                      >
+                        {String(batch.batchId)}
+                      </button>
                     </td>
                     )}
                     {isOrderColumnVisible('date') && <td>{formatDashboardDate(batch.submittedAt)}</td>}
@@ -5964,7 +6001,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                     </td>
                   </tr>
                           {/* Expanded detail rows for this batch */}
-                          {(
+                          {expandedBatchIds.has(batch.batchId) && (
                             <tr className="batch-detail-row" key={`${batch.batchId}-details`}>
                               <td colSpan={orderTableColSpan} className="p-0">
                                 <div className="batch-detail-container">
@@ -5978,10 +6015,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                           <th>ไซส์</th>
                                           <th>จำนวน</th>
                                           <th>สถานะ</th>
-                                          <th>บริษัท</th>
-                                          <th>สาขา</th>
-                                          <th>เลขที่คำสั่ง</th>
-                                          <th>วันที่เบิก</th>
+                                          <th>อัปเดตล่าสุด</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -6069,10 +6103,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                     </div>
                                                   </div>
                                                 </td>
-                                                <td>{batch.companyName || '-'}</td>
-                                                <td>{batch.branch || '-'}</td>
-                                                <td>{String(batch.batchId)}</td>
-                                                <td>{formatDashboardDate(batch.submittedAt)}</td>
+                                                <td>{formatDashboardDate(item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt)}</td>
                                               </tr>
                                             );
                                           })
@@ -6092,7 +6123,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           )}
 
           <div className="dashboard-mobile-orders">
-            {orderRows.map((batch) => (
+            {isOrderPageLoading ? (
+              <DashboardPageSkeleton rows={Math.min(orderPageSize, Math.max(3, orderRows.length || 3))} />
+            ) : orderRows.map((batch) => (
               <article
                 key={batch.batchId}
                 className="dashboard-mobile-order-card"
@@ -6107,20 +6140,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               >
                 <div className="dashboard-mobile-order-top">
                         <div>
-                          <strong title={String(batch.batchId)}>{shortBatchId(batch)}</strong>
-                          <button
-                            type="button"
-                            className="dashboard-icon-btn ml-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard?.writeText(String(batch.batchId)).then(() => {
-                                toast.success('คัดลอกรหัสเรียบร้อย');
-                              });
-                            }}
-                            title="คัดลอกรหัสเต็ม"
-                          >
-                            <Copy className="size-4" />
-                          </button>
+                          <strong title={String(batch.batchId)}>{String(batch.batchId)}</strong>
                           <span>{formatDashboardDate(batch.submittedAt)}</span>
                         </div>
                 </div>
@@ -6140,15 +6160,18 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           </div>
 
           <div className="dashboard-panel-foot">
-            <span>แสดง 1 - {orderRows.length} จาก {filteredBatches.length} รายการ</span>
+            <span>แสดง {filteredBatches.length ? orderStartIndex + 1 : 0} - {orderStartIndex + orderRows.length} จาก {filteredBatches.length} รายการ</span>
             <div>
-              <button disabled={safeOrderPage <= 1} onClick={() => setOrderPage((page) => Math.max(1, page - 1))}>
+              <button
+                disabled={safeOrderPage <= 1 || isOrderPageLoading}
+                onClick={() => setPageWithSkeleton('orders', setOrderPage, (page) => Math.max(1, page - 1))}
+              >
                 <ArrowLeft className="size-4" />
               </button>
               <strong>{safeOrderPage}</strong>
               <button
-                disabled={safeOrderPage >= orderPageCount}
-                onClick={() => setOrderPage((page) => Math.min(orderPageCount, page + 1))}
+                disabled={safeOrderPage >= orderPageCount || isOrderPageLoading}
+                onClick={() => setPageWithSkeleton('orders', setOrderPage, (page) => Math.min(orderPageCount, page + 1))}
               >
                 <ArrowRight className="size-4" />
               </button>
@@ -6200,20 +6223,20 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             )}
           </div>
 
+          {isEmployeePageLoading ? (
+            <DashboardPageSkeleton rows={Math.min(employeePageSize, Math.max(4, pagedEmployeeRows.length || 4))} />
+          ) : (
           <div className="dashboard-table-wrap">
             <table className="dashboard-employee-table">
               <thead>
                 <tr>
                   {isEmployeeColumnVisible('name') && <th>ชื่อพนักงาน</th>}
-                  {isEmployeeColumnVisible('company') && <th>บริษัท</th>}
                   {isEmployeeColumnVisible('gender') && <th>เพศ</th>}
                   {isEmployeeColumnVisible('type') && <th>เสื้อ</th>}
                   {isEmployeeColumnVisible('size') && <th>ไซส์</th>}
                   {isEmployeeColumnVisible('qty') && <th>จำนวน</th>}
                   {isEmployeeColumnVisible('status') && <th>สถานะ</th>}
-                  {isEmployeeColumnVisible('branch') && <th>สาขา</th>}
-                  {isEmployeeColumnVisible('batchId') && <th>เลขที่คำสั่ง</th>}
-                  {isEmployeeColumnVisible('date') && <th>วันที่เบิก</th>}
+                  {isEmployeeColumnVisible('date') && <th>อัปเดตล่าสุด</th>}
                   <th>ดู</th>
                 </tr>
               </thead>
@@ -6223,15 +6246,12 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   return (
                     <tr key={row.id}>
                       {isEmployeeColumnVisible('name') && <td>{row.name || '-'}</td>}
-                      {isEmployeeColumnVisible('company') && <td>{row.companyName || '-'}</td>}
                       {isEmployeeColumnVisible('gender') && <td>{row.gender || '-'}</td>}
                       {isEmployeeColumnVisible('type') && <td>{row.type || '-'}</td>}
                       {isEmployeeColumnVisible('size') && <td>{row.size || '-'}</td>}
                       {isEmployeeColumnVisible('qty') && <td>{row.qty}</td>}
                       {isEmployeeColumnVisible('status') && <td><StatusBadge status={row.itemStatus || row.status} /></td>}
-                      {isEmployeeColumnVisible('branch') && <td>{row.branch || '-'}</td>}
-                      {isEmployeeColumnVisible('batchId') && <td>{row.batchId}</td>}
-                      {isEmployeeColumnVisible('date') && <td>{formatDashboardDate(row.submittedAt)}</td>}
+                      {isEmployeeColumnVisible('date') && <td>{formatDashboardDate(row.statusUpdatedAt || row.submittedAt)}</td>}
                       <td>
                         <button
                           className="dashboard-action-btn"
@@ -6247,9 +6267,12 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               </tbody>
             </table>
           </div>
+          )}
 
           <div className="dashboard-mobile-orders">
-            {pagedEmployeeRows.map((row) => {
+            {isEmployeePageLoading ? (
+              <DashboardPageSkeleton rows={Math.min(employeePageSize, Math.max(4, pagedEmployeeRows.length || 4))} />
+            ) : pagedEmployeeRows.map((row) => {
               const rowBatch = batchById.get(row.batchId);
               return (
                 <article
@@ -6260,20 +6283,18 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   <div className="dashboard-mobile-order-top">
                     <div>
                       <strong>{row.name || '-'}</strong>
-                      <span>{row.batchId}</span>
+                      <span>อัปเดตล่าสุด {formatDashboardDate(row.statusUpdatedAt || row.submittedAt)}</span>
                     </div>
                     <StatusBadge status={row.itemStatus || row.status} />
                   </div>
                   <div className="dashboard-mobile-order-grid">
-                    <span>บริษัท <strong>{row.companyName || '-'}</strong></span>
-                    <span>สาขา <strong>{row.branch || '-'}</strong></span>
                     <span>เพศ <strong>{row.gender || '-'}</strong></span>
                     <span>เสื้อ <strong>{row.type || '-'}</strong></span>
                     <span>ไซส์ <strong>{row.size || '-'}</strong></span>
                     <span>จำนวน <strong>{row.qty} ตัว</strong></span>
                   </div>
                   <div className="dashboard-mobile-order-bottom">
-                    <span>{row.branch || '-'} · {formatDashboardDate(row.submittedAt)}</span>
+                    <span>อัปเดตล่าสุด {formatDashboardDate(row.statusUpdatedAt || row.submittedAt)}</span>
                     <button type="button">ดูคำสั่ง</button>
                   </div>
                 </article>
@@ -6284,13 +6305,16 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <div className="dashboard-panel-foot">
             <span>แสดง {employeeRows.length ? employeeStartIndex + 1 : 0} - {employeeStartIndex + pagedEmployeeRows.length} จาก {employeeRows.length} รายการ</span>
             <div>
-              <button disabled={safeEmployeePage <= 1} onClick={() => setEmployeePage((page) => Math.max(1, page - 1))}>
+              <button
+                disabled={safeEmployeePage <= 1 || isEmployeePageLoading}
+                onClick={() => setPageWithSkeleton('employees', setEmployeePage, (page) => Math.max(1, page - 1))}
+              >
                 <ArrowLeft className="size-4" />
               </button>
               <strong>{safeEmployeePage}</strong>
               <button
-                disabled={safeEmployeePage >= employeePageCount}
-                onClick={() => setEmployeePage((page) => Math.min(employeePageCount, page + 1))}
+                disabled={safeEmployeePage >= employeePageCount || isEmployeePageLoading}
+                onClick={() => setPageWithSkeleton('employees', setEmployeePage, (page) => Math.min(employeePageCount, page + 1))}
               >
                 <ArrowRight className="size-4" />
               </button>
@@ -6534,14 +6558,16 @@ function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onIte
         <p className="break-words text-sm font-extrabold text-[#071638]">{item.type}</p>
         <StatusBadge status={currentStatus} />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+      <div className="mt-2 grid grid-cols-2 gap-2 text-xs min-[520px]:grid-cols-4">
         <MobileInfo label="ไซส์" value={item.size || '-'} compact />
         <MobileInfo label="จำนวน" value={item.qty} compact strong />
+        <MobileInfo label="สต๊อก" value={item.size === OTHER_SIZE ? '-' : currentStock} compact />
+        <MobileInfo label="อัปเดต" value={formatDashboardDate(item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt)} compact />
       </div>
       {!canShip && currentStatus !== ORDER_STATUS_CANCELED && (
         <p className="mt-2 text-xs font-black text-[#B91C1C]">สต๊อกไม่พอ (มี {currentStock})</p>
       )}
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-3 gap-2 min-[520px]:flex">
         <button
           type="button"
           disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
@@ -6987,7 +7013,13 @@ function BatchDetailDialog({
                             />
                         ))}
                       </div>
-                      <table className="hidden w-full table-fixed text-left text-sm sm:table">
+                      <table className="batch-items-table hidden w-full text-left text-sm sm:table">
+                        <colgroup>
+                          <col className="batch-items-type-col" />
+                          <col className="batch-items-size-col" />
+                          <col className="batch-items-qty-col" />
+                          <col className="batch-items-status-col" />
+                        </colgroup>
                         <thead className="text-xs font-bold text-[#44536A]">
                           <tr>
                             <th className="px-3 py-3 sm:px-4">ประเภท</th>
@@ -7269,6 +7301,21 @@ function DashboardOverviewChart({ metrics }) {
           <MiniBar rows={rows} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function DashboardPageSkeleton({ rows = 6 }) {
+  return (
+    <div className="dashboard-page-skeleton" aria-busy="true" aria-live="polite">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={index} className="dashboard-page-skeleton-row">
+          <span className="skeleton" />
+          <span className="skeleton" />
+          <span className="skeleton" />
+          <span className="skeleton" />
+        </div>
+      ))}
     </div>
   );
 }
