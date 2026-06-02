@@ -3646,6 +3646,14 @@ body {
   align-items: start;
 }
 
+.inventory-manager-shell.stacked {
+  grid-template-columns: 1fr;
+}
+
+.inventory-manager-shell.stacked .inventory-edit-panels {
+  margin-top: 0;
+}
+
 .inventory-list-panel,
 .inventory-edit-toolbar,
 .inventory-detail-card,

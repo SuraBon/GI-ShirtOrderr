@@ -3407,7 +3407,7 @@ async function uploadImageToBlob(file) {
   });
 }
 
-function InventoryManager({ config, setConfig, onAuthExpired }) {
+function InventoryManager({ config, setConfig, onAuthExpired, stacked = false }) {
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
   const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
   const [editing, setEditing] = useState(false);
@@ -3725,7 +3725,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
 
   return (
     <>
-    <section className="inventory-manager-shell">
+    <section className={cn('inventory-manager-shell', stacked && 'stacked')}>
       <aside className="inventory-list-panel">
         <div className="inventory-list-head">
           <div>
@@ -4879,6 +4879,26 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
               </div>
             </div>
           </div>
+          <div className="dashboard-panel-head slim">
+            <div>
+              <h2>การ์ดแบบเสื้อ</h2>
+              <p>สรุปแบบเสื้อที่มีไซส์และสต๊อกให้ดูแบบรวมบนภาพรวม</p>
+            </div>
+          </div>
+          <div className="dashboard-inventory-card-grid">
+            {inventoryRows.slice(0, 6).map((item) => (
+              <article key={item.id} className="dashboard-inventory-card">
+                <div>
+                  <strong>{item.type}</strong>
+                  <small>{item.sizes.join(', ') || 'ไม่มีไซส์'}</small>
+                </div>
+                <div>
+                  <span>{item.total} ชิ้น</span>
+                  <span>{item.sizes.length} ไซส์</span>
+                </div>
+              </article>
+            ))}
+          </div>
 
           <div className="dashboard-overview-workspace">
               <article className="dashboard-work-card">
@@ -5692,8 +5712,8 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
         <section className="dashboard-inventory-manager">
           <div className="dashboard-panel-head">
             <div>
-              <h2>จัดการแบบเสื้อและสต๊อกไซส์</h2>
-              <p>รวมงานข้อมูลเสื้อและสต๊อกไว้ในหน้าเดียว แยกเป็นโซนภาพรวม ข้อมูลเสื้อ และสต๊อกตามไซส์</p>
+              <h2>สร้างแบบเสื้อและคุมสต๊อก</h2>
+              <p>หน้าสำหรับเพิ่มแบบเสื้อ กำหนดไซส์ และจัดการจำนวนคงเหลือเท่านั้น</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => onViewChange?.('orders')}>
@@ -5702,83 +5722,11 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
               </button>
             </div>
           </div>
-
-          <div className="dashboard-inventory-card-grid">
-            {inventoryRows.map((item) => (
-              <article key={item.id} className="dashboard-inventory-card">
-                <div>
-                  <strong>{item.type}</strong>
-                  <small>{item.sizes.join(', ') || 'ไม่มีไซส์'}</small>
-                </div>
-                <div>
-                  <span>{item.total} ชิ้น</span>
-                  <span>{item.sizes.length} ไซส์</span>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <div className="dashboard-stock-summary">
-            <div className="dashboard-panel-head slim">
-              <div>
-                <h2>ภาพรวมสต๊อก</h2>
-                <p>จำนวนรวมและรายการที่ควรตรวจ ก่อนลงไปแก้ข้อมูลเสื้อหรือจำนวนคงเหลือ</p>
-              </div>
-              <div className="dashboard-stock-summary-totals">
-                <span>ตั้งต้น {stockSummaryTotals.totalStock} ชิ้น</span>
-                <span>เบิก {stockSummaryTotals.withdrawn} ชิ้น</span>
-                <span>เหลือ {stockSummaryTotals.remaining} ชิ้น</span>
-              </div>
-            </div>
-            <div className="dashboard-stock-status-grid">
-              <div>
-                <span>จำนวนตั้งต้น</span>
-                <strong>{stockSummaryTotals.totalStock}</strong>
-                <small>ชิ้น</small>
-              </div>
-              <div>
-                <span>เบิกแล้ว</span>
-                <strong>{stockSummaryTotals.withdrawn}</strong>
-                <small>ชิ้น</small>
-              </div>
-              <div>
-                <span>คงเหลือ</span>
-                <strong>{stockSummaryTotals.remaining}</strong>
-                <small>ชิ้น</small>
-              </div>
-            </div>
-            <div className="dashboard-inventory-zones">
-              <div className="dashboard-stock-focus-list">
-                <h3>รายการที่ถูกเบิกมาก</h3>
-                {stockFocusRows.slice(0, 5).map((row) => (
-                  <p key={row.id}>
-                    <span>{row.type} · {row.gender} · {row.size || '-'}</span>
-                    <strong>{row.withdrawn} ชิ้น</strong>
-                  </p>
-                ))}
-                {!stockSummaryRows.length && (
-                  <div className="dashboard-stock-ledger-empty">ยังไม่มีข้อมูลสต๊อก</div>
-                )}
-              </div>
-              <div className="dashboard-stock-focus-list">
-                <h3>สต๊อกต่ำที่ควรดู</h3>
-                {lowStockRows.length ? (
-                  lowStockRows.map((item) => (
-                    <p key={item.id}>
-                      <span>{item.type}</span>
-                      <strong>เหลือ {item.total} ชิ้น</strong>
-                    </p>
-                  ))
-                ) : (
-                  <div className="dashboard-stock-ledger-empty">ยังไม่มีรายการสต๊อกต่ำ</div>
-                )}
-              </div>
-            </div>
-          </div>
           <InventoryManager
             config={clothingConfig}
             setConfig={setClothingConfig}
             onAuthExpired={onAuthExpired}
+            stacked
           />
         </section>
       )}
