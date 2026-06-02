@@ -316,7 +316,7 @@ function App() {
   );
 }
 
-function QuickOrderApp({ gasConfigured, onOpenDashboard, branches, branchesLoading }) {
+function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, branchesLoading = false }) {
   const [sizeOpen, setSizeOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -1693,7 +1693,7 @@ function SetupWarning() {
   );
 }
 
-function QuickOrderSetupPanel({ state, dispatch, forceExpand = false, branches }) {
+function QuickOrderSetupPanel({ state, dispatch, forceExpand = false, branches = BRANCHES }) {
   const complete = Boolean(
     state.companyName.trim() &&
     state.branch &&
