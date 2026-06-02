@@ -3,6 +3,8 @@ import {
   getBatchStatusStockMovements,
   adjustStockForStatusChange,
   findStockIssuesForStatusChange,
+  getClothingStockRows,
+  setClothingStockRows,
 } from '../src/lib/stockHelpers';
 import {
   ORDER_STATUS_DELIVERED,
@@ -96,5 +98,26 @@ describe('stock movement helpers', () => {
   it('does not create stock issues when transitioning away from delivered', () => {
     const issues = findStockIssuesForStatusChange(clothingConfig, deliveredBatch, ORDER_STATUS_PENDING);
     expect(issues).toHaveLength(0);
+  });
+
+  it('uses sizeRows fallback when genderSizeRows is missing', () => {
+    const simpleConfig = [
+      { type: 'polo', sizeRows: [{ size: 'L', qty: 10 }] },
+    ];
+
+    expect(getClothingStockRows(simpleConfig[0], 'ชาย')).toEqual([{ size: 'L', qty: 10 }]);
+    const updated = setClothingStockRows(simpleConfig[0], 'ชาย', [{ size: 'L', qty: 7 }]);
+    expect(updated.sizeRows).toEqual([{ size: 'L', qty: 7 }]);
+    expect(updated.genderSizeRows).toBeUndefined();
+  });
+
+  it('updates stock in sizeRows directly when only sizeRows exist', () => {
+    const simpleConfig = [
+      { type: 'polo', sizeRows: [{ size: 'L', qty: 10 }] },
+    ];
+    const nextConfig = adjustStockForStatusChange(simpleConfig, deliveredBatch, ORDER_STATUS_DELIVERED);
+
+    expect(nextConfig[0].sizeRows[0].qty).toBe(7);
+    expect(nextConfig[0].genderSizeRows).toBeUndefined();
   });
 });

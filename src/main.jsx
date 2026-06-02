@@ -104,6 +104,8 @@ import {
   getStockLedgerSummary,
   findStockIssuesForStatusChange,
   adjustStockForStatusChange,
+  getClothingStockRows,
+  setClothingStockRows,
 } from './lib/stockHelpers';
 import {
   TOAST_DURATION_MS,
@@ -3725,7 +3727,7 @@ function InventoryManager({ config, setConfig, onAuthExpired, stacked = false })
 
   return (
     <>
-    <section className={cn('inventory-manager-shell', stacked && 'stacked')}>
+    <section className="inventory-manager-shell">
       <aside className="inventory-list-panel">
         <div className="inventory-list-head">
           <div>
@@ -4052,6 +4054,9 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState('');
   const [exportExpanded, setExportExpanded] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+  const [showOverviewMetrics, setShowOverviewMetrics] = useState(false);
+  const [showOverviewChartDetails, setShowOverviewChartDetails] = useState(false);
+  const [showStockDetails, setShowStockDetails] = useState(false);
   const [columnSettingsTable, setColumnSettingsTable] = useState('');
   const [visibleOrderColumns, setVisibleOrderColumns] = useState(() =>
     readDashboardTableColumns('orders', ORDER_TABLE_COLUMNS)
@@ -4448,8 +4453,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
     return movements.reduce((currentConfig, movement) => {
       return currentConfig.map((clothing) => {
         if (clothing.type !== movement.type) return clothing;
-        const genderSizeRows = { ...(clothing.genderSizeRows || {}) };
-        const rows = genderSizeRows[movement.gender] || clothing.sizeRows || [];
+        const rows = getClothingStockRows(clothing, movement.gender);
         const updatedRows = rows.map((row) => {
           if (String(row.size) !== String(movement.size)) return row;
           return applyStockMovement(
@@ -4458,8 +4462,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
             movement.delta > 0 ? 'withdraw' : 'restore'
           );
         });
-        genderSizeRows[movement.gender] = updatedRows;
-        return { ...clothing, genderSizeRows };
+        return setClothingStockRows(clothing, movement.gender, updatedRows);
       });
     }, config);
   }
@@ -4843,14 +4846,72 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
           </div>
 
           <div className="dashboard-overview-grid">
-            <div className="dashboard-overview-stats">
-              <Stat icon={Truck} value={`${metrics.pendingPieces} ชิ้น`} label="รอจัดส่ง" />
-              <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
-              <Stat icon={BarChart3} value={`${shippedPiecePercent}%`} label="อัตราจัดส่ง" />
-              <Stat icon={PackageSearch} value={`${stockSummaryTotals.remaining} ชิ้น`} label="สต๊อกคงเหลือ" />
-            </div>
+            <section className="dashboard-overview-panel">
+              <div className="dashboard-panel-head slim">
+                <div>
+                  <h3>สรุป KPI</h3>
+                  <p>ยอดสำคัญและสถานะงานก่อนลงมือจัดการ</p>
+                </div>
+                <button
+                  type="button"
+                  className="dashboard-toggle-detail"
+                  onClick={() => setShowOverviewMetrics((value) => !value)}
+                >
+                  {showOverviewMetrics ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
+                </button>
+              </div>
+              <div className="dashboard-overview-stats">
+                <Stat icon={Truck} value={`${metrics.pendingPieces} ชิ้น`} label="รอจัดส่ง" />
+                <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
+                <Stat icon={BarChart3} value={`${shippedPiecePercent}%`} label="อัตราจัดส่ง" />
+                <Stat icon={PackageSearch} value={`${stockSummaryTotals.remaining} ชิ้น`} label="สต๊อกคงเหลือ" />
+              </div>
+              {showOverviewMetrics && (
+                <div className="dashboard-overview-details">
+                  <div className="dashboard-overview-detail-grid">
+                    <div>
+                      <span>คำสั่งทั้งหมด</span>
+                      <strong>{filteredBatches.length}</strong>
+                    </div>
+                    <div>
+                      <span>ชิ้นรวมทั้งหมด</span>
+                      <strong>{metrics.totalPieces}</strong>
+                    </div>
+                    <div>
+                      <span>ชิ้นรอจัดส่ง</span>
+                      <strong>{metrics.pendingPieces}</strong>
+                    </div>
+                    <div>
+                      <span>ชิ้นจัดส่งแล้ว</span>
+                      <strong>{metrics.shippedPieces}</strong>
+                    </div>
+                  </div>
+                  <div className="dashboard-overview-status-breakdown">
+                    {ORDER_STATUSES.map((status) => (
+                      <div key={status}>
+                        <span>{status}</span>
+                        <strong>{countByStatus(status)} รายการ</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
 
             <div className="dashboard-overview-chart-card">
+              <div className="dashboard-panel-head slim">
+                <div>
+                  <h3>แนวโน้มการจัดส่ง</h3>
+                  <p>กราฟสรุปงานตามสถานะและสัดส่วนการส่งจริง</p>
+                </div>
+                <button
+                  type="button"
+                  className="dashboard-toggle-detail"
+                  onClick={() => setShowOverviewChartDetails((value) => !value)}
+                >
+                  {showOverviewChartDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
+                </button>
+              </div>
               <DashboardOverviewChart
                 itemRows={rows}
                 metrics={metrics}
@@ -4860,6 +4921,22 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
                   canceled: ORDER_STATUS_CANCELED,
                 }}
               />
+              {showOverviewChartDetails && (
+                <div className="dashboard-overview-details dashboard-overview-chart-details">
+                  <div>
+                    <span>คำสั่งทั้งหมด</span>
+                    <strong>{filteredBatches.length}</strong>
+                  </div>
+                  <div>
+                    <span>ชิ้นทั้งหมด</span>
+                    <strong>{metrics.totalPieces}</strong>
+                  </div>
+                  <div>
+                    <span>ชิ้นคงเหลือ</span>
+                    <strong>{stockSummaryTotals.remaining}</strong>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="dashboard-overview-stock-card">
@@ -4884,6 +4961,46 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
               <h2>การ์ดแบบเสื้อ</h2>
               <p>สรุปแบบเสื้อที่มีไซส์และสต๊อกให้ดูแบบรวมบนภาพรวม</p>
             </div>
+          </div>
+          <div className="dashboard-stock-detail-card">
+            <div className="dashboard-panel-head slim">
+              <div>
+                <h3>สต๊อกละเอียด</h3>
+                <p>กดดูเพื่อแยกสต๊อกตามแบบเสื้อ เพศ และไซส์</p>
+              </div>
+              <button
+                type="button"
+                className="dashboard-toggle-detail"
+                onClick={() => setShowStockDetails((value) => !value)}
+              >
+                {showStockDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
+              </button>
+            </div>
+            {showStockDetails && (
+              <div className="dashboard-stock-detail-table">
+                <div className="dashboard-stock-detail-header">
+                  <span>แบบเสื้อ</span>
+                  <span>เพศ</span>
+                  <span>ไซส์</span>
+                  <span>เบิกแล้ว</span>
+                  <span>คงเหลือ</span>
+                </div>
+                {stockSummaryRows.slice(0, 16).map((row) => (
+                  <div key={row.id} className="dashboard-stock-detail-row">
+                    <span>{row.type}</span>
+                    <span>{row.gender}</span>
+                    <span>{row.size || '-'}</span>
+                    <span>{row.withdrawn}</span>
+                    <span>{row.remaining}</span>
+                  </div>
+                ))}
+                {stockSummaryRows.length > 16 && (
+                  <div className="dashboard-stock-detail-footer">
+                    แสดง {Math.min(16, stockSummaryRows.length)} จาก {stockSummaryRows.length} รายการ
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="dashboard-inventory-card-grid">
             {inventoryRows.slice(0, 6).map((item) => (
@@ -5726,7 +5843,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
             config={clothingConfig}
             setConfig={setClothingConfig}
             onAuthExpired={onAuthExpired}
-            stacked
           />
         </section>
       )}

@@ -54,6 +54,18 @@ export function getStockLedgerSummary(row) {
   };
 }
 
+export function getClothingStockRows(clothing, gender) {
+  if (!clothing) return [];
+  return clothing.genderSizeRows?.[gender] || clothing.sizeRows || [];
+}
+
+export function setClothingStockRows(clothing, gender, updatedRows) {
+  if (clothing?.genderSizeRows) {
+    return { ...clothing, genderSizeRows: { ...clothing.genderSizeRows, [gender]: updatedRows } };
+  }
+  return { ...clothing, sizeRows: updatedRows };
+}
+
 export function getBatchStatusStockMovements(batch, targetStatus) {
   return batch.orders.flatMap((order) => {
     const gender = order.gender || GENDERS[0];
@@ -95,7 +107,7 @@ export function findStockIssuesForStatusChange(config, batch, targetStatus) {
       return;
     }
 
-    const rows = clothing.genderSizeRows?.[gender] || clothing.sizeRows || [];
+    const rows = getClothingStockRows(clothing, gender);
     const row = rows.find((r) => String(r.size) === String(size));
     const available = Number(row?.qty || 0);
     if (available < requested) {
@@ -116,19 +128,19 @@ export function adjustStockForStatusChange(config, batch, targetStatus) {
     const clothingMovements = movements.filter((movement) => movement.type === clothing.type);
     if (!clothingMovements.length) return clothing;
 
-    const genderSizeRows = { ...(clothing.genderSizeRows || {}) };
     let changed = false;
+    let nextClothing = clothing;
 
     clothingMovements.forEach((movement) => {
-      const rows = genderSizeRows[movement.gender] || clothing.sizeRows || [];
+      const rows = getClothingStockRows(nextClothing, movement.gender);
       const updatedRows = rows.map((row) => {
         if (String(row.size) !== String(movement.size)) return row;
         changed = true;
         return applyStockMovement(row, movement.delta, movement.delta < 0 ? 'withdraw' : 'restore');
       });
-      genderSizeRows[movement.gender] = updatedRows;
+      nextClothing = setClothingStockRows(nextClothing, movement.gender, updatedRows);
     });
 
-    return changed ? { ...clothing, genderSizeRows } : clothing;
+    return changed ? nextClothing : clothing;
   });
 }

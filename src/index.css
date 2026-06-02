@@ -2513,6 +2513,180 @@ body {
   margin: 0.9rem 0 0;
 }
 
+.dashboard-overview-panel,
+.dashboard-overview-chart-card,
+.dashboard-overview-stock-card,
+.dashboard-stock-detail-card,
+.dashboard-inventory-card {
+  border: 1px solid var(--gi-border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 1rem;
+  box-shadow: var(--gi-shadow-soft);
+}
+
+.dashboard-overview-details {
+  border-top: 1px solid var(--gi-border);
+  margin-top: 1rem;
+  padding-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.dashboard-overview-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dashboard-overview-detail-grid div,
+.dashboard-overview-chart-details > div {
+  border: 1px solid var(--gi-border);
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 0.85rem;
+}
+
+.dashboard-overview-detail-grid span,
+.dashboard-overview-chart-details span {
+  display: block;
+  color: var(--gi-muted);
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.dashboard-overview-detail-grid strong,
+.dashboard-overview-chart-details strong {
+  color: var(--gi-text);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.dashboard-overview-status-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dashboard-overview-status-breakdown div {
+  border: 1px solid var(--gi-border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.85rem;
+}
+
+.dashboard-overview-status-breakdown span {
+  display: block;
+  color: var(--gi-muted);
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.dashboard-overview-status-breakdown strong {
+  color: var(--gi-text);
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.dashboard-overview-chart-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.dashboard-overview-chart-details div {
+  border: 1px solid var(--gi-border);
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 0.85rem;
+}
+
+.dashboard-overview-chart-details span {
+  display: block;
+  color: var(--gi-muted);
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.dashboard-stock-detail-card {
+  border: 1px solid var(--gi-border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 1rem;
+  box-shadow: var(--gi-shadow-soft);
+}
+
+.dashboard-stock-detail-card {
+  margin-top: 0.9rem;
+}
+
+.dashboard-stock-detail-card .dashboard-panel-head {
+  gap: 1rem;
+  align-items: center;
+}
+
+.dashboard-toggle-detail {
+  min-height: 2.35rem;
+  border-radius: 8px;
+  border: 1px solid var(--gi-border);
+  background: #ffffff;
+  color: var(--gi-text);
+  padding: 0 0.85rem;
+  font-weight: 900;
+}
+
+.dashboard-stock-detail-table {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.35rem;
+  overflow: auto;
+  max-height: 24rem;
+}
+
+.dashboard-stock-detail-header,
+.dashboard-stock-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.65rem 0.5rem;
+}
+
+.dashboard-stock-detail-header {
+  color: var(--gi-muted);
+  font-size: 0.75rem;
+  font-weight: 950;
+  background: #f1f5f9;
+  border-radius: 9px;
+}
+
+.dashboard-stock-detail-row {
+  border: 1px solid var(--gi-border);
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.dashboard-stock-detail-row:nth-child(odd) {
+  background: #ffffff;
+}
+
+.dashboard-stock-detail-row span {
+  color: var(--gi-text);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.dashboard-stock-detail-footer {
+  padding: 0.75rem 0.85rem;
+  color: var(--gi-muted);
+  font-size: 0.8rem;
+}
+
+.dashboard-toggle-detail:hover {
+  background: #eff6ff;
+}
+
 .dashboard-inventory-card {
   border: 1px solid var(--gi-border);
   border-radius: 12px;
