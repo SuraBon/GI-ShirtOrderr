@@ -402,7 +402,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
               <h3>แบบเสื้อ</h3>
               <p>เลือกแบบเสื้อเพื่อแก้ข้อมูลและสต๊อก</p>
             </div>
-            <button type="button" onClick={addClothing}>
+            <button type="button" className="btn-primary btn-sm" onClick={addClothing}>
               <Plus className="size-4" /> เพิ่ม
             </button>
           </div>
@@ -493,16 +493,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
             </div>
           </div>
 
-          <div className="inventory-subtabs" role="tablist" aria-label="จัดการข้อมูลแบบเสื้อและสต๊อก">
-            <button className={activeSection === 'details' ? 'active' : ''} onClick={() => setActiveSection('details')} role="tab" aria-selected={activeSection === 'details'}>
-              ข้อมูลเสื้อ
-            </button>
-            <button className={activeSection === 'stock' ? 'active' : ''} onClick={() => setActiveSection('stock')} role="tab" aria-selected={activeSection === 'stock'}>
-              สต๊อกตามไซส์
-            </button>
-          </div>
-
-          <section className={cn('inventory-detail-card', activeSection !== 'details' && 'hidden')}>
+          <section className="inventory-detail-card">
             <div className="inventory-section-head">
               <div>
                 <h4>ข้อมูลเสื้อ</h4>
@@ -538,7 +529,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
                   />
                 </Field>
                 <div className="inventory-info-note">
-                  ข้อมูลส่วนนี้ใช้ควบคุมสิ่งที่ผู้เบิกเห็น ส่วนจำนวนสต๊อกให้แก้ในแท็บสต๊อกตามไซส์
+                  ข้อมูลส่วนนี้ใช้ควบคุมสิ่งที่ผู้เบิกเห็น ส่วนจำนวนสต๊อกให้แก้ในส่วนด้านล่าง
                 </div>
               </div>
             </div>
@@ -551,7 +542,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
                 </div>
                 <div className="inventory-size-fields-actions">
                   {editing && (
-                    <button type="button" className="inventory-add-detail-field" onClick={() => addDetailField(selectedItem.id)}>
+                    <button type="button" className="btn-secondary btn-sm inventory-add-detail-field" onClick={() => addDetailField(selectedItem.id)}>
                       <Plus className="size-4" />
                       เพิ่มรายละเอียด
                     </button>
@@ -608,14 +599,14 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
                 ))}
               </div>
               {editing && (
-                <button type="button" className="inventory-add-stock" onClick={() => addStockRow(selectedItem.id)}>
+                <button type="button" className="btn-secondary btn-sm inventory-add-stock" onClick={() => addStockRow(selectedItem.id)}>
                   <Plus className="size-4" /> เพิ่มไซส์
                 </button>
               )}
             </div>
           </section>
 
-          <section className={cn('inventory-stock-card', activeSection !== 'stock' && 'hidden')}>
+          <section className="inventory-stock-card">
             <div className="inventory-section-head">
               <div>
                 <h4>สต๊อกตามไซส์</h4>
@@ -652,7 +643,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
                           }
                           placeholder="+10 หรือ -2"
                         />
-                        <button type="button" onClick={() => adjustStockQuantity(selectedItem.id, index)}>
+                        <button type="button" className="btn-primary btn-sm" onClick={() => adjustStockQuantity(selectedItem.id, index)}>
                           บันทึก
                         </button>
                       </div>

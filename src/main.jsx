@@ -3445,6 +3445,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
   const [visibleOrderColumns, setVisibleOrderColumns] = useState(() =>
     readDashboardTableColumns('orders', ORDER_TABLE_COLUMNS)
   );
+  const dashboardMockMode = import.meta.env.DEV || new URLSearchParams(window.location.search).get('mock') === 'true';
   const [visibleEmployeeColumns, setVisibleEmployeeColumns] = useState(() =>
     readDashboardTableColumns('employees', EMPLOYEE_TABLE_COLUMNS)
   );
@@ -3469,7 +3470,9 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       const data = Array.isArray(result) ? result : result?.data;
       if (!Array.isArray(data)) throw new Error('รูปแบบข้อมูลแดชบอร์ดไม่ถูกต้อง');
       const remoteBatches = data.map(normalizeBatch).filter((batch) => batch.orders.length);
-      setBatches(remoteBatches);
+      const finalBatches =
+        remoteBatches.length || !dashboardMockMode ? remoteBatches : getDashboardMockBatches();
+      setBatches(finalBatches);
       setDataError('');
       if (loadingToastId) toast.success('โหลดข้อมูลแดชบอร์ดแล้ว', { id: loadingToastId });
     } catch (error) {
@@ -5787,6 +5790,68 @@ function buildDashboardMetrics(batches) {
     deliveredBatches: batches.filter((batch) => batch.status === ORDER_STATUS_DELIVERED).length,
     canceledBatches: batches.filter((batch) => batch.status === ORDER_STATUS_CANCELED).length,
   };
+}
+
+function getDashboardMockBatches() {
+  return [
+    {
+      batchId: 'ORD-20260602-90953',
+      companyName: 'GI (สาขาใหญ่)',
+      branch: 'สาขาใหญ่',
+      supervisorName: 'นพดล',
+      supervisorPhone: '081-234-5678',
+      submittedAt: '2026-06-02T08:30:00.000Z',
+      status: ORDER_STATUS_PENDING,
+      statusUpdatedAt: '2026-06-02T08:30:00.000Z',
+      orders: [
+        {
+          name: 'สมชาย',
+          gender: 'ชาย',
+          items: [
+            { type: 'เสื้อโปโล', size: 'S', qty: 3, status: ORDER_STATUS_PENDING, statusUpdatedAt: '2026-06-02T08:30:00.000Z' },
+          ],
+        },
+      ],
+    },
+    {
+      batchId: 'ORD-20260528-22011',
+      companyName: 'GI (สาขาป้อมปราบ)',
+      branch: 'สาขาป้อมปราบ',
+      supervisorName: 'ปัทมา',
+      supervisorPhone: '089-765-4321',
+      submittedAt: '2026-05-28T13:10:00.000Z',
+      status: ORDER_STATUS_DELIVERED,
+      statusUpdatedAt: '2026-05-29T10:20:00.000Z',
+      orders: [
+        {
+          name: 'ศศิธร',
+          gender: 'หญิง',
+          items: [
+            { type: 'เสื้อสเวตเตอร์', size: 'M', qty: 4, status: ORDER_STATUS_DELIVERED, statusUpdatedAt: '2026-05-29T10:20:00.000Z' },
+          ],
+        },
+      ],
+    },
+    {
+      batchId: 'ORD-20260530-34072',
+      companyName: 'GI (สาขาใหญ่)',
+      branch: 'สาขาใหญ่',
+      supervisorName: 'นงลักษณ์',
+      supervisorPhone: '086-789-2310',
+      submittedAt: '2026-05-30T16:45:00.000Z',
+      status: ORDER_STATUS_PENDING,
+      statusUpdatedAt: '2026-05-30T16:45:00.000Z',
+      orders: [
+        {
+          name: 'อภิชาต',
+          gender: 'ชาย',
+          items: [
+            { type: 'กางเกงช็อป', size: 'L', qty: 6, status: ORDER_STATUS_PENDING, statusUpdatedAt: '2026-05-30T16:45:00.000Z' },
+          ],
+        },
+      ],
+    },
+  ].map(normalizeBatch);
 }
 
 const rootElement = document.getElementById('root');
