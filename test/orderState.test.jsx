@@ -39,4 +39,39 @@ describe('orderReducer', () => {
       qty: '2',
     });
   });
+
+  it('adds a blank employee row instead of copying the last row setup', () => {
+    const state = {
+      companyName: '',
+      branch: '',
+      supervisorName: '',
+      supervisorPhone: '',
+      employees: [
+        {
+          id: 'employee-1',
+          name: 'A',
+          gender: 'ชาย',
+          expanded: true,
+          items: [
+            {
+              type: 'เสื้อโปโล',
+              size: 'L',
+              customSize: '',
+              qty: '1',
+            },
+          ],
+        },
+      ],
+    };
+
+    const nextState = orderReducer(state, { type: 'add', id: 'employee-2' });
+
+    expect(nextState.employees).toHaveLength(2);
+    expect(nextState.employees[1]).toMatchObject({
+      id: 'employee-2',
+      name: '',
+      gender: '',
+      items: [],
+    });
+  });
 });

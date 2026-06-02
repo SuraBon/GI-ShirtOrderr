@@ -392,16 +392,9 @@ function orderReducer(state, action) {
       return { ...state, employees: employees.length ? employees : [createEmployee(0)] };
     }
     case 'add': {
-      const prevEmployee = state.employees[state.employees.length - 1];
       const newEmployee = createEmployee(state.employees.length);
       if (action.id) {
         newEmployee.id = action.id;
-      }
-      if (prevEmployee) {
-        newEmployee.gender = prevEmployee.gender || '';
-        if (Array.isArray(prevEmployee.items)) {
-          newEmployee.items = prevEmployee.items.map((item) => ({ ...item }));
-        }
       }
       return { ...state, employees: [...state.employees, newEmployee] };
     }
