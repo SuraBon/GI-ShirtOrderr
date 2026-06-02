@@ -53,6 +53,13 @@ import {
   defaultSize,
 } from './lib/config';
 import {
+  EMPLOYEE_TABLE_COLUMNS,
+  ORDER_TABLE_COLUMNS,
+  getDefaultColumnIds,
+  readDashboardTableColumns,
+  writeDashboardTableColumns,
+} from './lib/dashboardTableColumns';
+import {
   Logo,
   OrderHeader,
   DashboardHeader,
@@ -65,7 +72,7 @@ import {
   GridSelect,
   Card,
 } from './components';
-import { MiniBar } from './components/SimpleCharts';
+import { DashboardOverviewChart } from './components/DashboardOverviewChart';
 import './index.css';
 
 const DASHBOARD_PATH = '#/dashboard';
@@ -79,57 +86,10 @@ const ORDER_STATUS_PENDING = 'รอจัดส่ง';
 const ORDER_STATUS_DELIVERED = 'จัดส่งแล้ว';
 const ORDER_STATUS_CANCELED = 'ยกเลิก';
 const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED, ORDER_STATUS_CANCELED];
-const DASHBOARD_TABLE_COLUMNS_KEY = 'gi-dashboard-table-columns';
-const ORDER_TABLE_COLUMNS = [
-  { id: 'code', label: 'รหัสคำสั่ง' },
-  { id: 'date', label: 'วันที่' },
-  { id: 'company', label: 'บริษัท/หน่วยงาน' },
-  { id: 'branch', label: 'สาขา' },
-  { id: 'contact', label: 'ผู้ติดต่อ' },
-  { id: 'total', label: 'จำนวนรวม' },
-  { id: 'status', label: 'สถานะ' },
-  { id: 'updated', label: 'อัปเดตล่าสุด' },
-];
-const EMPLOYEE_TABLE_COLUMNS = [
-  { id: 'name', label: 'ชื่อพนักงาน' },
-  { id: 'gender', label: 'เพศ' },
-  { id: 'type', label: 'เสื้อ' },
-  { id: 'size', label: 'ไซส์' },
-  { id: 'qty', label: 'จำนวน' },
-  { id: 'status', label: 'สถานะ' },
-  { id: 'date', label: 'อัปเดตล่าสุด' },
-];
 
 function normalizeOrderStatus(status, fallback = ORDER_STATUS_PENDING) {
   if (status === 'รอของ' || String(status || '').includes('บางส่วน')) return ORDER_STATUS_PENDING;
   return ORDER_STATUSES.includes(status) ? status : fallback;
-}
-
-function getDefaultColumnIds(columns) {
-  return columns.map((column) => column.id);
-}
-
-function readDashboardTableColumns(tableId, columns) {
-  if (typeof localStorage === 'undefined') return getDefaultColumnIds(columns);
-  try {
-    const saved = JSON.parse(localStorage.getItem(DASHBOARD_TABLE_COLUMNS_KEY) || '{}');
-    const allowed = new Set(columns.map((column) => column.id));
-    const visible = Array.isArray(saved?.[tableId])
-      ? saved[tableId].filter((id) => allowed.has(id))
-      : [];
-    return visible.length ? visible : getDefaultColumnIds(columns);
-  } catch {
-    return getDefaultColumnIds(columns);
-  }
-}
-
-function writeDashboardTableColumns(tableId, visibleColumns) {
-  if (typeof localStorage === 'undefined') return;
-  const saved = JSON.parse(localStorage.getItem(DASHBOARD_TABLE_COLUMNS_KEY) || '{}');
-  localStorage.setItem(
-    DASHBOARD_TABLE_COLUMNS_KEY,
-    JSON.stringify({ ...saved, [tableId]: visibleColumns })
-  );
 }
 
 const BRANCHES = [
@@ -5399,7 +5359,15 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             </div>
 
             <div className="dashboard-overview-chart-card">
-              <DashboardOverviewChart batches={filteredBatches} metrics={metrics} />
+              <DashboardOverviewChart
+                itemRows={rows}
+                metrics={metrics}
+                statuses={{
+                  pending: ORDER_STATUS_PENDING,
+                  delivered: ORDER_STATUS_DELIVERED,
+                  canceled: ORDER_STATUS_CANCELED,
+                }}
+              />
             </div>
 
             <div className="dashboard-overview-stock-card">
@@ -7133,128 +7101,6 @@ function Stat({ icon: Icon, value, label }) {
         </div>
       </div>
     </Card>
-  );
-}
-
-const DASHBOARD_CHART_OPTIONS = [
-  {
-    value: 'pendingBranch',
-    label: 'งานค้างตามสาขา',
-    title: 'งานค้างตามสาขา',
-    description: 'ดูว่าสาขาไหนมีจำนวนชิ้นรอจัดส่งมากที่สุด',
-    unit: 'ชิ้น',
-  },
-  {
-    value: 'pendingType',
-    label: 'งานค้างตามประเภทเสื้อ',
-    title: 'งานค้างตามประเภทเสื้อ',
-    description: 'ใช้เตรียมหยิบของและตรวจสต๊อกก่อนจัดส่ง',
-    unit: 'ชิ้น',
-  },
-  {
-    value: 'pieceStatus',
-    label: 'จำนวนชิ้นตามสถานะ',
-    title: 'จำนวนชิ้นตามสถานะ',
-    description: 'สรุปชิ้นที่รอจัดส่ง จัดส่งแล้ว และยกเลิก',
-    unit: 'ชิ้น',
-  },
-  {
-    value: 'orderStatus',
-    label: 'คำสั่งเบิกตามสถานะ',
-    title: 'คำสั่งเบิกตามสถานะ',
-    description: 'ดูจำนวนใบงานตามสถานะเพื่อประเมินภาระงาน',
-    unit: 'คำสั่ง',
-  },
-];
-
-const DASHBOARD_CHART_COLORS = ['#2563eb', '#ef4444', '#10b981', '#f59e0b', '#7c3aed', '#64748b'];
-
-function addChartValue(map, key, value) {
-  const label = key || '-';
-  map.set(label, (map.get(label) || 0) + Number(value || 0));
-}
-
-function limitChartRows(rows, maxRows = 6) {
-  const sorted = rows.filter((row) => row.value > 0).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, 'th'));
-  if (sorted.length <= maxRows) return sorted;
-  const visible = sorted.slice(0, maxRows - 1);
-  const otherValue = sorted.slice(maxRows - 1).reduce((sum, row) => sum + row.value, 0);
-  return [...visible, { label: 'อื่นๆ', value: otherValue }];
-}
-
-function colorChartRows(rows) {
-  return rows.map((row, index) => ({ ...row, color: row.color || DASHBOARD_CHART_COLORS[index % DASHBOARD_CHART_COLORS.length] }));
-}
-
-function buildDashboardChartRows(view, batches, metrics) {
-  const itemRows = flattenBatches(batches);
-
-  if (view === 'pieceStatus') {
-    return [
-      { label: ORDER_STATUS_DELIVERED, value: metrics.shippedPieces, color: '#10b981' },
-      { label: ORDER_STATUS_PENDING, value: metrics.pendingPieces, color: '#ef4444' },
-      { label: ORDER_STATUS_CANCELED, value: metrics.canceledPieces, color: '#64748b' },
-    ];
-  }
-
-  if (view === 'orderStatus') {
-    return [
-      { label: ORDER_STATUS_DELIVERED, value: metrics.deliveredBatches, color: '#10b981' },
-      { label: ORDER_STATUS_PENDING, value: metrics.pendingBatches, color: '#ef4444' },
-      { label: ORDER_STATUS_CANCELED, value: metrics.canceledBatches, color: '#64748b' },
-    ];
-  }
-
-  const map = new Map();
-  itemRows
-    .filter((row) => (row.itemStatus || row.status) === ORDER_STATUS_PENDING)
-    .forEach((row) => {
-      addChartValue(map, view === 'pendingType' ? row.type : row.branch, row.qty);
-    });
-
-  return colorChartRows(limitChartRows([...map.entries()].map(([label, value]) => ({ label, value }))));
-}
-
-function DashboardOverviewChart({ batches, metrics }) {
-  const [chartView, setChartView] = useState('pendingBranch');
-  const selectedOption =
-    DASHBOARD_CHART_OPTIONS.find((option) => option.value === chartView) || DASHBOARD_CHART_OPTIONS[0];
-  const rows = useMemo(
-    () => buildDashboardChartRows(chartView, batches, metrics),
-    [chartView, batches, metrics]
-  );
-  const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
-  return (
-    <div className="dashboard-overview-chart">
-      <div className="dashboard-overview-chart-head">
-        <h3>แผนภูมิภาพรวม</h3>
-        <label className="dashboard-chart-select">
-          <span>แสดงผล</span>
-          <CustomSelect
-            id="dashboard-chart-view"
-            value={chartView}
-            values={DASHBOARD_CHART_OPTIONS.map((option) => ({
-              value: option.value,
-              label: option.label,
-            }))}
-            onChange={setChartView}
-            compact
-          />
-        </label>
-      </div>
-      <div className="dashboard-overview-chart-subhead">
-        <div>
-          <h4>{selectedOption.title}</h4>
-          <p>{selectedOption.description}</p>
-        </div>
-        <strong>{total.toLocaleString('th-TH')} {selectedOption.unit}</strong>
-      </div>
-      <div className="dashboard-overview-chart-body">
-        <div className="dashboard-overview-bars">
-          <MiniBar rows={rows} />
-        </div>
-      </div>
-    </div>
   );
 }
 
