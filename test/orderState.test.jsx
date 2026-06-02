@@ -101,7 +101,6 @@ describe('orderReducer', () => {
       employees: [
         {
           id: 'employee-1',
-          employeeId: 'E001',
           name: 'A',
           gender: 'male',
           expanded: true,
@@ -109,7 +108,6 @@ describe('orderReducer', () => {
         },
         {
           id: 'employee-2',
-          employeeId: '',
           name: 'B',
           gender: 'female',
           expanded: false,
@@ -122,7 +120,6 @@ describe('orderReducer', () => {
 
     expect(nextState.employees).toHaveLength(3);
     expect(nextState.employees[1]).toMatchObject({
-      employeeId: '',
       name: expect.stringMatching(/^A \(.+\)$/),
       gender: 'male',
       expanded: false,

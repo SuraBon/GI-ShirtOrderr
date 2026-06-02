@@ -30,7 +30,6 @@ const STOCK_HEADERS = [
 ];
 
 const EMPLOYEE_HEADERS = [
-  "รหัสพนักงาน",
   "ชื่อพนักงาน",
   "เพศ",
   "สาขา",
@@ -85,13 +84,13 @@ function doPost(e) {
 
     if (payload.action === "upsertEmployee") {
       requireAdmin_(payload.adminToken);
-      const employee = upsertEmployee_(getEmployeesSheet_(), payload.employee);
+      const employee = upsertEmployee_(getEmployeesSheet_(), payload.employee, payload.previousEmployeeKey);
       return json_({ success: true, action: payload.action, employee });
     }
 
     if (payload.action === "deleteEmployee") {
       requireAdmin_(payload.adminToken);
-      const employee = setEmployeeActive_(getEmployeesSheet_(), payload.employeeId, false);
+      const employee = setEmployeeActive_(getEmployeesSheet_(), payload.employeeKey, false);
       return json_({ success: true, action: payload.action, employee });
     }
 
@@ -221,12 +220,30 @@ function getEmployeesSheet_() {
   let sheet = spreadsheet.getSheetByName(EMPLOYEES_SHEET_NAME);
   if (!sheet) sheet = spreadsheet.insertSheet(EMPLOYEES_SHEET_NAME);
 
-  const currentHeaders = sheet.getRange(1, 1, 1, EMPLOYEE_HEADERS.length).getValues()[0];
+  const currentHeaders = sheet.getRange(1, 1, 1, Math.max(EMPLOYEE_HEADERS.length, 6)).getValues()[0];
+  const hasLegacyEmployeeId = currentHeaders[0] === "รหัสพนักงาน";
   const needsHeaders =
     currentHeaders.join("") === "" ||
     EMPLOYEE_HEADERS.some((header, index) => currentHeaders[index] !== header);
+
+  if (hasLegacyEmployeeId && sheet.getLastRow() >= 2) {
+    const oldRows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues();
+    const migratedRows = oldRows
+      .map(function(row) {
+        return [row[1], row[2], row[3], row[4], row[5]];
+      })
+      .filter(function(row) {
+        return String(row[0] || "").trim();
+      });
+    sheet.getRange(2, 1, sheet.getMaxRows() - 1, 6).clearContent();
+    if (migratedRows.length) {
+      sheet.getRange(2, 1, migratedRows.length, EMPLOYEE_HEADERS.length).setValues(migratedRows);
+    }
+  }
+
   if (needsHeaders) {
     sheet.getRange(1, 1, 1, EMPLOYEE_HEADERS.length).setValues([EMPLOYEE_HEADERS]);
+    sheet.getRange(1, EMPLOYEE_HEADERS.length + 1, 1, Math.max(1, 6 - EMPLOYEE_HEADERS.length)).clearContent();
     sheet.setFrozenRows(1);
   }
 
@@ -241,17 +258,18 @@ function readEmployees_(sheet) {
     .getRange(2, 1, lastRow - 1, EMPLOYEE_HEADERS.length)
     .getValues()
     .map(function(row) {
-      return {
-        employeeId: String(row[0] || "").trim(),
-        name: String(row[1] || "").trim(),
-        gender: String(row[2] || "").trim(),
-        branch: String(row[3] || "").trim(),
-        active: String(row[4] || "ใช้งาน") !== "ปิดใช้งาน",
-        updatedAt: toIso_(row[5])
+      const employee = {
+        name: String(row[0] || "").trim(),
+        gender: String(row[1] || "").trim(),
+        branch: String(row[2] || "").trim(),
+        active: String(row[3] || "ใช้งาน") !== "ปิดใช้งาน",
+        updatedAt: toIso_(row[4])
       };
+      employee.employeeKey = buildEmployeeKey_(employee);
+      return employee;
     })
     .filter(function(employee) {
-      return employee.employeeId && employee.name;
+      return employee.name;
     })
     .sort(function(a, b) {
       return String(a.branch).localeCompare(String(b.branch), "th", { numeric: true }) ||
@@ -262,26 +280,31 @@ function readEmployees_(sheet) {
 function normalizeEmployee_(employee) {
   if (!employee || typeof employee !== "object") throw new Error("ข้อมูลพนักงานไม่ถูกต้อง");
   const normalized = {
-    employeeId: String(employee.employeeId || "").trim(),
     name: String(employee.name || "").trim(),
     gender: String(employee.gender || "").trim(),
     branch: String(employee.branch || "").trim(),
     active: employee.active !== false,
     updatedAt: new Date().toISOString()
   };
-  if (!normalized.employeeId) throw new Error("ไม่พบรหัสพนักงาน");
   if (!normalized.name) throw new Error("ไม่พบชื่อพนักงาน");
   if (!normalized.gender) throw new Error("ไม่พบเพศ");
   if (!normalized.branch) throw new Error("ไม่พบสาขา");
+  normalized.employeeKey = buildEmployeeKey_(normalized);
   return normalized;
 }
 
-function upsertEmployee_(sheet, employee) {
+function buildEmployeeKey_(employee) {
+  return [
+    String(employee && employee.name || "").trim().toLowerCase(),
+    String(employee && employee.branch || "").trim().toLowerCase()
+  ].join("::");
+}
+
+function upsertEmployee_(sheet, employee, previousEmployeeKey) {
   const normalized = normalizeEmployee_(employee);
   const lastRow = sheet.getLastRow();
   const status = normalized.active ? "ใช้งาน" : "ปิดใช้งาน";
   const values = [
-    normalized.employeeId,
     normalized.name,
     normalized.gender,
     normalized.branch,
@@ -290,9 +313,11 @@ function upsertEmployee_(sheet, employee) {
   ];
 
   if (lastRow >= 2) {
-    const employeeIds = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-    for (let index = 0; index < employeeIds.length; index += 1) {
-      if (String(employeeIds[index][0]).trim() === normalized.employeeId) {
+    const employees = sheet.getRange(2, 1, lastRow - 1, EMPLOYEE_HEADERS.length).getValues();
+    const targetKey = String(previousEmployeeKey || normalized.employeeKey || "").trim();
+    for (let index = 0; index < employees.length; index += 1) {
+      const rowEmployee = { name: employees[index][0], branch: employees[index][2] };
+      if (buildEmployeeKey_(rowEmployee) === targetKey) {
         sheet.getRange(index + 2, 1, 1, EMPLOYEE_HEADERS.length).setValues([values]);
         return normalized;
       }
@@ -303,24 +328,25 @@ function upsertEmployee_(sheet, employee) {
   return normalized;
 }
 
-function setEmployeeActive_(sheet, employeeId, active) {
-  const targetId = String(employeeId || "").trim();
-  if (!targetId) throw new Error("ไม่พบรหัสพนักงาน");
+function setEmployeeActive_(sheet, employeeKey, active) {
+  const targetKey = String(employeeKey || "").trim();
+  if (!targetKey) throw new Error("ไม่พบข้อมูลพนักงาน");
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) throw new Error("ไม่พบข้อมูลพนักงาน");
   const values = sheet.getRange(2, 1, lastRow - 1, EMPLOYEE_HEADERS.length).getValues();
   for (let index = 0; index < values.length; index += 1) {
-    if (String(values[index][0]).trim() === targetId) {
+    const rowEmployee = { name: values[index][0], branch: values[index][2] };
+    if (buildEmployeeKey_(rowEmployee) === targetKey) {
       const employee = {
-        employeeId: String(values[index][0] || "").trim(),
-        name: String(values[index][1] || "").trim(),
-        gender: String(values[index][2] || "").trim(),
-        branch: String(values[index][3] || "").trim(),
+        name: String(values[index][0] || "").trim(),
+        gender: String(values[index][1] || "").trim(),
+        branch: String(values[index][2] || "").trim(),
         active,
         updatedAt: new Date().toISOString()
       };
-      sheet.getRange(index + 2, 5, 1, 2).setValues([[active ? "ใช้งาน" : "ปิดใช้งาน", employee.updatedAt]]);
+      employee.employeeKey = buildEmployeeKey_(employee);
+      sheet.getRange(index + 2, 4, 1, 2).setValues([[active ? "ใช้งาน" : "ปิดใช้งาน", employee.updatedAt]]);
       return employee;
     }
   }

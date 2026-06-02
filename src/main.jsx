@@ -75,6 +75,7 @@ import {
   DashboardOverview,
   EmployeeMasterPanel,
   InventoryManager,
+  getEmployeeMasterKey,
   normalizeEmployeeMaster,
 } from './components';
 import {
@@ -460,19 +461,19 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
     return true;
   }
 
-  function jumpToEmployee(employeeId) {
-    setInvalidEmployeeId(employeeId);
+  function jumpToEmployee(employeeRowId) {
+    setInvalidEmployeeId(employeeRowId);
     if (window.innerWidth < 1024) {
-      setEditingCardId(employeeId);
+      setEditingCardId(employeeRowId);
     }
     window.setTimeout(() => {
       const target = document.querySelector(
-        `[data-quick-employee-row="${employeeId}"], [data-quick-employee-card="${employeeId}"]`
+        `[data-quick-employee-row="${employeeRowId}"], [data-quick-employee-card="${employeeRowId}"]`
       );
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        const employee = state.employees.find((emp) => emp.id === employeeId);
+        const employee = state.employees.find((emp) => emp.id === employeeRowId);
         if (employee) {
           let focused = false;
 
@@ -757,7 +758,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
     
     const newEmployees = validRows.map((row, idx) => ({
       id: crypto.randomUUID(),
-      employeeId: '',
       name: row.name,
       gender: row.gender,
       expanded: idx === 0,
@@ -1670,7 +1670,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
         dispatch={dispatch}
         editMode={editMode}
         onClose={() => setMobileEmployeeId('')}
-        onNext={(employeeId) => handleEdit(employeeId, editMode)}
+        onNext={(employeeRowId) => handleEdit(employeeRowId, editMode)}
         invalidEmployeeId={invalidEmployeeId}
       />
       <QuickOrderDialog open={quickOpen} setOpen={setQuickOpen} state={state} dispatch={dispatch} />
@@ -2923,8 +2923,8 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
       if (!response.ok || !data?.token) throw new Error(data?.error || 'รหัสเข้าแดชบอร์ดไม่ถูกต้อง');
       setError('');
       onUnlock(data.token);
-    } catch {
-      setError('รหัสไม่ถูกต้อง หรือระบบยืนยันสิทธิ์ไม่พร้อม');
+    } catch (error) {
+      setError(error?.message || 'รหัสไม่ถูกต้อง หรือระบบยืนยันสิทธิ์ไม่พร้อม');
     } finally {
       setIsChecking(false);
     }
@@ -2946,11 +2946,13 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
         <form onSubmit={submit} className="mt-6 grid gap-4">
           <Field label="รหัสเข้าแดชบอร์ด">
             <TextInput
+              id="dashboard-passcode"
               value={passcode}
               onChange={setPasscode}
               placeholder="กรอกรหัส"
               inputMode="numeric"
               type="password"
+              autoFocus
             />
           </Field>
           {error && (
@@ -3359,8 +3361,8 @@ function AdminManualDialog({ open, setOpen }) {
             <ManualSection icon={Users} title="คนคุมระบบ: ข้อมูลพนักงาน">
               <ManualList
                 items={[
-                  'ใช้เพิ่มและแก้ไขฐานพนักงานจริง โดยต้องมีรหัสพนักงาน ชื่อ เพศ และสาขา',
-                  'ค้นหาพนักงานได้จากรหัส ชื่อ เพศ หรือสาขา',
+                  'ใช้เพิ่มและแก้ไขฐานพนักงานจริง โดยต้องมีชื่อ เพศ และสาขา',
+                  'ค้นหาพนักงานได้จากชื่อ เพศ หรือสาขา',
                   'ใช้ปิดใช้งานเมื่อพนักงานลาออกหรือไม่ต้องใช้ในระบบแล้ว โดยไม่ลบประวัติเดิม',
                   'ส่วนประวัติรายการเบิกด้านล่างดึงจากคำสั่งเบิก เพื่อดูว่าพนักงานเคยเบิกแบบเสื้อ/ไซส์ใดบ้าง',
                 ]}
@@ -3395,7 +3397,7 @@ function AdminManualDialog({ open, setOpen }) {
                 items={[
                   'ปุ่มส่งออก CSV ใช้ดาวน์โหลดข้อมูลคำสั่งเบิกตามตัวกรองที่เลือก',
                   'ชีท Orders เก็บข้อมูลคำสั่งเบิกและสถานะ',
-                  'ชีท Employees เก็บข้อมูลพนักงานจริง ได้แก่ รหัสพนักงาน ชื่อ เพศ สาขา และสถานะใช้งาน',
+                  'ชีท Employees เก็บข้อมูลพนักงานจริง ได้แก่ ชื่อ เพศ สาขา และสถานะใช้งาน',
                   'ชีท Stock สร้างและอัปเดตจากระบบโดยอัตโนมัติ แสดงยอดตั้งต้น เพิ่มเข้า ปรับลด เบิกแล้ว สต๊อกทั้งหมด และคงเหลือ',
                   'ไม่ควรแก้ตัวเลขในชีท Stock โดยตรง เพราะการ sync ครั้งถัดไปจะเขียนทับจากข้อมูลในระบบ',
                 ]}
@@ -3520,10 +3522,10 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
     }
   }
 
-  async function saveEmployeeMaster(employee) {
-    if (!employee.employeeId || !employee.name || !employee.gender || !employee.branch) {
+  async function saveEmployeeMaster(employee, previousEmployeeKey = '') {
+    if (!employee.name || !employee.gender || !employee.branch) {
       toast.error('กรุณากรอกข้อมูลพนักงานให้ครบ', {
-        description: 'ต้องมีรหัสพนักงาน ชื่อ เพศ และสาขา',
+        description: 'ต้องมีชื่อ เพศ และสาขา',
       });
       return false;
     }
@@ -3532,7 +3534,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       const response = await authFetch('/api/dashboard/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'upsertEmployee', employee }),
+        body: JSON.stringify({ action: 'upsertEmployee', employee, previousEmployeeKey }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.success === false) {
@@ -3540,9 +3542,10 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       }
       const savedEmployee = normalizeEmployeeMaster(result.employee || result.data || employee);
       setEmployeeMasterRows((current) => {
-        const exists = current.some((item) => item.employeeId === savedEmployee.employeeId);
+        const targetKey = previousEmployeeKey || savedEmployee.employeeKey;
+        const exists = current.some((item) => item.employeeKey === targetKey);
         const nextRows = exists
-          ? current.map((item) => (item.employeeId === savedEmployee.employeeId ? savedEmployee : item))
+          ? current.map((item) => (item.employeeKey === targetKey ? savedEmployee : item))
           : [...current, savedEmployee];
         return nextRows.sort(
           (a, b) =>
@@ -3568,23 +3571,25 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
     }
   }
 
-  async function deactivateEmployeeMaster(employeeId) {
-    if (!window.confirm(`ปิดใช้งานพนักงานรหัส ${employeeId} หรือไม่?`)) return;
+  async function deactivateEmployeeMaster(employee) {
+    const target = normalizeEmployeeMaster(employee);
+    const employeeKey = target.employeeKey || getEmployeeMasterKey(target);
+    if (!window.confirm(`ปิดใช้งานพนักงาน ${target.name} (${target.branch}) หรือไม่?`)) return;
     setEmployeeMasterSaving(true);
     try {
       const response = await authFetch('/api/dashboard/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deleteEmployee', employeeId }),
+        body: JSON.stringify({ action: 'deleteEmployee', employeeKey }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.success === false) {
         throw new Error(result?.error || 'ปิดใช้งานพนักงานไม่สำเร็จ');
       }
-      const savedEmployee = normalizeEmployeeMaster(result.employee || result.data || { employeeId, active: false });
+      const savedEmployee = normalizeEmployeeMaster(result.employee || result.data || { ...target, active: false });
       setEmployeeMasterRows((current) =>
         current.map((item) =>
-          item.employeeId === employeeId ? { ...item, ...savedEmployee, active: false } : item
+          item.employeeKey === employeeKey ? { ...item, ...savedEmployee, active: false } : item
         )
       );
       toast.success('ปิดใช้งานพนักงานแล้ว');

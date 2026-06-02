@@ -10,7 +10,7 @@ export { CustomSelect, Select, GridSelect } from './SelectComponents';
 // Cards & Containers
 export { Card, Section, CardMetric } from './CardComponents';
 export { DashboardOverview } from './DashboardOverview';
-export { EmployeeMasterPanel, normalizeEmployeeMaster } from './EmployeeMasterPanel';
+export { EmployeeMasterPanel, getEmployeeMasterKey, normalizeEmployeeMaster } from './EmployeeMasterPanel';
 export { InventoryManager } from './InventoryManager';
 
 // Alerts & Badges

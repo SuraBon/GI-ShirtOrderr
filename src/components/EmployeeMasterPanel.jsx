@@ -5,21 +5,28 @@ import { Select } from './SelectComponents';
 import { MiniMetric } from './DashboardCommon';
 
 const EMPTY_EMPLOYEE_MASTER_FORM = {
-  employeeId: '',
   name: '',
   gender: '',
   branch: '',
   active: true,
 };
 
+export function getEmployeeMasterKey(employee = {}) {
+  return `${String(employee.name || '').trim().toLowerCase()}::${String(employee.branch || '').trim().toLowerCase()}`;
+}
+
 export function normalizeEmployeeMaster(row = {}) {
-  return {
-    employeeId: String(row.employeeId || '').trim(),
+  const employee = {
+    employeeKey: String(row.employeeKey || '').trim(),
     name: String(row.name || '').trim(),
     gender: String(row.gender || '').trim(),
     branch: String(row.branch || '').trim(),
     active: row.active !== false,
     updatedAt: row.updatedAt || '',
+  };
+  return {
+    ...employee,
+    employeeKey: employee.employeeKey || getEmployeeMasterKey(employee),
   };
 }
 
@@ -46,7 +53,6 @@ export function EmployeeMasterPanel({
     if (!queryText) return employees;
     return employees.filter((employee) =>
       [
-        employee.employeeId,
         employee.name,
         employee.gender,
         employee.branch,
@@ -69,12 +75,12 @@ export function EmployeeMasterPanel({
 
   function editEmployee(employee) {
     setForm(normalizeEmployeeMaster(employee));
-    setEditingId(employee.employeeId);
+    setEditingId(employee.employeeKey);
   }
 
   async function submit(event) {
     event.preventDefault();
-    const saved = await onSave?.(normalizeEmployeeMaster(form));
+    const saved = await onSave?.(normalizeEmployeeMaster(form), editingId);
     if (saved) resetForm();
   }
 
@@ -96,14 +102,6 @@ export function EmployeeMasterPanel({
             </div>
           </div>
           <div className="employee-master-form-grid">
-            <Field label="รหัสพนักงาน">
-              <TextInput
-                value={form.employeeId}
-                onChange={(value) => updateForm({ employeeId: value })}
-                placeholder="เช่น GI001"
-                disabled={saving || Boolean(editingId)}
-              />
-            </Field>
             <Field label="ชื่อพนักงาน">
               <TextInput
                 value={form.name}
@@ -163,14 +161,13 @@ export function EmployeeMasterPanel({
             <TextInput
               value={search}
               onChange={onSearchChange}
-              placeholder="ค้นหารหัสพนักงาน ชื่อ เพศ หรือสาขา"
+              placeholder="ค้นหาชื่อ เพศ หรือสาขา"
             />
           </div>
           <div className="dashboard-table-wrap employee-master-table-wrap">
             <table className="employee-master-table">
               <thead>
                 <tr>
-                  <th>รหัสพนักงาน</th>
                   <th>ชื่อพนักงาน</th>
                   <th>เพศ</th>
                   <th>สาขา</th>
@@ -180,8 +177,7 @@ export function EmployeeMasterPanel({
               </thead>
               <tbody>
                 {filteredEmployees.map((employee) => (
-                  <tr key={employee.employeeId}>
-                    <td>{employee.employeeId}</td>
+                  <tr key={employee.employeeKey}>
                     <td>{employee.name}</td>
                     <td>{employee.gender || '-'}</td>
                     <td>{employee.branch || '-'}</td>
@@ -200,7 +196,7 @@ export function EmployeeMasterPanel({
                           <button
                             type="button"
                             className="danger"
-                            onClick={() => onDeactivate?.(employee.employeeId)}
+                            onClick={() => onDeactivate?.(employee)}
                             disabled={saving}
                           >
                             ปิดใช้งาน
@@ -212,7 +208,7 @@ export function EmployeeMasterPanel({
                 ))}
                 {!filteredEmployees.length && (
                   <tr>
-                    <td colSpan="6">
+                    <td colSpan="5">
                       <div className="dashboard-drilldown-empty">
                         {loading ? 'กำลังโหลดข้อมูลพนักงาน...' : 'ไม่พบข้อมูลพนักงานตามเงื่อนไข'}
                       </div>
@@ -224,11 +220,11 @@ export function EmployeeMasterPanel({
           </div>
           <div className="employee-master-card-list">
             {filteredEmployees.map((employee) => (
-              <article key={`${employee.employeeId}-card`} className="employee-master-mobile-card">
+              <article key={`${employee.employeeKey}-card`} className="employee-master-mobile-card">
                 <div className="employee-master-mobile-head">
                   <div>
                     <strong>{employee.name}</strong>
-                    <span>{employee.employeeId}</span>
+                    <span>{employee.branch || '-'}</span>
                   </div>
                   <span className={employee.active ? 'employee-status active' : 'employee-status inactive'}>
                     {employee.active ? 'ใช้งาน' : 'ปิดใช้งาน'}
@@ -247,7 +243,7 @@ export function EmployeeMasterPanel({
                     <button
                       type="button"
                       className="danger"
-                      onClick={() => onDeactivate?.(employee.employeeId)}
+                      onClick={() => onDeactivate?.(employee)}
                       disabled={saving}
                     >
                       ปิดใช้งาน

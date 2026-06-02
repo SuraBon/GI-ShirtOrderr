@@ -80,13 +80,10 @@ function PendingOrdersPanel({ batches, statuses }) {
       <div className="overview-task-list">
         {rows.map((batch) => (
           <article key={batch.batchId} className="overview-task-card">
-            <div>
+            <div className="overview-task-card-meta">
               <strong>{batch.batchId}</strong>
               <span>{batch.branch || '-'}</span>
-            </div>
-            <div>
-              <small>{formatDate(batch.submittedAt)}</small>
-              <p>{getBatchPieces(batch)} ชิ้น</p>
+              <small>{formatDate(batch.submittedAt)} · {getBatchPieces(batch)} ชิ้น</small>
             </div>
             <span>{batch.status}</span>
           </article>
@@ -287,9 +284,9 @@ export function DashboardOverview({ onRefresh, metrics, rows, filteredBatches, s
     <div className="dashboard-overview-section">
       <div className="dashboard-overview-hero">
         <div>
-          <span className="overview-section-label">ADMIN OVERVIEW</span>
-          <h2>ภาพรวมระบบเบิกเสื้อ</h2>
-          <p>ติดตามคำสั่งเบิก งานรอจัดส่ง สต๊อกต่ำ และยอดเบิกตามสาขา</p>
+          <span className="overview-section-label">ภาพรวมแดชบอร์ด</span>
+          <h2>ติดตามคำสั่งเบิกและสต๊อกสำคัญ</h2>
+          <p>ดูงานรอจัดส่ง สต๊อกต่ำ และสรุปคำสั่งเบิกตามสาขาในหน้าเดียว</p>
         </div>
         <button type="button" onClick={onRefresh} className="dashboard-action-btn dark">
           <RefreshCw className="size-4" />
@@ -332,8 +329,11 @@ export function DashboardOverview({ onRefresh, metrics, rows, filteredBatches, s
         <LowStockPanel stockSummaryRows={stockSummaryRows} />
       </div>
 
-      <BranchSummaryPanel rows={rows} statuses={statuses} />
-      <StockCharts rows={rows} />
+      <div className="dashboard-overview-grid">
+        <BranchSummaryPanel rows={rows} statuses={statuses} />
+        <StockCharts rows={rows} />
+      </div>
+
       <div className="overview-footer-note">
         <TrendingUp className="size-4" />
         ข้อมูลในภาพรวมเปลี่ยนตามตัวกรองของแดชบอร์ดและรายการเบิกที่โหลดอยู่

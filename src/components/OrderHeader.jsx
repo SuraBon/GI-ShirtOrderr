@@ -88,6 +88,7 @@ export function DashboardHeader({
               className={activeView === item.id ? 'active' : ''}
               onClick={() => onViewChange?.(item.id)}
               type="button"
+              aria-current={activeView === item.id ? 'page' : undefined}
             >
               {item.icon ? <item.icon className="size-4" /> : null}
               {item.label}

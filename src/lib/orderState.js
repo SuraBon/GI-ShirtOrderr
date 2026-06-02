@@ -16,7 +16,6 @@ export function normalizeOrderStatus(status, fallback = ORDER_STATUS_PENDING) {
 export function createEmployee(index = 0) {
   return {
     id: crypto.randomUUID(),
-    employeeId: '',
     name: '',
     gender: '',
     expanded: index === 0,
@@ -145,7 +144,6 @@ export function orderReducer(state, action) {
       const index = state.employees.findIndex((employee) => employee.id === action.id);
       const cloned = {
         id: crypto.randomUUID(),
-        employeeId: '',
         name: source.name ? `${source.name} (คัดลอก)` : '',
         gender: source.gender,
         expanded: false,

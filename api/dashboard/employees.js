@@ -2,7 +2,6 @@ import { getGasAdminToken, readJsonBody, requireAdmin, sendError } from "../_sec
 
 function normalizeEmployee(employee = {}) {
   return {
-    employeeId: String(employee.employeeId || "").trim(),
     name: String(employee.name || "").trim(),
     gender: String(employee.gender || "").trim(),
     branch: String(employee.branch || "").trim(),
@@ -12,7 +11,11 @@ function normalizeEmployee(employee = {}) {
 
 function validateEmployee(employee) {
   const normalized = normalizeEmployee(employee);
-  return Boolean(normalized.employeeId && normalized.name && normalized.gender && normalized.branch);
+  return Boolean(normalized.name && normalized.gender && normalized.branch);
+}
+
+function normalizeEmployeeKey(employeeKey) {
+  return String(employeeKey || "").trim();
 }
 
 export default async function handler(request, response) {
@@ -53,11 +56,11 @@ export default async function handler(request, response) {
       return;
     }
     if (payload.action === "upsertEmployee" && !validateEmployee(payload.employee)) {
-      sendError(response, 400, "กรุณาระบุรหัสพนักงาน ชื่อ เพศ และสาขาให้ครบ");
+      sendError(response, 400, "กรุณาระบุชื่อ เพศ และสาขาให้ครบ");
       return;
     }
-    if (payload.action === "deleteEmployee" && !String(payload.employeeId || "").trim()) {
-      sendError(response, 400, "ไม่พบรหัสพนักงานที่ต้องการปิดใช้งาน");
+    if (payload.action === "deleteEmployee" && !normalizeEmployeeKey(payload.employeeKey)) {
+      sendError(response, 400, "ไม่พบข้อมูลพนักงานที่ต้องการปิดใช้งาน");
       return;
     }
 
@@ -67,7 +70,8 @@ export default async function handler(request, response) {
       body: JSON.stringify({
         action: payload.action,
         employee: payload.employee ? normalizeEmployee(payload.employee) : undefined,
-        employeeId: String(payload.employeeId || "").trim(),
+        employeeKey: normalizeEmployeeKey(payload.employeeKey),
+        previousEmployeeKey: normalizeEmployeeKey(payload.previousEmployeeKey),
         adminToken,
       }),
     });

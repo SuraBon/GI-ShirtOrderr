@@ -1,16 +1,59 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 
-export function Field({ label, children, required = false, hint, error }) {
+export function Field({ label, children, htmlFor, required = false, hint, error }) {
+  const childArray = React.Children.toArray(children);
+  const firstChild = childArray[0];
+  const childId = React.isValidElement(firstChild) ? firstChild.props.id : undefined;
+  const fieldId = htmlFor || childId;
+  const describedBy = [];
+
+  if (hint && fieldId) {
+    describedBy.push(`${fieldId}-hint`);
+  }
+  if (error && fieldId) {
+    describedBy.push(`${fieldId}-error`);
+  }
+
+  const clonedChildren = React.Children.map(children, (child, index) => {
+    if (index !== 0 || !React.isValidElement(child)) {
+      return child;
+    }
+
+    const existingDescribedBy = child.props['aria-describedby'];
+    const describedByValue = describedBy.length
+      ? [existingDescribedBy, ...describedBy].filter(Boolean).join(' ')
+      : existingDescribedBy;
+
+    return React.cloneElement(child, {
+      id: fieldId ?? child.props.id,
+      'aria-describedby': describedByValue || undefined,
+      'aria-invalid': error ? 'true' : child.props['aria-invalid'],
+    });
+  });
+
   return (
-    <div className="flex flex-col gap-1.5 sm:gap-2">
-      <span className="text-xs font-bold text-neutral-700 sm:text-sm">
+    <div className="form-group">
+      <label className="form-label" htmlFor={fieldId}>
         {label}
-        {required && <span className="text-error ml-1">*</span>}
-      </span>
-      {children}
-      {error && <p className="text-xs font-bold text-error">{error}</p>}
-      {hint && !error && <p className="text-xs font-semibold text-neutral-500">{hint}</p>}
+        {required && (
+          <span className="text-error ml-1" aria-hidden="true">
+            *
+          </span>
+        )}
+      </label>
+      {clonedChildren}
+      {error ? (
+        <p className="form-error" id={fieldId ? `${fieldId}-error` : undefined}>
+          {error}
+        </p>
+      ) : (
+        hint && (
+          <p className="form-hint" id={fieldId ? `${fieldId}-hint` : undefined}>
+            {hint}
+          </p>
+        )
+      )}
     </div>
   );
 }
@@ -45,17 +88,22 @@ export const TextInput = React.forwardRef(function TextInput(
       placeholder={placeholder}
       disabled={disabled}
       title={title}
+      aria-invalid={invalid ? 'true' : undefined}
       onChange={(event) => onChange(event.target.value)}
       className={cn('form-input', invalid && 'form-input-error')}
     />
   );
 });
 
-export function MonthInput({ value, onChange }) {
+export function MonthInput({ id, value, onChange, disabled = false, invalid = false, title }) {
   return (
     <input
+      id={id}
       type="month"
       value={value}
+      disabled={disabled}
+      title={title}
+      aria-invalid={invalid ? 'true' : undefined}
       onChange={(event) => onChange(event.target.value)}
       className="form-input"
     />
@@ -78,6 +126,7 @@ export function TextArea({
       placeholder={placeholder}
       disabled={disabled}
       title={title}
+      aria-invalid={invalid ? 'true' : undefined}
       onChange={(event) => onChange(event.target.value)}
       className={cn('form-textarea', invalid && 'form-input-error')}
     />
@@ -108,16 +157,10 @@ export function GridInput({
       autoCapitalize={autoCapitalize}
       title={title}
       disabled={disabled}
+      aria-invalid={invalid ? 'true' : undefined}
       onChange={(event) => onChange(event.target.value)}
       {...rest}
-      className={cn(
-        'h-11 w-full rounded-lg border bg-white px-3 text-neutral-900 outline-none transition',
-        invalid
-          ? 'border-error focus:border-error focus:ring-error/15'
-          : 'border-neutral-300 focus:border-primary-600 focus:ring-primary-400/15',
-        disabled && 'bg-neutral-100 text-neutral-500 cursor-not-allowed',
-        className
-      )}
+      className={cn('form-input', invalid && 'form-input-error', className)}
     />
   );
 }
