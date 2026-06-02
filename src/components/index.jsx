@@ -9,6 +9,7 @@ export { CustomSelect, Select, GridSelect } from './SelectComponents';
 
 // Cards & Containers
 export { Card, Section, CardMetric } from './CardComponents';
+export { DashboardOverview } from './DashboardOverview';
 
 // Alerts & Badges
 export { Alert, Badge, Pill } from './AlertComponents';

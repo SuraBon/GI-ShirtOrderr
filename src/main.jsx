@@ -76,6 +76,7 @@ import {
   GridSelect,
   Card,
   BranchManager,
+  DashboardOverview,
 } from './components';
 import {
   getAdminToken,
@@ -4054,9 +4055,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState('');
   const [exportExpanded, setExportExpanded] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
-  const [showOverviewMetrics, setShowOverviewMetrics] = useState(false);
-  const [showOverviewChartDetails, setShowOverviewChartDetails] = useState(false);
-  const [showStockDetails, setShowStockDetails] = useState(false);
   const [columnSettingsTable, setColumnSettingsTable] = useState('');
   const [visibleOrderColumns, setVisibleOrderColumns] = useState(() =>
     readDashboardTableColumns('orders', ORDER_TABLE_COLUMNS)
@@ -4832,191 +4830,23 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
 
       {activeView === 'dashboard' && (
         <section className="dashboard-overview-page">
-          <div className="dashboard-overview-hero">
-            <div>
-              <h2>ภาพรวม</h2>
-              <p>สรุปงานที่ต้องทำก่อน: คิวรอจัดส่ง สัดส่วนงานที่ปิดแล้ว และสต๊อกที่ควรตรวจ</p>
-            </div>
-            <div className="dashboard-panel-actions">
-              <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
-                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                <span>โหลดข้อมูลใหม่</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="dashboard-overview-grid">
-            <section className="dashboard-overview-panel">
-              <div className="dashboard-panel-head slim">
-                <div>
-                  <h3>สรุป KPI</h3>
-                  <p>ยอดสำคัญและสถานะงานก่อนลงมือจัดการ</p>
-                </div>
-                <button
-                  type="button"
-                  className="dashboard-toggle-detail"
-                  onClick={() => setShowOverviewMetrics((value) => !value)}
-                >
-                  {showOverviewMetrics ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
-                </button>
-              </div>
-              <div className="dashboard-overview-stats">
-                <Stat icon={Truck} value={`${metrics.pendingPieces} ชิ้น`} label="รอจัดส่ง" />
-                <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
-                <Stat icon={BarChart3} value={`${shippedPiecePercent}%`} label="อัตราจัดส่ง" />
-                <Stat icon={PackageSearch} value={`${stockSummaryTotals.remaining} ชิ้น`} label="สต๊อกคงเหลือ" />
-              </div>
-              {showOverviewMetrics && (
-                <div className="dashboard-overview-details">
-                  <div className="dashboard-overview-detail-grid">
-                    <div>
-                      <span>คำสั่งทั้งหมด</span>
-                      <strong>{filteredBatches.length}</strong>
-                    </div>
-                    <div>
-                      <span>ชิ้นรวมทั้งหมด</span>
-                      <strong>{metrics.totalPieces}</strong>
-                    </div>
-                    <div>
-                      <span>ชิ้นรอจัดส่ง</span>
-                      <strong>{metrics.pendingPieces}</strong>
-                    </div>
-                    <div>
-                      <span>ชิ้นจัดส่งแล้ว</span>
-                      <strong>{metrics.shippedPieces}</strong>
-                    </div>
-                  </div>
-                  <div className="dashboard-overview-status-breakdown">
-                    {ORDER_STATUSES.map((status) => (
-                      <div key={status}>
-                        <span>{status}</span>
-                        <strong>{countByStatus(status)} รายการ</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-
-            <div className="dashboard-overview-chart-card">
-              <div className="dashboard-panel-head slim">
-                <div>
-                  <h3>แนวโน้มการจัดส่ง</h3>
-                  <p>กราฟสรุปงานตามสถานะและสัดส่วนการส่งจริง</p>
-                </div>
-                <button
-                  type="button"
-                  className="dashboard-toggle-detail"
-                  onClick={() => setShowOverviewChartDetails((value) => !value)}
-                >
-                  {showOverviewChartDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
-                </button>
-              </div>
-              <DashboardOverviewChart
-                itemRows={rows}
-                metrics={metrics}
-                statuses={{
-                  pending: ORDER_STATUS_PENDING,
-                  delivered: ORDER_STATUS_DELIVERED,
-                  canceled: ORDER_STATUS_CANCELED,
-                }}
-              />
-              {showOverviewChartDetails && (
-                <div className="dashboard-overview-details dashboard-overview-chart-details">
-                  <div>
-                    <span>คำสั่งทั้งหมด</span>
-                    <strong>{filteredBatches.length}</strong>
-                  </div>
-                  <div>
-                    <span>ชิ้นทั้งหมด</span>
-                    <strong>{metrics.totalPieces}</strong>
-                  </div>
-                  <div>
-                    <span>ชิ้นคงเหลือ</span>
-                    <strong>{stockSummaryTotals.remaining}</strong>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="dashboard-overview-stock-card">
-              <div className="dashboard-panel-head slim">
-                <div>
-                  <h2>ภาพรวมสต๊อก</h2>
-                  <p>สต๊อกรวมทั้งหมดและรายการที่ต้องติดตาม</p>
-                </div>
-              </div>
-              <div className="dashboard-stock-summary-totals dashboard-stock-summary-totals-grid">
-                <span>สต๊อกตั้งต้น {stockSummaryTotals.totalStock} ชิ้น</span>
-                <span>เบิกแล้ว {stockSummaryTotals.withdrawn} ชิ้น</span>
-                <span>คงเหลือ {stockSummaryTotals.remaining} ชิ้น</span>
-              </div>
-              <div className="dashboard-stock-summary-notes">
-                <p>รอจัดส่ง {pendingPiecePercent}% ของจำนวนที่เบิกทั้งหมด ใช้คู่กับรายการสต๊อกที่ควรดูด้านล่าง</p>
-              </div>
-            </div>
-          </div>
-          <div className="dashboard-panel-head slim">
-            <div>
-              <h2>การ์ดแบบเสื้อ</h2>
-              <p>สรุปแบบเสื้อที่มีไซส์และสต๊อกให้ดูแบบรวมบนภาพรวม</p>
-            </div>
-          </div>
-          <div className="dashboard-stock-detail-card">
-            <div className="dashboard-panel-head slim">
-              <div>
-                <h3>สต๊อกละเอียด</h3>
-                <p>กดดูเพื่อแยกสต๊อกตามแบบเสื้อ เพศ และไซส์</p>
-              </div>
-              <button
-                type="button"
-                className="dashboard-toggle-detail"
-                onClick={() => setShowStockDetails((value) => !value)}
-              >
-                {showStockDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
-              </button>
-            </div>
-            {showStockDetails && (
-              <div className="dashboard-stock-detail-table">
-                <div className="dashboard-stock-detail-header">
-                  <span>แบบเสื้อ</span>
-                  <span>เพศ</span>
-                  <span>ไซส์</span>
-                  <span>เบิกแล้ว</span>
-                  <span>คงเหลือ</span>
-                </div>
-                {stockSummaryRows.slice(0, 16).map((row) => (
-                  <div key={row.id} className="dashboard-stock-detail-row">
-                    <span>{row.type}</span>
-                    <span>{row.gender}</span>
-                    <span>{row.size || '-'}</span>
-                    <span>{row.withdrawn}</span>
-                    <span>{row.remaining}</span>
-                  </div>
-                ))}
-                {stockSummaryRows.length > 16 && (
-                  <div className="dashboard-stock-detail-footer">
-                    แสดง {Math.min(16, stockSummaryRows.length)} จาก {stockSummaryRows.length} รายการ
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="dashboard-inventory-card-grid">
-            {inventoryRows.slice(0, 6).map((item) => (
-              <article key={item.id} className="dashboard-inventory-card">
-                <div>
-                  <strong>{item.type}</strong>
-                  <small>{item.sizes.join(', ') || 'ไม่มีไซส์'}</small>
-                </div>
-                <div>
-                  <span>{item.total} ชิ้น</span>
-                  <span>{item.sizes.length} ไซส์</span>
-                </div>
-              </article>
-            ))}
-          </div>
-
+          <DashboardOverview
+            onRefresh={() => loadData({ silent: true })}
+            metrics={metrics}
+            filteredBatches={filteredBatches}
+            rows={rows}
+            stockSummaryTotals={stockSummaryTotals}
+            pendingPiecePercent={pendingPiecePercent}
+            stockSummaryRows={stockSummaryRows}
+            inventoryRows={inventoryRows}
+            countByStatus={countByStatus}
+            statusOptions={ORDER_STATUSES}
+            statuses={{
+              pending: ORDER_STATUS_PENDING,
+              delivered: ORDER_STATUS_DELIVERED,
+              canceled: ORDER_STATUS_CANCELED,
+            }}
+          />
           <div className="dashboard-overview-workspace">
               <article className="dashboard-work-card">
                 <div>
