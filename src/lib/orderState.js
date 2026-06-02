@@ -10,7 +10,13 @@ import { digitsOnly } from './utils';
 export const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
 export const ORDER_STATUS_PENDING = 'รอจัดส่ง';
 export const ORDER_STATUS_DELIVERED = 'จัดส่งแล้ว';
-export const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED];
+export const ORDER_STATUS_CANCELED = 'ยกเลิก';
+export const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED, ORDER_STATUS_CANCELED];
+
+export function normalizeOrderStatus(status, fallback = ORDER_STATUS_PENDING) {
+  if (status === 'รอของ' || String(status || '').includes('บางส่วน')) return ORDER_STATUS_PENDING;
+  return ORDER_STATUSES.includes(status) ? status : fallback;
+}
 
 export function createEmployee(index = 0) {
   return {
@@ -246,6 +252,7 @@ export function flattenBatches(batches) {
         supervisorName: batch.supervisorName,
         supervisorPhone: batch.supervisorPhone,
         status: batch.status,
+        itemStatus: normalizeOrderStatus(item.status, normalizeOrderStatus(batch.status)),
         statusUpdatedAt: batch.statusUpdatedAt,
         name: order.name,
         gender: order.gender,
@@ -269,11 +276,7 @@ export function normalizeBatch(batch) {
                   type: item.type || '-',
                   size: item.size || '-',
                   qty: Number(item.qty || 0),
-                  status:
-                    item.status === ORDER_STATUS_DELIVERED ||
-                    batch.status === ORDER_STATUS_DELIVERED
-                      ? ORDER_STATUS_DELIVERED
-                      : ORDER_STATUS_PENDING,
+                  status: normalizeOrderStatus(item.status, normalizeOrderStatus(batch.status)),
                   statusUpdatedAt:
                     item.statusUpdatedAt ||
                     batch.statusUpdatedAt ||
@@ -287,7 +290,7 @@ export function normalizeBatch(batch) {
     : [];
 
   const allItems = normalizedOrders.flatMap((o) => o.items);
-  let batchStatus = batch.status === ORDER_STATUS_DELIVERED ? ORDER_STATUS_DELIVERED : ORDER_STATUS_PENDING;
+  let batchStatus = normalizeOrderStatus(batch.status);
   if (allItems.length > 0) {
     const uniqueStatuses = new Set(allItems.map((i) => i.status));
     if (uniqueStatuses.size === 1) {

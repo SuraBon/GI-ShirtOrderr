@@ -78,7 +78,8 @@ const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
 const ORDER_STATUS_PENDING = 'รอจัดส่ง';
 const ORDER_STATUS_DELIVERED = 'จัดส่งแล้ว';
-const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED];
+const ORDER_STATUS_CANCELED = 'ยกเลิก';
+const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED, ORDER_STATUS_CANCELED];
 const DASHBOARD_TABLE_COLUMNS_KEY = 'gi-dashboard-table-columns';
 const ORDER_TABLE_COLUMNS = [
   { id: 'code', label: 'รหัสคำสั่ง' },
@@ -102,6 +103,11 @@ const EMPLOYEE_TABLE_COLUMNS = [
   { id: 'batchId', label: 'เลขที่คำสั่ง' },
   { id: 'date', label: 'วันที่เบิก' },
 ];
+
+function normalizeOrderStatus(status, fallback = ORDER_STATUS_PENDING) {
+  if (status === 'รอของ' || String(status || '').includes('บางส่วน')) return ORDER_STATUS_PENDING;
+  return ORDER_STATUSES.includes(status) ? status : fallback;
+}
 
 function getDefaultColumnIds(columns) {
   return columns.map((column) => column.id);
@@ -529,7 +535,7 @@ function flattenBatches(batches) {
         supervisorName: batch.supervisorName,
         supervisorPhone: batch.supervisorPhone,
         status: batch.status,
-        itemStatus: item.status || batch.status,
+        itemStatus: normalizeOrderStatus(item.status, normalizeOrderStatus(batch.status)),
         statusUpdatedAt: batch.statusUpdatedAt,
         name: order.name,
         gender: order.gender,
@@ -553,11 +559,10 @@ function normalizeBatch(batch) {
                   type: String(item?.type || '-'),
                   size: String(item?.size || '-'),
                   qty: Number(item?.qty || 0),
-                  status:
-                    item?.status === ORDER_STATUS_DELIVERED ||
-                    batch.status === ORDER_STATUS_DELIVERED
-                      ? ORDER_STATUS_DELIVERED
-                      : ORDER_STATUS_PENDING,
+                  status: normalizeOrderStatus(
+                    item?.status,
+                    normalizeOrderStatus(batch.status)
+                  ),
                   statusUpdatedAt:
                     item.statusUpdatedAt ||
                     batch.statusUpdatedAt ||
@@ -571,7 +576,7 @@ function normalizeBatch(batch) {
     : [];
 
   const allItems = normalizedOrders.flatMap((o) => o.items);
-  let batchStatus = batch.status === ORDER_STATUS_DELIVERED ? ORDER_STATUS_DELIVERED : ORDER_STATUS_PENDING;
+  let batchStatus = normalizeOrderStatus(batch.status);
   if (allItems.length > 0) {
     const uniqueStatuses = new Set(allItems.map((i) => i.status));
     if (uniqueStatuses.size === 1) {
@@ -1068,46 +1073,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     return true;
   }
 
-  async function validateOrderStockAvailability(payload) {
-    const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || readClothingConfig();
-    const requestedByKey = new Map();
-
-    payload.orders.forEach((order) => {
-      order.items.forEach((item) => {
-        const key = [item.type, order.gender, item.size].join('::');
-        const current = requestedByKey.get(key) || {
-          type: item.type,
-          gender: order.gender,
-          size: item.size,
-          qty: 0,
-        };
-        current.qty += Number(item.qty || 0);
-        requestedByKey.set(key, current);
-      });
-    });
-
-    const issues = Array.from(requestedByKey.values()).filter((request) => {
-      const clothing = latestConfig.find((item) => item.type === request.type);
-      const rows = clothing?.genderSizeRows?.[request.gender] || clothing?.sizeRows || [];
-      const row = rows.find((item) => String(item.size) === String(request.size));
-      const available = Number(row?.qty || 0);
-      request.available = available;
-      return !row || available < request.qty;
-    });
-
-    if (issues.length) {
-      toast.error('สต๊อกไม่พอ ไม่สามารถส่งคำสั่งเบิกได้', {
-        description: issues
-          .slice(0, 3)
-          .map((item) => `${item.type} ${item.gender} ไซส์ ${item.size}: ต้องการ ${item.qty} มี ${item.available || 0}`)
-          .join(' / '),
-      });
-      return false;
-    }
-
-    return true;
-  }
-
   async function submitOrder() {
     const payload = {
       batchId: `ORD-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${Date.now().toString().slice(-5)}`,
@@ -1130,9 +1095,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
           })),
       })),
     };
-
-    const hasStock = await validateOrderStockAvailability(payload);
-    if (!hasStock) return;
 
     setIsSubmitting(true);
     const loadingToastId = toast.loading('กำลังส่งคำสั่งเบิกเสื้อ...', {
@@ -3910,8 +3872,9 @@ function AdminManualDialog({ open, setOpen }) {
                   'ใช้ดูคำสั่งเบิกทั้งหมด ค้นหาตามรหัสคำสั่ง บริษัท ผู้ติดต่อ เบอร์โทร หรือชื่อพนักงาน',
                   'กรองตามสาขา เดือน และสถานะ เพื่อจัดลำดับงานที่ต้องดำเนินการ',
                   'กดรายการเพื่อดูรายละเอียดพนักงานและเสื้อที่เบิกในคำสั่งนั้น',
-                  'ใช้สถานะเพียง 2 ค่า: รอจัดส่ง และ จัดส่งแล้ว',
+                  'ใช้สถานะ 3 ค่า: รอจัดส่ง, จัดส่งแล้ว และ ยกเลิก',
                   'เปลี่ยนเป็นจัดส่งแล้วเมื่อจ่ายของจริง ระบบจะตัดสต๊อกและเพิ่มยอดเบิกแล้วให้เอง',
+                  'ใช้ยกเลิกเมื่อพนักงานลาออกหรือไม่ต้องรับเสื้อแล้ว โดยข้อมูลยังอยู่ในประวัติ',
                   'ถ้าสต๊อกไม่พอ ระบบจะแจ้งรายการที่ขาดและไม่ให้จัดส่งจนกว่าจะเติมสต๊อก',
                 ]}
               />
@@ -3920,7 +3883,7 @@ function AdminManualDialog({ open, setOpen }) {
             <ManualSection icon={BarChart3} title="คนคุมระบบ: ภาพรวม">
               <ManualList
                 items={[
-                  'ดูจำนวนคำสั่งเบิกทั้งหมด งานรอจัดส่ง และงานที่จัดส่งแล้ว',
+                  'ดูจำนวนคำสั่งเบิกทั้งหมด งานรอจัดส่ง งานที่จัดส่งแล้ว และรายการยกเลิก',
                   'ส่วนสรุปสต๊อกเสื้อแสดงจำนวนที่เคยมี เบิกแล้ว และคงเหลือ แยกตามแบบเสื้อ เพศ และไซส์',
                   'ใช้ส่วนนี้ตรวจแนวโน้มการใช้เสื้อ และดูว่าสต๊อกแบบไหนลดเร็วหรือควรเติมก่อน',
                 ]}
@@ -4906,11 +4869,15 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         const key = [order.name, gender, item.type, item.size].join('::');
         const override = overrideByKey.get(key);
         const currentShippedQty = item.status === ORDER_STATUS_DELIVERED ? requestedQty : 0;
+        const targetStatus = normalizeOrderStatus(override?.status, item.status || ORDER_STATUS_PENDING);
         const rawShippedQty =
-          override && Number.isFinite(Number(override.shippedQty))
-            ? Number(override.shippedQty)
-            : currentShippedQty;
+          targetStatus === ORDER_STATUS_CANCELED
+            ? 0
+            : override && Number.isFinite(Number(override.shippedQty))
+              ? Number(override.shippedQty)
+              : currentShippedQty;
         const shippedQty = Math.max(0, Math.min(requestedQty, rawShippedQty));
+        const canceledQty = targetStatus === ORDER_STATUS_CANCELED ? requestedQty : 0;
 
         return {
           employeeName: order.name,
@@ -4918,7 +4885,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           type: item.type,
           size: item.size,
           shippedQty,
-          pendingQty: requestedQty - shippedQty,
+          pendingQty: canceledQty > 0 ? 0 : requestedQty - shippedQty,
+          canceledQty,
         };
       });
     });
@@ -5211,6 +5179,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         gender: order.gender || GENDERS[0],
         type: item.type,
         size: item.size,
+        status,
         shippedQty: status === ORDER_STATUS_DELIVERED ? requestedQty : 0,
       },
     ];
@@ -5489,6 +5458,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                 <div className="dashboard-work-list">
                   <p><span className="dot red" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
                   <p><span className="dot green" /> จัดส่งแล้ว <strong>{countByStatus(ORDER_STATUS_DELIVERED)} รายการ</strong></p>
+                  <p><span className="dot blue" /> ยกเลิก <strong>{countByStatus(ORDER_STATUS_CANCELED)} รายการ</strong></p>
                 </div>
                 <div className="dashboard-panel-actions">
                   <button onClick={() => onViewChange?.('orders')}>
@@ -5773,7 +5743,11 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                           const sizeRows = (clothing?.genderSizeRows?.[order.gender] || clothing?.sizeRows) || [];
                                           const sizeRow = sizeRows.find((r) => String(r.size) === String(item.size));
                                           const available = Number(sizeRow?.qty || 0);
-                                          const understock = requested > available && item.size !== OTHER_SIZE;
+                                          const currentStatus = item.status || batch.status || ORDER_STATUS_PENDING;
+                                          const understock =
+                                            requested > available &&
+                                            item.size !== OTHER_SIZE &&
+                                            currentStatus !== ORDER_STATUS_CANCELED;
                                           return (
                                             <tr key={`${batch.batchId}-${order.name}-${idx}`} className={cn('batch-detail-item', understock && 'understock')}>
                                               <td>{order.name}</td>
@@ -5794,7 +5768,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                       type="button"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
-                                                        item.status === ORDER_STATUS_DELIVERED ||
+                                                        currentStatus === ORDER_STATUS_DELIVERED ||
                                                         understock
                                                       }
                                                       onClick={() =>
@@ -5813,7 +5787,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                       type="button"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
-                                                        item.status === ORDER_STATUS_PENDING
+                                                        currentStatus === ORDER_STATUS_PENDING
                                                       }
                                                       onClick={() =>
                                                         updateSingleItemStatus(
@@ -5825,6 +5799,23 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                       }
                                                     >
                                                       รอจัดส่ง
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      disabled={
+                                                        statusLoadingId === batch.batchId ||
+                                                        currentStatus === ORDER_STATUS_CANCELED
+                                                      }
+                                                      onClick={() =>
+                                                        updateSingleItemStatus(
+                                                          batch,
+                                                          order,
+                                                          item,
+                                                          ORDER_STATUS_CANCELED
+                                                        )
+                                                      }
+                                                    >
+                                                      ยกเลิก
                                                     </button>
                                                   </div>
                                                 </div>
@@ -6001,7 +5992,11 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                             const sizeRows = (clothing?.genderSizeRows?.[order.gender] || clothing?.sizeRows) || [];
                                             const sizeRow = sizeRows.find((r) => String(r.size) === String(item.size));
                                             const available = Number(sizeRow?.qty || 0);
-                                            const understock = requested > available && item.size !== OTHER_SIZE;
+                                            const currentStatus = item.status || batch.status || ORDER_STATUS_PENDING;
+                                            const understock =
+                                              requested > available &&
+                                              item.size !== OTHER_SIZE &&
+                                              currentStatus !== ORDER_STATUS_CANCELED;
                                             return (
                                               <tr key={`${batch.batchId}-${order.name}-${idx}`} className={cn('batch-detail-item', understock && 'understock')}>
                                                 <td>{order.name}</td>
@@ -6022,7 +6017,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                         type="button"
                                                         disabled={
                                                           statusLoadingId === batch.batchId ||
-                                                          item.status === ORDER_STATUS_DELIVERED ||
+                                                          currentStatus === ORDER_STATUS_DELIVERED ||
                                                           understock
                                                         }
                                                         onClick={() =>
@@ -6041,7 +6036,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                         type="button"
                                                         disabled={
                                                           statusLoadingId === batch.batchId ||
-                                                          item.status === ORDER_STATUS_PENDING
+                                                          currentStatus === ORDER_STATUS_PENDING
                                                         }
                                                         onClick={() =>
                                                           updateSingleItemStatus(
@@ -6053,6 +6048,23 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                         }
                                                       >
                                                         รอจัดส่ง
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        disabled={
+                                                          statusLoadingId === batch.batchId ||
+                                                          currentStatus === ORDER_STATUS_CANCELED
+                                                        }
+                                                        onClick={() =>
+                                                          updateSingleItemStatus(
+                                                            batch,
+                                                            order,
+                                                            item,
+                                                            ORDER_STATUS_CANCELED
+                                                          )
+                                                        }
+                                                      >
+                                                        ยกเลิก
                                                       </button>
                                                     </div>
                                                   </div>
@@ -6298,6 +6310,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             <MiniMetric label="คำสั่งเบิกทั้งหมด" value={filteredBatches.length} />
             <MiniMetric label="รอจัดส่ง" value={countByStatus(ORDER_STATUS_PENDING)} />
             <MiniMetric label="จัดส่งแล้ว" value={countByStatus(ORDER_STATUS_DELIVERED)} />
+            <MiniMetric label="ยกเลิก" value={countByStatus(ORDER_STATUS_CANCELED)} />
           </div>
           <div className="dashboard-alert-card">
             <div className="dashboard-section-title">
@@ -6305,6 +6318,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             </div>
             <p><span className="dot red" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
             <p><span className="dot green" /> จัดส่งแล้ว <strong>{countByStatus(ORDER_STATUS_DELIVERED)} รายการ</strong></p>
+            <p><span className="dot blue" /> ยกเลิก <strong>{countByStatus(ORDER_STATUS_CANCELED)} รายการ</strong></p>
           </div>
           <div className="dashboard-alert-card">
             <div className="dashboard-section-title">
@@ -6430,7 +6444,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <button onClick={() => handleBulkStatusChange(ORDER_STATUS_PENDING)}>
             <RefreshCw className="size-4" /> รอจัดส่ง
           </button>
-          <button onClick={() => setSelectedBatchIds(new Set())}>ยกเลิก</button>
+          <button onClick={() => handleBulkStatusChange(ORDER_STATUS_CANCELED)}>
+            <X className="size-4" /> ยกเลิก
+          </button>
+          <button onClick={() => setSelectedBatchIds(new Set())}>ล้างเลือก</button>
         </div>
       )}
 
@@ -6521,8 +6538,10 @@ function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onIte
         <MobileInfo label="ไซส์" value={item.size || '-'} compact />
         <MobileInfo label="จำนวน" value={item.qty} compact strong />
       </div>
-      {!canShip && <p className="mt-2 text-xs font-black text-[#B91C1C]">สต๊อกไม่พอ (มี {currentStock})</p>}
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      {!canShip && currentStatus !== ORDER_STATUS_CANCELED && (
+        <p className="mt-2 text-xs font-black text-[#B91C1C]">สต๊อกไม่พอ (มี {currentStock})</p>
+      )}
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <button
           type="button"
           disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
@@ -6539,21 +6558,28 @@ function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onIte
         >
           รอจัดส่ง
         </button>
+        <button
+          type="button"
+          disabled={isBusy || currentStatus === ORDER_STATUS_CANCELED}
+          onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_CANCELED)}
+          className="min-h-9 rounded-lg bg-[#E2E8F0] px-2 text-xs font-black text-[#475569] disabled:opacity-50"
+        >
+          ยกเลิก
+        </button>
       </div>
     </div>
   );
 }
 
 function StatusBadge({ status }) {
-  const displayStatus =
-    status === 'รอของ' || String(status || '').includes('บางส่วน')
-      ? ORDER_STATUS_PENDING
-      : status;
+  const displayStatus = normalizeOrderStatus(status);
   let classes = 'bg-[#CBD5E1] text-[#334155]'; // default/gray
   if (displayStatus === ORDER_STATUS_DELIVERED) {
     classes = 'bg-[#DCFCE7] text-[#166534]'; // green
   } else if (displayStatus === ORDER_STATUS_PENDING) {
     classes = 'bg-[#FEE2E2] text-[#991B1B]'; // red (waiting shipment)
+  } else if (displayStatus === ORDER_STATUS_CANCELED) {
+    classes = 'bg-[#E2E8F0] text-[#475569]'; // slate
   }
   return (
     <span
@@ -6590,8 +6616,9 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
         const stockRow = rows.find((r) => r.size === item.size);
         const currentStock = item.size === OTHER_SIZE ? Number(item.qty || 0) : Number(stockRow?.qty || 0);
 
-        const isShipped = item.status === ORDER_STATUS_DELIVERED;
-        const requestedQty = isShipped ? 0 : Number(item.qty || 0);
+        const isInactive =
+          item.status === ORDER_STATUS_DELIVERED || item.status === ORDER_STATUS_CANCELED;
+        const requestedQty = isInactive ? 0 : Number(item.qty || 0);
 
         return {
           employeeName: order.name,
@@ -6600,8 +6627,8 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
           size: item.size,
           requestedQty,
           currentStock,
-          shippedQty: isShipped ? 0 : Math.min(requestedQty, currentStock),
-          isShipped,
+          shippedQty: isInactive ? 0 : Math.min(requestedQty, currentStock),
+          isInactive,
         };
       });
     });
@@ -6621,7 +6648,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
 
   function handleConfirm() {
     const shipmentData = items
-      .filter((item) => !item.isShipped && item.requestedQty > 0)
+      .filter((item) => !item.isInactive && item.requestedQty > 0)
       .map((item) => ({
         employeeName: item.employeeName,
         gender: item.gender,
@@ -6641,7 +6668,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
     onClose();
   }
 
-  const activeItems = items.filter((item) => !item.isShipped && item.requestedQty > 0);
+  const activeItems = items.filter((item) => !item.isInactive && item.requestedQty > 0);
 
   return (
     <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
@@ -6676,7 +6703,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
             ) : (
               <div className="grid gap-3">
                 {items.map((item, index) => {
-                  if (item.isShipped) return null;
+                  if (item.isInactive) return null;
                   const pendingQty = item.requestedQty - item.shippedQty;
 
                   let stockColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
@@ -6791,9 +6818,11 @@ function BatchDetailDialog({
     if (batch && !isBusy) onDelete(batch.batchId);
   }
 
-  const isFullyDelivered =
+  const hasNoPendingItems =
     batch &&
-    batch.orders.flatMap((o) => o.items).every((item) => item.status === ORDER_STATUS_DELIVERED);
+    batch.orders
+      .flatMap((o) => o.items)
+      .every((item) => [ORDER_STATUS_DELIVERED, ORDER_STATUS_CANCELED].includes(item.status));
   const shirtSummaryRows = useMemo(() => buildBatchItemSummary(batch), [batch]);
 
   return (
@@ -6857,7 +6886,7 @@ function BatchDetailDialog({
                   })}
                 </p>
                 <div className="mb-4 flex flex-col gap-2">
-                  {!isFullyDelivered && (
+                  {!hasNoPendingItems && (
                     <button
                       onClick={onShipClick}
                       disabled={isBusy}
@@ -6986,7 +7015,10 @@ function BatchDetailDialog({
                               key={`${order.name}-${item.type}-${item.size}`}
                               className={cn(
                                 'border-t border-[#E2E8F0]',
-                                !canShip && currentStatus !== ORDER_STATUS_DELIVERED && 'bg-[#FEF2F2]'
+                                !canShip &&
+                                  currentStatus !== ORDER_STATUS_DELIVERED &&
+                                  currentStatus !== ORDER_STATUS_CANCELED &&
+                                  'bg-[#FEF2F2]'
                               )}
                             >
                               <td className="break-words px-3 py-3 font-bold sm:px-4">
@@ -7019,8 +7051,19 @@ function BatchDetailDialog({
                                     >
                                       รอจัดส่ง
                                     </button>
+                                    <button
+                                      type="button"
+                                      disabled={isBusy || currentStatus === ORDER_STATUS_CANCELED}
+                                      onClick={() =>
+                                        onItemStatusChange?.(batch, order, item, ORDER_STATUS_CANCELED)
+                                      }
+                                    >
+                                      ยกเลิก
+                                    </button>
                                   </div>
-                                  {!canShip && currentStatus !== ORDER_STATUS_DELIVERED && (
+                                  {!canShip &&
+                                    currentStatus !== ORDER_STATUS_DELIVERED &&
+                                    currentStatus !== ORDER_STATUS_CANCELED && (
                                     <span className="understock-flag">สต๊อกไม่พอ (มี {currentStock})</span>
                                   )}
                                 </div>
@@ -7173,13 +7216,17 @@ function buildDashboardMetrics(batches) {
     totalEmployees: batches.reduce((sum, batch) => sum + batch.orders.length, 0),
     totalPieces: rows.reduce((sum, row) => sum + Number(row.qty || 0), 0),
     pendingPieces: rows
-      .filter((row) => row.status === ORDER_STATUS_PENDING)
+      .filter((row) => (row.itemStatus || row.status) === ORDER_STATUS_PENDING)
       .reduce((sum, row) => sum + Number(row.qty || 0), 0),
     shippedPieces: rows
-      .filter((row) => row.status === ORDER_STATUS_DELIVERED)
+      .filter((row) => (row.itemStatus || row.status) === ORDER_STATUS_DELIVERED)
       .reduce((sum, row) => sum + Number(row.qty || 0), 0),
-    pendingBatches: batches.filter((batch) => batch.status !== ORDER_STATUS_DELIVERED).length,
+    canceledPieces: rows
+      .filter((row) => (row.itemStatus || row.status) === ORDER_STATUS_CANCELED)
+      .reduce((sum, row) => sum + Number(row.qty || 0), 0),
+    pendingBatches: batches.filter((batch) => batch.status === ORDER_STATUS_PENDING).length,
     deliveredBatches: batches.filter((batch) => batch.status === ORDER_STATUS_DELIVERED).length,
+    canceledBatches: batches.filter((batch) => batch.status === ORDER_STATUS_CANCELED).length,
   };
 }
 
@@ -7205,6 +7252,7 @@ function DashboardOverviewChart({ metrics }) {
   const rows = [
     { label: 'จัดส่งแล้ว', value: metrics.shippedPieces, color: '#10b981' },
     { label: 'รอจัดส่ง', value: metrics.pendingPieces, color: '#ef4444' },
+    { label: 'ยกเลิก', value: metrics.canceledPieces, color: '#64748b' },
   ];
   const donutData = rows.map((r) => ({ label: r.label, value: r.value, color: r.color }));
   return (

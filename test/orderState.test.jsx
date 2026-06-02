@@ -1,4 +1,4 @@
-import { orderReducer } from '../src/lib/orderState';
+import { normalizeBatch, orderReducer } from '../src/lib/orderState';
 
 describe('orderReducer', () => {
   it('resets size fields when changing an item type', () => {
@@ -73,5 +73,22 @@ describe('orderReducer', () => {
       gender: '',
       items: [],
     });
+  });
+
+  it('preserves canceled item and batch statuses during normalization', () => {
+    const batch = normalizeBatch({
+      batchId: 'ORD-1',
+      status: 'ยกเลิก',
+      orders: [
+        {
+          name: 'Employee A',
+          gender: 'ชาย',
+          items: [{ type: 'เสื้อโปโล', size: 'L', qty: 1, status: 'ยกเลิก' }],
+        },
+      ],
+    });
+
+    expect(batch.status).toBe('ยกเลิก');
+    expect(batch.orders[0].items[0].status).toBe('ยกเลิก');
   });
 });

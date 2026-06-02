@@ -1,5 +1,5 @@
 const SHEET_NAME = "Orders";
-const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว"];
+const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว", "ยกเลิก"];
 const HEADERS = [
   "รหัสคำสั่งเบิก",
   "สถานะ",
@@ -266,7 +266,7 @@ function json_(payload) {
 
 function shipBatchItems_(sheet, payload) {
   const batchId = payload.batchId;
-  const items = payload.items; // array of { employeeName, gender, type, size, shippedQty, pendingQty }
+  const items = payload.items; // array of { employeeName, gender, type, size, shippedQty, pendingQty, canceledQty }
   const statusUpdatedAt = payload.statusUpdatedAt || new Date().toISOString();
 
   const lastRow = sheet.getLastRow();
@@ -294,7 +294,7 @@ function shipBatchItems_(sheet, payload) {
   // Build new rows to replace existing rows for this batch
   const newBatchRows = [];
   items.forEach((item) => {
-    const { employeeName, gender, type, size, shippedQty, pendingQty } = item;
+    const { employeeName, gender, type, size, shippedQty, pendingQty, canceledQty } = item;
     
     if (Number(shippedQty) > 0) {
       newBatchRows.push([
@@ -329,6 +329,24 @@ function shipBatchItems_(sheet, payload) {
         type,
         size,
         Number(pendingQty)
+      ]);
+    }
+
+    if (Number(canceledQty) > 0) {
+      newBatchRows.push([
+        batchId,
+        "ยกเลิก",
+        statusUpdatedAt,
+        submittedAt,
+        companyName,
+        branch,
+        supervisorName,
+        supervisorPhone,
+        employeeName,
+        gender,
+        type,
+        size,
+        Number(canceledQty)
       ]);
     }
   });
