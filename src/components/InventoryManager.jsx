@@ -80,7 +80,6 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
   const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
   const [editing, setEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState('details');
   const [uploadingId, setUploadingId] = useState('');
   const [stockAdjustments, setStockAdjustments] = useState({});
   const [deleteClothingId, setDeleteClothingId] = useState('');
@@ -396,7 +395,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
   return (
     <>
       <section className="inventory-workbench">
-        <aside className="inventory-catalog-panel">
+        <aside className="inventory-catalog-top-panel">
           <div className="inventory-list-head">
             <div>
               <h3>แบบเสื้อ</h3>
@@ -493,7 +492,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
             </div>
           </div>
 
-          <section className="inventory-detail-card">
+          <section className="inventory-detail-stock-card">
             <div className="inventory-section-head">
               <div>
                 <h4>ข้อมูลเสื้อ</h4>
@@ -604,9 +603,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
                 </button>
               )}
             </div>
-          </section>
-
-          <section className="inventory-stock-card">
+            <div className="inventory-section-divider" />
             <div className="inventory-section-head">
               <div>
                 <h4>สต๊อกตามไซส์</h4>

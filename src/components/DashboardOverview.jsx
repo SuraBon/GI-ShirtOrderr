@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
-import { AlertTriangle, PackageCheck, RefreshCw, Shirt, TrendingUp, Truck } from 'lucide-react';
-import { Donut, LineChart } from './SimpleCharts';
+import { AlertTriangle, PackageCheck, RefreshCw, Shirt, Truck } from 'lucide-react';
 
 function formatMonthLabel(date) {
   const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -94,43 +93,6 @@ function PendingOrdersPanel({ batches, statuses }) {
   );
 }
 
-function LowStockPanel({ stockSummaryRows }) {
-  const rows = useMemo(
-    () =>
-      stockSummaryRows
-        .filter((row) => Number(row.remaining || 0) <= 10 || Number(row.remaining || 0) <= Number(row.withdrawn || 0))
-        .sort(
-          (a, b) =>
-            Number(a.remaining || 0) - Number(b.remaining || 0) ||
-            String(a.type).localeCompare(String(b.type), 'th', { numeric: true })
-        )
-        .slice(0, 6),
-    [stockSummaryRows]
-  );
-
-  return (
-    <section className="dashboard-overview-panel">
-      <PanelHeader
-        title="สต๊อกต่ำ"
-        description="แบบเสื้อ เพศ และไซส์ที่ควรเติมสต๊อก"
-        action={<span className="overview-count-chip warning">{rows.length} ไซส์</span>}
-      />
-      <div className="overview-stock-list">
-        {rows.map((row) => (
-          <div key={row.id} className="overview-stock-row">
-            <span>
-              <strong>{row.type}</strong>
-              <small>{row.gender} / ไซส์ {row.size || '-'}</small>
-            </span>
-            <p>{Number(row.remaining || 0).toLocaleString('th-TH')} ชิ้น</p>
-          </div>
-        ))}
-        {!rows.length && <div className="dashboard-empty-line">ยังไม่มีรายการสต๊อกต่ำ</div>}
-      </div>
-    </section>
-  );
-}
-
 function BranchSummaryPanel({ rows, statuses }) {
   const pendingStatus = statuses?.pending || 'รอจัดส่ง';
   const summaryRows = useMemo(() => {
@@ -199,72 +161,6 @@ function BranchSummaryPanel({ rows, statuses }) {
   );
 }
 
-function StockCharts({ rows }) {
-  const sizeShareRows = useMemo(() => {
-    const map = new Map();
-    rows.forEach((row) => {
-      const gender = row.gender || 'ไม่ระบุเพศ';
-      const size = row.size || '-';
-      const key = `${gender} ${size}`;
-      map.set(key, (map.get(key) || 0) + Number(row.qty || 0));
-    });
-    return limitChartRows(
-      [...map.entries()].map(([label, value], index) => ({
-        label,
-        value,
-        color: ['#1d4ed8', '#f97316', '#7c3aed', '#db2777', '#059669'][index % 5],
-      }))
-    );
-  }, [rows]);
-
-  const trendRows = useMemo(() => {
-    const map = new Map();
-    rows.forEach((row) => {
-      const submittedAt = row.submittedAt ? new Date(row.submittedAt) : null;
-      if (!submittedAt || Number.isNaN(submittedAt.getTime())) return;
-      const key = `${submittedAt.getFullYear()}-${String(submittedAt.getMonth() + 1).padStart(2, '0')}`;
-      map.set(key, (map.get(key) || 0) + Number(row.qty || 0));
-    });
-    return [...map.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0], 'th'))
-      .slice(-6)
-      .map(([key, value]) => {
-        const [year, month] = key.split('-');
-        return { label: formatMonthLabel(new Date(Number(year), Number(month) - 1, 1)), value };
-      });
-  }, [rows]);
-
-  return (
-    <div className="dashboard-overview-chart-grid">
-      <section className="dashboard-overview-chart-card">
-        <PanelHeader title="สัดส่วนไซส์เสื้อ" description="ไซส์ที่มีการเบิกสูงสุด แยกตามเพศ" />
-        <div className="dashboard-overview-chart-body dashboard-chart-with-legend">
-          <div className="dashboard-donut-wrapper">
-            <Donut data={sizeShareRows} size={190} stroke={18} />
-          </div>
-          <div className="dashboard-donut-legend">
-            {sizeShareRows.map((item) => (
-              <div key={item.label} className="dashboard-donut-legend-row">
-                <span style={{ background: item.color }} />
-                <strong>{item.label}</strong>
-                <small>{item.value} ชิ้น</small>
-              </div>
-            ))}
-            {!sizeShareRows.length && <div className="dashboard-empty-line">ยังไม่มีข้อมูลไซส์เสื้อ</div>}
-          </div>
-        </div>
-      </section>
-
-      <section className="dashboard-overview-chart-card">
-        <PanelHeader title="แนวโน้มการเบิก" description="ยอดเบิกรายเดือนจากคำสั่งเบิก" />
-        <div className="dashboard-overview-chart-body">
-          {trendRows.length ? <LineChart data={trendRows} width={320} height={170} /> : <div className="dashboard-empty-line">ยังไม่มีข้อมูลแนวโน้ม</div>}
-        </div>
-      </section>
-    </div>
-  );
-}
-
 export function DashboardOverview({ onRefresh, metrics, rows, filteredBatches, stockSummaryRows, statuses }) {
   const stockTotals = useMemo(
     () =>
@@ -278,15 +174,13 @@ export function DashboardOverview({ onRefresh, metrics, rows, filteredBatches, s
       ),
     [stockSummaryRows]
   );
-  const lowStockCount = stockSummaryRows.filter((row) => Number(row.remaining || 0) <= 10).length;
-
   return (
     <div className="dashboard-overview-section">
       <div className="dashboard-overview-hero">
         <div>
           <span className="overview-section-label">ภาพรวมแดชบอร์ด</span>
-          <h2>ติดตามคำสั่งเบิกและสต๊อกสำคัญ</h2>
-          <p>ดูงานรอจัดส่ง สต๊อกต่ำ และสรุปคำสั่งเบิกตามสาขาในหน้าเดียว</p>
+          <h2>ติดตามคำสั่งเบิกและสรุปตามสาขา</h2>
+          <p>ดูงานรอจัดส่งและสรุปคำสั่งเบิกตามสาขาในหน้าเดียว</p>
         </div>
         <button type="button" onClick={onRefresh} className="dashboard-action-btn dark">
           <RefreshCw className="size-4" />
@@ -315,29 +209,13 @@ export function DashboardOverview({ onRefresh, metrics, rows, filteredBatches, s
           value={`${stockTotals.remaining.toLocaleString('th-TH')} ชิ้น`}
           detail={`เบิกแล้ว ${stockTotals.withdrawn.toLocaleString('th-TH')} ชิ้น`}
         />
-        <KpiCard
-          icon={Truck}
-          label="สต๊อกต่ำ"
-          value={`${lowStockCount} รายการ`}
-          detail={`สต๊อกทั้งหมด ${stockTotals.totalStock.toLocaleString('th-TH')} ชิ้น`}
-          tone="danger"
-        />
       </div>
 
-      <div className="dashboard-overview-workspace">
+      <div className="dashboard-overview-workspace dashboard-overview-workspace--wide">
         <PendingOrdersPanel batches={filteredBatches} statuses={statuses} />
-        <LowStockPanel stockSummaryRows={stockSummaryRows} />
-      </div>
-
-      <div className="dashboard-overview-grid">
         <BranchSummaryPanel rows={rows} statuses={statuses} />
-        <StockCharts rows={rows} />
       </div>
 
-      <div className="overview-footer-note">
-        <TrendingUp className="size-4" />
-        ข้อมูลในภาพรวมเปลี่ยนตามตัวกรองของแดชบอร์ดและรายการเบิกที่โหลดอยู่
-      </div>
     </div>
   );
 }
