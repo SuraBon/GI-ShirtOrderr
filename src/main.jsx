@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tabs from '@radix-ui/react-tabs';
-import { upload } from '@vercel/blob/client';
 import { Toaster, toast } from 'sonner';
 import {
   BarChart3,
@@ -16,7 +15,6 @@ import {
   BookOpen,
   LayoutDashboard,
   Loader2,
-  PackageCheck,
   PackageSearch,
   Pencil,
   Plus,
@@ -37,6 +35,7 @@ import {
   Printer,
   RefreshCw,
   AlertTriangle,
+  Building2,
   Edit3,
 } from 'lucide-react';
 import { cn, digitsOnly } from './lib/utils';
@@ -46,13 +45,10 @@ import {
   loadSharedClothingConfig,
   publishSharedClothingConfig,
   CLOTHING_CONFIG_UPDATED_AT_KEY,
-  normalizeClothingConfig,
   getClothingTypes,
   getSizeOptions,
   getSizeOptionsWithLabels,
   patchSizeWithDefaultQty,
-  IMAGE_UPLOAD_TYPES,
-  IMAGE_UPLOAD_MAX_BYTES,
   GENDERS,
   OTHER_SIZE,
 } from './lib/config';
@@ -77,13 +73,15 @@ import {
   Card,
   BranchManager,
   DashboardOverview,
+  EmployeeMasterPanel,
+  InventoryManager,
+  normalizeEmployeeMaster,
 } from './components';
 import {
   getAdminToken,
   setAdminToken,
   isAuthFailure,
   authFetch,
-  DASHBOARD_SESSION_KEY,
 } from './lib/api';
 import {
   phoneDigitsOnly,
@@ -100,7 +98,6 @@ import {
   uniqueSorted,
 } from './lib/utils';
 import {
-  normalizeStockLedger,
   applyStockMovement,
   getStockLedgerSummary,
   findStockIssuesForStatusChange,
@@ -119,10 +116,8 @@ import {
   MiniMetric,
   MobileInfo,
   SkeletonDashboard,
-  Stat,
   StatusBadge,
 } from './components/DashboardCommon';
-import { DashboardOverviewChart } from './components/DashboardOverviewChart';
 import {
   ORDER_STATUS_CANCELED,
   ORDER_STATUS_DELIVERED,
@@ -2899,6 +2894,7 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
         <Dashboard
           activeView={dashboardView}
           branches={effectiveBranches}
+          refreshBranches={refreshBranches}
           onAuthExpired={handleAuthExpired}
           onViewChange={setDashboardView}
         />
@@ -3360,6 +3356,17 @@ function AdminManualDialog({ open, setOpen }) {
               />
             </ManualSection>
 
+            <ManualSection icon={Users} title="คนคุมระบบ: ข้อมูลพนักงาน">
+              <ManualList
+                items={[
+                  'ใช้เพิ่มและแก้ไขฐานพนักงานจริง โดยต้องมีรหัสพนักงาน ชื่อ เพศ และสาขา',
+                  'ค้นหาพนักงานได้จากรหัส ชื่อ เพศ หรือสาขา',
+                  'ใช้ปิดใช้งานเมื่อพนักงานลาออกหรือไม่ต้องใช้ในระบบแล้ว โดยไม่ลบประวัติเดิม',
+                  'ส่วนประวัติรายการเบิกด้านล่างดึงจากคำสั่งเบิก เพื่อดูว่าพนักงานเคยเบิกแบบเสื้อ/ไซส์ใดบ้าง',
+                ]}
+              />
+            </ManualSection>
+
             <ManualSection icon={PackageSearch} title="คนจัดการสต๊อก: แบบเสื้อและสต๊อก">
               <ManualList
                 items={[
@@ -3373,11 +3380,22 @@ function AdminManualDialog({ open, setOpen }) {
               />
             </ManualSection>
 
+            <ManualSection icon={Building2} title="คนคุมระบบ: จัดการสาขา">
+              <ManualList
+                items={[
+                  'ใช้เพิ่มหรือลบรายชื่อสาขาที่แสดงในฟอร์มเบิกและตัวกรองแดชบอร์ด',
+                  'ควรใช้ชื่อสาขาให้ตรงกันทุกครั้ง เพื่อให้รายงานสรุปตามสาขาไม่แยกเป็นหลายชื่อ',
+                  'หลังบันทึกสาขา ระบบจะโหลดรายชื่อสาขาใหม่ให้หน้าเบิกและหน้าแดชบอร์ดใช้งานต่อ',
+                ]}
+              />
+            </ManualSection>
+
             <ManualSection icon={Download} title="การส่งออกและ Google Sheet">
               <ManualList
                 items={[
                   'ปุ่มส่งออก CSV ใช้ดาวน์โหลดข้อมูลคำสั่งเบิกตามตัวกรองที่เลือก',
                   'ชีท Orders เก็บข้อมูลคำสั่งเบิกและสถานะ',
+                  'ชีท Employees เก็บข้อมูลพนักงานจริง ได้แก่ รหัสพนักงาน ชื่อ เพศ สาขา และสถานะใช้งาน',
                   'ชีท Stock สร้างและอัปเดตจากระบบโดยอัตโนมัติ แสดงยอดตั้งต้น เพิ่มเข้า ปรับลด เบิกแล้ว สต๊อกทั้งหมด และคงเหลือ',
                   'ไม่ควรแก้ตัวเลขในชีท Stock โดยตรง เพราะการ sync ครั้งถัดไปจะเขียนทับจากข้อมูลในระบบ',
                 ]}
@@ -3394,645 +3412,7 @@ function AdminManualDialog({ open, setOpen }) {
   );
 }
 
-function validateImageFile(file) {
-  if (!IMAGE_UPLOAD_TYPES.includes(file.type)) return 'รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP';
-  if (file.size > IMAGE_UPLOAD_MAX_BYTES) return 'ขนาดไฟล์ต้องไม่เกิน 10MB';
-  return '';
-}
-
-async function uploadImageToBlob(file) {
-  const token = getAdminToken();
-  if (!token) throw new Error('สิทธิ์อัปโหลดหมดอายุ กรุณาเข้าสู่แดชบอร์ดใหม่');
-  return upload(file.name, file, {
-    access: 'public',
-    handleUploadUrl: '/api/blob/upload',
-    clientPayload: JSON.stringify({ token }),
-  });
-}
-
-function InventoryManager({ config, setConfig, onAuthExpired, stacked = false }) {
-  const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
-  const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
-  const [editing, setEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState('details');
-  const [uploadingId, setUploadingId] = useState('');
-  const [stockAdjustments, setStockAdjustments] = useState({});
-  const [deleteClothingId, setDeleteClothingId] = useState('');
-  const syncTimerRef = useRef(null);
-  const selectedItem = config.find((item) => item.id === selectedId) || config[0];
-  const deleteClothingItem = config.find((item) => item.id === deleteClothingId);
-  const stockRows = selectedItem?.genderSizeRows?.[selectedGender] || selectedItem?.sizeRows || [];
-
-  useEffect(() => {
-    if (!config.some((item) => item.id === selectedId)) {
-      setSelectedId(config[0]?.id || '');
-    }
-  }, [config, selectedId]);
-
-  useEffect(() => () => window.clearTimeout(syncTimerRef.current), []);
-
-  function scheduleSync(normalizedConfig) {
-    window.clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = window.setTimeout(() => {
-      publishSharedClothingConfig(normalizedConfig).catch((error) => {
-        if (isAuthFailure(error)) {
-          setAdminToken('');
-          onAuthExpired?.();
-          toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ');
-          return;
-        }
-        toast.error('บันทึกข้อมูลเสื้อไม่สำเร็จ', {
-          description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
-        });
-      });
-    }, 700);
-  }
-
-  function commit(nextConfig) {
-    const normalized = normalizeClothingConfig(nextConfig);
-    setConfig(normalized);
-    saveClothingConfig(normalized);
-    scheduleSync(normalized);
-  }
-
-  function patchItem(id, patch) {
-    commit(config.map((item) => (item.id === id ? { ...item, ...patch } : item)));
-  }
-
-  function confirmDeleteClothing() {
-    if (!deleteClothingItem || config.length <= 1) return;
-    const nextConfig = config.filter((current) => current.id !== deleteClothingItem.id);
-    commit(nextConfig);
-    if (deleteClothingItem.id === selectedId) {
-      setSelectedId(nextConfig[0]?.id || '');
-      setEditing(false);
-    }
-    setDeleteClothingId('');
-  }
-
-  function patchStock(id, rowIndex, patch) {
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
-        return {
-          ...item,
-          genderSizeRows: {
-            ...(item.genderSizeRows || {}),
-            [selectedGender]: rows.map((row, index) =>
-              index === rowIndex ? { ...row, ...patch } : row
-            ),
-          },
-        };
-      })
-    );
-  }
-
-  function getStockAdjustmentKey(rowIndex) {
-    return `${selectedItem?.id || ''}:${selectedGender}:${rowIndex}`;
-  }
-
-  function adjustStockQuantity(id, rowIndex) {
-    const key = getStockAdjustmentKey(rowIndex);
-    const amount = Number(stockAdjustments[key] || 0);
-    if (!amount) return;
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
-        return {
-          ...item,
-          genderSizeRows: {
-            ...(item.genderSizeRows || {}),
-            [selectedGender]: rows.map((row, index) =>
-              index === rowIndex ? applyStockMovement(row, amount, 'manual') : row
-            ),
-          },
-        };
-      })
-    );
-    setStockAdjustments((current) => ({ ...current, [key]: '' }));
-  }
-
-  function patchStockDetail(id, rowIndex, field, value) {
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
-        return {
-          ...item,
-          genderSizeRows: {
-            ...(item.genderSizeRows || {}),
-            [selectedGender]: rows.map((row, index) =>
-              index === rowIndex
-                ? {
-                    ...row,
-                    details: {
-                      ...(row.details || {}),
-                      [field]: value,
-                    },
-                  }
-                : row
-            ),
-          },
-        };
-      })
-    );
-  }
-
-  function patchDetailField(id, fieldIndex, value) {
-    const nextField = value.trim() || 'รายละเอียด';
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const oldField = item.detailFields?.[fieldIndex];
-        const detailFields = (item.detailFields || []).map((field, index) =>
-          index === fieldIndex ? nextField : field
-        );
-        return {
-          ...item,
-          detailFields,
-          genderSizeRows: GENDERS.reduce((rows, gender) => {
-            const sizeRows = item.genderSizeRows?.[gender] || item.sizeRows || [];
-            return {
-              ...rows,
-              [gender]: sizeRows.map((row) => {
-                const details = { ...(row.details || {}) };
-                if (oldField && oldField !== nextField) {
-                  details[nextField] = details[oldField] || '';
-                  delete details[oldField];
-                }
-                return { ...row, details };
-              }),
-            };
-          }, {}),
-        };
-      })
-    );
-  }
-
-  function addDetailField(id) {
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const currentFields = item.detailFields?.length ? item.detailFields : ['อก'];
-        let nextField = `รายละเอียด ${currentFields.length + 1}`;
-        let suffix = currentFields.length + 1;
-        while (currentFields.includes(nextField)) {
-          suffix += 1;
-          nextField = `รายละเอียด ${suffix}`;
-        }
-
-        return {
-          ...item,
-          detailFields: [...currentFields, nextField],
-          genderSizeRows: GENDERS.reduce((rows, gender) => {
-            const sizeRows = item.genderSizeRows?.[gender] || item.sizeRows || [];
-            return {
-              ...rows,
-              [gender]: sizeRows.map((row) => ({
-                ...row,
-                details: {
-                  ...(row.details || {}),
-                  [nextField]: '',
-                },
-              })),
-            };
-          }, {}),
-        };
-      })
-    );
-  }
-
-  function removeDetailField(id, fieldIndex) {
-    commit(
-      config.map((item) => {
-        if (item.id !== id || (item.detailFields || []).length <= 1) return item;
-        const field = item.detailFields[fieldIndex];
-        return {
-          ...item,
-          detailFields: item.detailFields.filter((_, index) => index !== fieldIndex),
-          genderSizeRows: GENDERS.reduce((rows, gender) => {
-            const sizeRows = item.genderSizeRows?.[gender] || item.sizeRows || [];
-            return {
-              ...rows,
-              [gender]: sizeRows.map((row) => {
-                const details = { ...(row.details || {}) };
-                delete details[field];
-                return { ...row, details };
-              }),
-            };
-          }, {}),
-        };
-      })
-    );
-  }
-
-  function addStockRow(id) {
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
-        return {
-          ...item,
-          genderSizeRows: {
-            ...(item.genderSizeRows || {}),
-            [selectedGender]: [
-              ...rows,
-              {
-                size: '',
-                qty: 0,
-                details: (item.detailFields || []).reduce(
-                  (details, field) => ({ ...details, [field]: '' }),
-                  {}
-                ),
-              },
-            ],
-          },
-        };
-      })
-    );
-  }
-
-  function removeStockRow(id, rowIndex) {
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
-        return {
-          ...item,
-          genderSizeRows: {
-            ...(item.genderSizeRows || {}),
-            [selectedGender]: rows.length > 1 ? rows.filter((_, index) => index !== rowIndex) : rows,
-          },
-        };
-      })
-    );
-  }
-
-  function addClothing() {
-    const id = crypto.randomUUID();
-    commit([
-      ...config,
-      {
-        id,
-        type: 'เสื้อใหม่',
-        imageUrl: '',
-        detailFields: ['อก'],
-        sizeRows: [{ size: 'M', details: { อก: '' }, qty: 0 }],
-        genderSizeRows: GENDERS.reduce(
-          (rows, gender) => ({ ...rows, [gender]: [{ size: 'M', details: { อก: '' }, qty: 0 }] }),
-          {}
-        ),
-      },
-    ]);
-    setSelectedId(id);
-    setEditing(true);
-  }
-
-  async function uploadImage(id, file) {
-    if (!file) return;
-    const validationError = validateImageFile(file);
-    if (validationError) {
-      toast.error('ไฟล์รูปไม่ถูกต้อง', { description: validationError });
-      return;
-    }
-    setUploadingId(id);
-    const loadingToastId = toast.loading('กำลังอัปโหลดรูปเสื้อ...');
-    try {
-      const result = await uploadImageToBlob(file);
-      patchItem(id, { imageUrl: result.url });
-      toast.success('อัปโหลดรูปเสื้อแล้ว', { id: loadingToastId });
-    } catch (error) {
-      if (isAuthFailure(error)) {
-        setAdminToken('');
-        onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', { id: loadingToastId });
-        return;
-      }
-      toast.error('อัปโหลดรูปเสื้อไม่สำเร็จ', {
-        id: loadingToastId,
-        description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
-      });
-    } finally {
-      setUploadingId('');
-    }
-  }
-
-  if (!selectedItem) return null;
-
-  const detailFields = selectedItem.detailFields?.length ? selectedItem.detailFields : ['อก'];
-  const sizeDetailGridStyle = {
-    '--inventory-size-detail-columns': `minmax(7rem, 0.8fr) repeat(${detailFields.length}, minmax(7rem, 1fr)) 2.5rem`,
-  };
-
-  return (
-    <>
-    <section className="inventory-manager-shell">
-      <aside className="inventory-list-panel">
-        <div className="inventory-list-head">
-          <div>
-            <h3>แบบเสื้อ</h3>
-            <p className="inventory-list-count">{config.length} รายการ</p>
-          </div>
-          <button onClick={addClothing}>
-            <Plus className="size-4" /> เพิ่ม
-          </button>
-        </div>
-        <div className="inventory-item-list">
-          {config.map((item) => {
-            const total = Object.values(item.genderSizeRows || {})
-              .flat()
-              .reduce((sum, row) => sum + Number(row.qty || 0), 0);
-            const canDelete = config.length > 1;
-            return (
-              <div
-                key={item.id}
-                className={cn('inventory-item-card', item.id === selectedItem.id && 'active')}
-                onClick={() => {
-                  setSelectedId(item.id);
-                  setEditing(false);
-                }}
-              >
-                <span className="inventory-item-thumb">
-                  {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <Shirt className="size-5" />}
-                </span>
-                <span>
-                  <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
-                  <small>คงเหลือ {total} ชิ้น</small>
-                </span>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (!canDelete) return;
-                    setDeleteClothingId(item.id);
-                  }}
-                  className="inventory-item-delete"
-                  aria-label="ลบแบบเสื้อ"
-                  disabled={!canDelete}
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </aside>
-
-      <div className="inventory-edit-panels">
-        <div className="inventory-edit-toolbar">
-          <div>
-            <h3>{selectedItem.type || 'ยังไม่ระบุชื่อ'}</h3>
-            <p>
-              ใช้แท็บข้อมูลเสื้อสำหรับชื่อและรูป ส่วนแท็บสต๊อกใช้แก้จำนวนคงเหลือตามไซส์
-            </p>
-            <div className="inventory-toolbar-meta">
-              <span>{stockRows.length} ไซส์</span>
-              <span>{selectedItem.imageUrl ? 'มีรูปภาพ' : 'ยังไม่มีรูป'}</span>
-            </div>
-          </div>
-          <button className={editing ? 'done' : ''} onClick={() => setEditing((value) => !value)}>
-            <Pencil className="size-4" />
-            {editing ? 'เสร็จสิ้น' : 'จัดการ'}
-          </button>
-        </div>
-
-        <div className="inventory-subtabs" role="tablist" aria-label="จัดการข้อมูลเสื้อ">
-          <button
-            className={activeSection === 'details' ? 'active' : ''}
-            onClick={() => setActiveSection('details')}
-            role="tab"
-            aria-selected={activeSection === 'details'}
-          >
-            ข้อมูลเสื้อ
-          </button>
-          <button
-            className={activeSection === 'stock' ? 'active' : ''}
-            onClick={() => setActiveSection('stock')}
-            role="tab"
-            aria-selected={activeSection === 'stock'}
-          >
-            สต๊อกตามไซส์
-          </button>
-        </div>
-
-        <section className={cn('inventory-detail-card', activeSection !== 'details' && 'hidden')}>
-          <div className="inventory-section-head">
-            <div>
-              <h4>ข้อมูลรายละเอียดเสื้อ</h4>
-              <p>แก้เฉพาะข้อมูลที่ผู้เบิกเห็น เช่น ชื่อแบบเสื้อและรูปภาพ</p>
-            </div>
-          </div>
-          <div className="inventory-detail-grid">
-            <div className="inventory-image-box">
-              {selectedItem.imageUrl ? (
-                <img src={selectedItem.imageUrl} alt={selectedItem.type} />
-              ) : (
-                <span>ไม่มีรูป</span>
-              )}
-              {editing && (
-                <label>
-                  {uploadingId === selectedItem.id ? 'กำลังอัปโหลด' : 'แนบรูป'}
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    disabled={uploadingId === selectedItem.id}
-                    onChange={(event) => {
-                      uploadImage(selectedItem.id, event.target.files?.[0]);
-                      event.target.value = '';
-                    }}
-                  />
-                </label>
-              )}
-            </div>
-            <div className="inventory-detail-fields">
-              <Field label="ชื่อแบบเสื้อ">
-                <TextInput
-                  value={selectedItem.type}
-                  onChange={(value) => patchItem(selectedItem.id, { type: value })}
-                  disabled={!editing}
-                  placeholder="เช่น เสื้อโปโล"
-                />
-              </Field>
-            </div>
-          </div>
-          <div className="inventory-size-fields">
-            <div className="inventory-size-fields-top">
-              <div>
-                <strong>รายละเอียดไซส์</strong>
-                <span>แก้ค่าอก/เอวแยกตามเพศ ข้อมูลนี้จะแสดงในตารางไซส์ของผู้เบิก</span>
-              </div>
-              <div className="inventory-size-fields-actions">
-                {editing && (
-                  <button
-                    type="button"
-                    className="inventory-add-detail-field"
-                    onClick={() => addDetailField(selectedItem.id)}
-                  >
-                    <Plus className="size-4" />
-                    เพิ่มรายละเอียด
-                  </button>
-                )}
-                <div className="inventory-gender-toggle">
-                  {GENDERS.map((gender) => (
-                    <button
-                      key={gender}
-                      className={selectedGender === gender ? 'active' : ''}
-                      onClick={() => setSelectedGender(gender)}
-                    >
-                      {gender}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {editing && (
-              <div className="inventory-size-field-list">
-                {detailFields.map((field, index) => (
-                  <div key={`${selectedItem.id}-detail-field-${index}`} className="inventory-size-field-row">
-                    <TextInput
-                      value={field}
-                      onChange={(value) => patchDetailField(selectedItem.id, index, value)}
-                      placeholder="อก"
-                    />
-                    <button
-                      onClick={() => removeDetailField(selectedItem.id, index)}
-                      disabled={detailFields.length <= 1}
-                      title="ลบช่องรายละเอียด"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="inventory-size-detail-table">
-              <div className="inventory-size-detail-header" style={sizeDetailGridStyle}>
-                <span>ไซส์</span>
-                {detailFields.map((field) => (
-                  <span key={`${selectedItem.id}-size-head-${field}`}>{field}</span>
-                ))}
-                {editing && <span />}
-              </div>
-              {stockRows.map((row, index) => (
-                <div
-                  className="inventory-size-detail-row"
-                  key={`${selectedItem.id}-${selectedGender}-detail-${index}`}
-                  style={sizeDetailGridStyle}
-                >
-                  {editing ? (
-                    <TextInput
-                      value={row.size}
-                      onChange={(value) => patchStock(selectedItem.id, index, { size: value })}
-                      placeholder="ไซส์"
-                    />
-                  ) : (
-                    <strong>{row.size || '-'}</strong>
-                  )}
-                  {detailFields.map((field) =>
-                    editing ? (
-                      <TextInput
-                        key={`${selectedItem.id}-${selectedGender}-${index}-${field}`}
-                        value={row.details?.[field] || ''}
-                        onChange={(value) => patchStockDetail(selectedItem.id, index, field, value)}
-                        placeholder={field}
-                      />
-                    ) : (
-                      <span key={`${selectedItem.id}-${selectedGender}-${index}-${field}`}>
-                        {row.details?.[field] || '-'}
-                      </span>
-                    )
-                  )}
-                  {editing && (
-                    <button onClick={() => removeStockRow(selectedItem.id, index)} title="ลบไซส์">
-                      <Trash2 className="size-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {editing && (
-              <button className="inventory-add-stock" onClick={() => addStockRow(selectedItem.id)}>
-                <Plus className="size-4" /> เพิ่มไซส์
-              </button>
-            )}
-          </div>
-        </section>
-
-        <section className={cn('inventory-stock-card', activeSection !== 'stock' && 'hidden')}>
-          <div className="inventory-section-head">
-            <div>
-              <h4>สต๊อกตามไซส์</h4>
-              <p>แก้เฉพาะจำนวนคงเหลือ แยกตามเพศ ส่วนอก/เอวอยู่ในแท็บข้อมูลเสื้อ</p>
-            </div>
-            <div className="inventory-gender-toggle">
-              {GENDERS.map((gender) => (
-                <button
-                  key={gender}
-                  className={selectedGender === gender ? 'active' : ''}
-                  onClick={() => setSelectedGender(gender)}
-                >
-                  {gender}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="inventory-stock-table">
-            <div className="inventory-stock-header">
-              <span>ไซส์</span>
-              <span>จำนวนคงเหลือ</span>
-              {editing && <span>เพิ่ม / ลด</span>}
-            </div>
-            {stockRows.map((row, index) => (
-              <div
-                className="inventory-stock-row"
-                key={`${selectedItem.id}-${selectedGender}-${index}`}
-              >
-                <strong>{row.size || '-'}</strong>
-                <span>{Number(row.qty || 0)} ชิ้น</span>
-                {editing && (
-                  <div className="inventory-stock-adjust">
-                    <TextInput
-                      type="number"
-                      inputMode="numeric"
-                      value={stockAdjustments[getStockAdjustmentKey(index)] || ''}
-                      onChange={(value) =>
-                        setStockAdjustments((current) => ({
-                          ...current,
-                          [getStockAdjustmentKey(index)]: value,
-                        }))
-                      }
-                      placeholder="+10 หรือ -2"
-                    />
-                    <button onClick={() => adjustStockQuantity(selectedItem.id, index)}>เพิ่ม</button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </section>
-    <ConfirmDialog
-      open={Boolean(deleteClothingItem)}
-      title="ยืนยันลบแบบเสื้อ"
-      description={
-        deleteClothingItem
-          ? `ลบแบบเสื้อ "${deleteClothingItem.type || 'ยังไม่ระบุชื่อ'}" และข้อมูลไซส์/สต๊อกทั้งหมด?`
-          : ''
-      }
-      confirmLabel="ลบแบบเสื้อ"
-      cancelLabel="ยกเลิก"
-      destructive
-      onCancel={() => setDeleteClothingId('')}
-      onConfirm={confirmDeleteClothing}
-    />
-    </>
-  );
-}
-
-function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, onViewChange }) {
+function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches, onAuthExpired, onViewChange }) {
   const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -4046,6 +3426,10 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
   const [branchFilter, setBranchFilter] = useState('ทุกสาขา');
   const [statusFilter, setStatusFilter] = useState('ทุกสถานะ');
   const [query, setQuery] = useState('');
+  const [employeeMasterRows, setEmployeeMasterRows] = useState([]);
+  const [employeeMasterLoading, setEmployeeMasterLoading] = useState(false);
+  const [employeeMasterSaving, setEmployeeMasterSaving] = useState(false);
+  const [employeeMasterSearch, setEmployeeMasterSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState(() => formatMonthLabel(new Date()));
   const [exportBranchFilter, setExportBranchFilter] = useState('ทุกสาขา');
   const [exportStartMonth, setExportStartMonth] = useState(() => formatMonthInputValue(new Date()));
@@ -4108,9 +3492,115 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
     }
   }
 
+  async function loadEmployeeMaster({ silent = false } = {}) {
+    setEmployeeMasterLoading(true);
+    try {
+      const response = await authFetch('/api/dashboard/employees', { cache: 'no-store' });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success === false) {
+        throw new Error(result?.error || 'โหลดข้อมูลพนักงานไม่สำเร็จ');
+      }
+      const data = Array.isArray(result) ? result : result?.data || result?.employees;
+      setEmployeeMasterRows((Array.isArray(data) ? data : []).map(normalizeEmployeeMaster));
+      if (silent) toast.success('โหลดข้อมูลพนักงานแล้ว');
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken('');
+        onAuthExpired?.();
+        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
+          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
+        });
+        return;
+      }
+      toast.error('โหลดข้อมูลพนักงานไม่สำเร็จ', {
+        description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
+      });
+    } finally {
+      setEmployeeMasterLoading(false);
+    }
+  }
+
+  async function saveEmployeeMaster(employee) {
+    if (!employee.employeeId || !employee.name || !employee.gender || !employee.branch) {
+      toast.error('กรุณากรอกข้อมูลพนักงานให้ครบ', {
+        description: 'ต้องมีรหัสพนักงาน ชื่อ เพศ และสาขา',
+      });
+      return false;
+    }
+    setEmployeeMasterSaving(true);
+    try {
+      const response = await authFetch('/api/dashboard/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'upsertEmployee', employee }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success === false) {
+        throw new Error(result?.error || 'บันทึกข้อมูลพนักงานไม่สำเร็จ');
+      }
+      const savedEmployee = normalizeEmployeeMaster(result.employee || result.data || employee);
+      setEmployeeMasterRows((current) => {
+        const exists = current.some((item) => item.employeeId === savedEmployee.employeeId);
+        const nextRows = exists
+          ? current.map((item) => (item.employeeId === savedEmployee.employeeId ? savedEmployee : item))
+          : [...current, savedEmployee];
+        return nextRows.sort(
+          (a, b) =>
+            a.branch.localeCompare(b.branch, 'th', { numeric: true }) ||
+            a.name.localeCompare(b.name, 'th', { numeric: true })
+        );
+      });
+      toast.success('บันทึกข้อมูลพนักงานแล้ว');
+      return true;
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken('');
+        onAuthExpired?.();
+        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ');
+        return false;
+      }
+      toast.error('บันทึกข้อมูลพนักงานไม่สำเร็จ', {
+        description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
+      });
+      return false;
+    } finally {
+      setEmployeeMasterSaving(false);
+    }
+  }
+
+  async function deactivateEmployeeMaster(employeeId) {
+    if (!window.confirm(`ปิดใช้งานพนักงานรหัส ${employeeId} หรือไม่?`)) return;
+    setEmployeeMasterSaving(true);
+    try {
+      const response = await authFetch('/api/dashboard/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteEmployee', employeeId }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success === false) {
+        throw new Error(result?.error || 'ปิดใช้งานพนักงานไม่สำเร็จ');
+      }
+      const savedEmployee = normalizeEmployeeMaster(result.employee || result.data || { employeeId, active: false });
+      setEmployeeMasterRows((current) =>
+        current.map((item) =>
+          item.employeeId === employeeId ? { ...item, ...savedEmployee, active: false } : item
+        )
+      );
+      toast.success('ปิดใช้งานพนักงานแล้ว');
+    } catch (error) {
+      toast.error('ปิดใช้งานพนักงานไม่สำเร็จ', {
+        description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
+      });
+    } finally {
+      setEmployeeMasterSaving(false);
+    }
+  }
+
   useEffect(() => {
     setLoading(true);
     loadData();
+    loadEmployeeMaster();
   }, []);
 
   useEffect(
@@ -4764,38 +4254,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
       })
     )
     .sort((a, b) => b.withdrawn - a.withdrawn || a.type.localeCompare(b.type, 'th'));
-  const stockFocusRows = stockSummaryRows.slice(0, 8);
-  const stockSummaryTotals = stockSummaryRows.reduce(
-    (totals, row) => ({
-      totalStock: totals.totalStock + row.totalStock,
-      withdrawn: totals.withdrawn + row.withdrawn,
-      remaining: totals.remaining + row.remaining,
-    }),
-    { totalStock: 0, withdrawn: 0, remaining: 0 }
-  );
-  const pendingBatchRows = filteredBatches.filter((batch) => batch.status === ORDER_STATUS_PENDING);
-  const oldestPendingBatches = [...pendingBatchRows]
-    .sort(
-      (a, b) =>
-        new Date(a.submittedAt || 0).getTime() - new Date(b.submittedAt || 0).getTime() ||
-        a.batchId.localeCompare(b.batchId, 'th', { numeric: true })
-    )
-    .slice(0, 4);
-  const shippedPiecePercent = metrics.totalPieces
-    ? Math.round((metrics.shippedPieces / metrics.totalPieces) * 100)
-    : 0;
-  const pendingPiecePercent = metrics.totalPieces
-    ? Math.round((metrics.pendingPieces / metrics.totalPieces) * 100)
-    : 0;
-  const stockWatchRows = stockSummaryRows
-    .filter((row) => row.remaining <= 10 || row.remaining <= row.withdrawn)
-    .sort(
-      (a, b) =>
-        a.remaining - b.remaining ||
-        b.withdrawn - a.withdrawn ||
-        a.type.localeCompare(b.type, 'th')
-    )
-    .slice(0, 5);
   const useSplitOrderColumns = isWideScreen && orderRows.length > 4;
   const visibleOrderColumnSet = new Set(visibleOrderColumns);
   const visibleEmployeeColumnSet = new Set(visibleEmployeeColumns);
@@ -4836,7 +4294,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
             rows={rows}
             filteredBatches={filteredBatches}
             stockSummaryRows={stockSummaryRows}
-            pendingPiecePercent={pendingPiecePercent}
             statuses={{
               pending: ORDER_STATUS_PENDING,
               delivered: ORDER_STATUS_DELIVERED,
@@ -5418,8 +4875,8 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
         <section className="dashboard-employees-panel">
           <div className="dashboard-panel-head">
             <div>
-              <h2>ข้อมูลพนักงานที่เบิกทั้งหมด</h2>
-              <p>ทั้งหมด {employeeRows.length} รายการตามตัวกรองปัจจุบัน</p>
+              <h2>ข้อมูลพนักงาน</h2>
+              <p>จัดการฐานพนักงานจริง และดูประวัติรายการเบิกจากคำสั่งเบิก</p>
             </div>
             <div className="dashboard-panel-actions">
               <button type="button" onClick={() => setColumnSettingsTable('employees')} title="ตั้งค่าคอลัมน์ตาราง">
@@ -5432,8 +4889,29 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
               </button>
             </div>
           </div>
+
+          <EmployeeMasterPanel
+            employees={employeeMasterRows}
+            branches={effectiveBranches}
+            genders={GENDERS}
+            loading={employeeMasterLoading}
+            saving={employeeMasterSaving}
+            search={employeeMasterSearch}
+            onSearchChange={setEmployeeMasterSearch}
+            onReload={() => loadEmployeeMaster({ silent: true })}
+            onSave={saveEmployeeMaster}
+            onDeactivate={deactivateEmployeeMaster}
+          />
+
+          <div className="dashboard-panel-head slim employee-history-head">
+            <div>
+              <h2>ประวัติรายการเบิกของพนักงาน</h2>
+              <p>แสดงจากคำสั่งเบิกตามตัวกรองปัจจุบัน {employeeRows.length} รายการ</p>
+            </div>
+          </div>
+
           <div className="dashboard-panel-summary">
-            <MiniMetric label="รายการพนักงาน" value={employeeRows.length} />
+            <MiniMetric label="รายการเบิก" value={employeeRows.length} />
             <MiniMetric label="จำนวนรวม" value={`${metrics.totalPieces} ชิ้น`} />
             <MiniMetric label="รอจัดส่ง" value={`${metrics.pendingPieces} ชิ้น`} />
             <MiniMetric label="จัดส่งแล้ว" value={`${metrics.shippedPieces} ชิ้น`} />
@@ -5592,8 +5070,8 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
         <section className="dashboard-inventory-manager">
           <div className="dashboard-panel-head">
             <div>
-              <h2>สร้างแบบเสื้อและคุมสต๊อก</h2>
-              <p>หน้าสำหรับเพิ่มแบบเสื้อ กำหนดไซส์ และจัดการจำนวนคงเหลือเท่านั้น</p>
+              <h2>แบบเสื้อและสต๊อก</h2>
+              <p>จัดการชื่อแบบเสื้อ รูปภาพ รายละเอียดไซส์ และสต๊อกคงเหลือตามเพศ/ไซส์</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => onViewChange?.('orders')}>
@@ -6322,3 +5800,4 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 }
+

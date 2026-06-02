@@ -1,4 +1,5 @@
 const SHEET_NAME = "Orders";
+const EMPLOYEES_SHEET_NAME = "Employees";
 const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว", "ยกเลิก"];
 const HEADERS = [
   "รหัสคำสั่งเบิก",
@@ -28,9 +29,21 @@ const STOCK_HEADERS = [
   "คงเหลือ"
 ];
 
+const EMPLOYEE_HEADERS = [
+  "รหัสพนักงาน",
+  "ชื่อพนักงาน",
+  "เพศ",
+  "สาขา",
+  "สถานะ",
+  "อัปเดตล่าสุด"
+];
+
 function doGet(e) {
   try {
     requireAdmin_(getRequestToken_(e, "adminToken"));
+    if (e && e.parameter && e.parameter.action === "employees") {
+      return json_({ success: true, data: readEmployees_(getEmployeesSheet_()) });
+    }
     const sheet = getOrdersSheet_();
     return json_({ success: true, data: readBatches_(sheet) });
   } catch (error) {
@@ -68,6 +81,18 @@ function doPost(e) {
       requireAdmin_(payload.adminToken);
       syncStockSheet_(SpreadsheetApp.getActiveSpreadsheet(), payload.config);
       return json_({ success: true, action: payload.action });
+    }
+
+    if (payload.action === "upsertEmployee") {
+      requireAdmin_(payload.adminToken);
+      const employee = upsertEmployee_(getEmployeesSheet_(), payload.employee);
+      return json_({ success: true, action: payload.action, employee });
+    }
+
+    if (payload.action === "deleteEmployee") {
+      requireAdmin_(payload.adminToken);
+      const employee = setEmployeeActive_(getEmployeesSheet_(), payload.employeeId, false);
+      return json_({ success: true, action: payload.action, employee });
     }
 
     validateBatch_(payload);
@@ -189,6 +214,117 @@ function getOrdersSheet_() {
   }
 
   return sheet;
+}
+
+function getEmployeesSheet_() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = spreadsheet.getSheetByName(EMPLOYEES_SHEET_NAME);
+  if (!sheet) sheet = spreadsheet.insertSheet(EMPLOYEES_SHEET_NAME);
+
+  const currentHeaders = sheet.getRange(1, 1, 1, EMPLOYEE_HEADERS.length).getValues()[0];
+  const needsHeaders =
+    currentHeaders.join("") === "" ||
+    EMPLOYEE_HEADERS.some((header, index) => currentHeaders[index] !== header);
+  if (needsHeaders) {
+    sheet.getRange(1, 1, 1, EMPLOYEE_HEADERS.length).setValues([EMPLOYEE_HEADERS]);
+    sheet.setFrozenRows(1);
+  }
+
+  return sheet;
+}
+
+function readEmployees_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  return sheet
+    .getRange(2, 1, lastRow - 1, EMPLOYEE_HEADERS.length)
+    .getValues()
+    .map(function(row) {
+      return {
+        employeeId: String(row[0] || "").trim(),
+        name: String(row[1] || "").trim(),
+        gender: String(row[2] || "").trim(),
+        branch: String(row[3] || "").trim(),
+        active: String(row[4] || "ใช้งาน") !== "ปิดใช้งาน",
+        updatedAt: toIso_(row[5])
+      };
+    })
+    .filter(function(employee) {
+      return employee.employeeId && employee.name;
+    })
+    .sort(function(a, b) {
+      return String(a.branch).localeCompare(String(b.branch), "th", { numeric: true }) ||
+        String(a.name).localeCompare(String(b.name), "th", { numeric: true });
+    });
+}
+
+function normalizeEmployee_(employee) {
+  if (!employee || typeof employee !== "object") throw new Error("ข้อมูลพนักงานไม่ถูกต้อง");
+  const normalized = {
+    employeeId: String(employee.employeeId || "").trim(),
+    name: String(employee.name || "").trim(),
+    gender: String(employee.gender || "").trim(),
+    branch: String(employee.branch || "").trim(),
+    active: employee.active !== false,
+    updatedAt: new Date().toISOString()
+  };
+  if (!normalized.employeeId) throw new Error("ไม่พบรหัสพนักงาน");
+  if (!normalized.name) throw new Error("ไม่พบชื่อพนักงาน");
+  if (!normalized.gender) throw new Error("ไม่พบเพศ");
+  if (!normalized.branch) throw new Error("ไม่พบสาขา");
+  return normalized;
+}
+
+function upsertEmployee_(sheet, employee) {
+  const normalized = normalizeEmployee_(employee);
+  const lastRow = sheet.getLastRow();
+  const status = normalized.active ? "ใช้งาน" : "ปิดใช้งาน";
+  const values = [
+    normalized.employeeId,
+    normalized.name,
+    normalized.gender,
+    normalized.branch,
+    status,
+    normalized.updatedAt
+  ];
+
+  if (lastRow >= 2) {
+    const employeeIds = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let index = 0; index < employeeIds.length; index += 1) {
+      if (String(employeeIds[index][0]).trim() === normalized.employeeId) {
+        sheet.getRange(index + 2, 1, 1, EMPLOYEE_HEADERS.length).setValues([values]);
+        return normalized;
+      }
+    }
+  }
+
+  sheet.getRange(lastRow + 1, 1, 1, EMPLOYEE_HEADERS.length).setValues([values]);
+  return normalized;
+}
+
+function setEmployeeActive_(sheet, employeeId, active) {
+  const targetId = String(employeeId || "").trim();
+  if (!targetId) throw new Error("ไม่พบรหัสพนักงาน");
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error("ไม่พบข้อมูลพนักงาน");
+  const values = sheet.getRange(2, 1, lastRow - 1, EMPLOYEE_HEADERS.length).getValues();
+  for (let index = 0; index < values.length; index += 1) {
+    if (String(values[index][0]).trim() === targetId) {
+      const employee = {
+        employeeId: String(values[index][0] || "").trim(),
+        name: String(values[index][1] || "").trim(),
+        gender: String(values[index][2] || "").trim(),
+        branch: String(values[index][3] || "").trim(),
+        active,
+        updatedAt: new Date().toISOString()
+      };
+      sheet.getRange(index + 2, 5, 1, 2).setValues([[active ? "ใช้งาน" : "ปิดใช้งาน", employee.updatedAt]]);
+      return employee;
+    }
+  }
+  throw new Error("ไม่พบข้อมูลพนักงาน");
 }
 
 function buildRows_(batch) {

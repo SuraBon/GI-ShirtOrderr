@@ -37,7 +37,7 @@ export function CustomSelect({
   }, [values]);
 
   const selectedItem = normalizedValues.find((item) => item.value === value);
-  const selectedLabel = selectedItem ? selectedItem.label : value || placeholder;
+  const selectedLabel = selectedItem?.label || value || placeholder;
 
   function updateMenuPosition() {
     if (!usePortal) return;

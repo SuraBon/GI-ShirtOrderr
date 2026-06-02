@@ -1,5 +1,4 @@
 import {
-  applyStockMovement,
   getBatchStatusStockMovements,
   adjustStockForStatusChange,
   findStockIssuesForStatusChange,
@@ -9,7 +8,6 @@ import {
 import {
   ORDER_STATUS_DELIVERED,
   ORDER_STATUS_PENDING,
-  ORDER_STATUS_CANCELED,
 } from '../src/lib/orderState';
 
 describe('stock movement helpers', () => {

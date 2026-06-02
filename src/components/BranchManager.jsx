@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2, AlertTriangle, Check } from 'lucide-react';
+import { Plus, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '../lib/utils';
 
 export function BranchManager({ onSaved }) {
   const [branches, setBranches] = useState([]);
