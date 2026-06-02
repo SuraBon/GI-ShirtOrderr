@@ -1790,7 +1790,7 @@ function QuickOrderSetupPanel({ state, dispatch, forceExpand = false, branches =
               id="setup-branch"
               value={state.branch}
               onChange={(value) => dispatch({ type: 'patchBatch', patch: { branch: value } })}
-              values={branches}
+              values={effectiveBranches}
               placeholder="เลือกสาขา"
             />
           </Field>
