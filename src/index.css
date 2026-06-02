@@ -2644,26 +2644,6 @@ body {
   font-weight: 650;
 }
 
-.dashboard-batch-table th:first-child,
-.dashboard-batch-table td:first-child {
-  width: 2.75rem;
-  min-width: 2.75rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  text-align: center;
-}
-
-.dashboard-batch-table th:first-child input,
-.dashboard-batch-table td:first-child input {
-  display: block;
-  margin: 0 auto;
-}
-
-.dashboard-row-checkbox {
-  display: block;
-  margin: 0 auto;
-}
-
 .dashboard-batch-table td:nth-child(4),
 .dashboard-batch-table td:nth-child(6),
 .dashboard-employee-table td:nth-child(1),
@@ -2687,14 +2667,24 @@ body {
 }
 
 .dashboard-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
   max-width: 22ch;
   margin: 0 auto;
+  border-radius: 7px;
+  padding: 0.18rem 0.35rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
   vertical-align: middle;
+}
+
+.dashboard-row-open svg {
+  flex: 0 0 auto;
+  color: #355f9f;
 }
 
 .dashboard-clickable-row {
@@ -4192,51 +4182,6 @@ body {
   font-weight: 900;
 }
 
-.dashboard-bulk-bar {
-  position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  z-index: 50;
-  display: flex;
-  max-width: calc(100vw - 2rem);
-  align-items: center;
-  gap: 0.55rem;
-  border: 1px solid var(--gi-border);
-  border-radius: 12px;
-  background: #ffffff;
-  padding: 0.7rem;
-  box-shadow: 0 18px 50px rgba(13, 27, 61, 0.18);
-}
-
-.dashboard-bulk-bar div {
-  display: grid;
-  padding-right: 0.4rem;
-}
-
-.dashboard-bulk-bar strong {
-  color: var(--gi-text);
-  font-size: 0.82rem;
-}
-
-.dashboard-bulk-bar span {
-  color: var(--gi-muted);
-  font-size: 0.72rem;
-  font-weight: 750;
-}
-
-.dashboard-bulk-bar button {
-  display: inline-flex;
-  min-height: 2.25rem;
-  align-items: center;
-  gap: 0.35rem;
-  border-radius: 8px;
-  background: var(--gi-navy);
-  padding: 0 0.7rem;
-  color: #ffffff;
-  font-size: 0.74rem;
-  font-weight: 900;
-}
-
 .status-badge {
   border-radius: 999px !important;
   font-weight: 800 !important;
@@ -4443,18 +4388,6 @@ body {
 
   .dashboard-export-strip {
     grid-template-columns: 1fr;
-  }
-
-  .dashboard-bulk-bar {
-    right: 0.75rem;
-    left: 0.75rem;
-    flex-wrap: wrap;
-    justify-content: stretch;
-  }
-
-  .dashboard-bulk-bar div,
-  .dashboard-bulk-bar button {
-    flex: 1 1 100%;
   }
 
   .inventory-manager-shell {

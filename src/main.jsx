@@ -7,7 +7,6 @@ import { Toaster, toast } from 'sonner';
 import {
   BarChart3,
   Check,
-  CheckSquare,
   ChevronDown,
   ChevronUp,
   ClipboardList,
@@ -4512,7 +4511,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const [statusLoadingId, setStatusLoadingId] = useState('');
   const [deleteLoadingId, setDeleteLoadingId] = useState('');
   const [clothingConfig, setClothingConfig] = useState(readClothingConfig);
-  const [selectedBatchIds, setSelectedBatchIds] = useState(new Set());
   const [isWideScreen, setIsWideScreen] = useState(() => window.innerWidth >= 1200);
   const [expandedBatchIds, setExpandedBatchIds] = useState(new Set());
   const [branchFilter, setBranchFilter] = useState('ทุกสาขา');
@@ -4577,7 +4575,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     } finally {
       setLoading(false);
       setRefreshing(false);
-      setSelectedBatchIds(new Set());
     }
   }
 
@@ -5009,102 +5006,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     }, config);
   }
 
-  async function handleBulkStatusChange(targetStatus) {
-    const idsToChange = Array.from(selectedBatchIds);
-    if (!idsToChange.length) return;
-
-    const batchesToChange = batches.filter((b) => idsToChange.includes(b.batchId));
-
-    if (targetStatus === ORDER_STATUS_DELIVERED) {
-      // Fetch latest config from shared source to ensure checks are against real stock
-      const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || clothingConfig;
-      const allIssues = [];
-      const successfulBatchIds = [];
-      const failedBatchIds = [];
-
-      batchesToChange.forEach((batch) => {
-        const issues = findStockIssuesForStatusChange(latestConfig, batch, targetStatus);
-        if (issues.length > 0) {
-          allIssues.push({
-            batchId: batch.batchId,
-            branch: batch.branch,
-            companyName: batch.companyName,
-            errors: issues,
-          });
-          failedBatchIds.push(batch.batchId);
-        } else {
-          successfulBatchIds.push(batch.batchId);
-        }
-      });
-
-      if (allIssues.length > 0) {
-        if (successfulBatchIds.length === 0) {
-          toast.error('ไม่สามารถจัดส่งคำสั่งเบิกได้เนื่องจากสต๊อกไม่พอ', {
-            description: `พบปัญหาในทุกคำสั่งที่เลือก (${allIssues.length} คำสั่ง) กรุณาเพิ่มคลังสินค้าก่อน`,
-          });
-          return;
-        }
-
-        const confirmMsg = `พบปัญหาสต๊อกไม่พอกับจำนวนที่ต้องการใน ${allIssues.length} คำสั่งเบิก (เช่น ${allIssues[0].companyName} - ${allIssues[0].errors[0]}) ต้องการจัดส่งเฉพาะคำสั่งที่สต๊อกพร้อมจำนวน ${successfulBatchIds.length} รายการ หรือไม่?`;
-        if (!window.confirm(confirmMsg)) {
-          return;
-        }
-
-        await executeBulkStatusChange(successfulBatchIds, targetStatus, latestConfig);
-      } else {
-        await executeBulkStatusChange(idsToChange, targetStatus);
-      }
-    } else {
-      const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || clothingConfig;
-      await executeBulkStatusChange(idsToChange, targetStatus, latestConfig);
-    }
-  }
-
-  async function executeBulkStatusChange(ids, status, initialConfig) {
-    const statusUpdatedAt = new Date().toISOString();
-    const loadingToastId = toast.loading(`กำลังอัปเดตสถานะกลุ่ม (${ids.length} รายการ)...`, {
-      description: 'ระบบกำลังบันทึกข้อมูลและปรับสต๊อก...',
-    });
-
-    let successCount = 0;
-    let nextConfig = initialConfig || clothingConfig;
-
-    try {
-      for (let i = 0; i < ids.length; i++) {
-        const id = ids[i];
-        const batch = batches.find((b) => b.batchId === id);
-        if (!batch) continue;
-
-        await syncDashboardAction({ action: 'updateStatus', batchId: id, status, statusUpdatedAt });
-        nextConfig = adjustStockForStatusChange(nextConfig, batch, status);
-        successCount++;
-      }
-
-      setClothingConfig(nextConfig);
-      saveClothingConfig(nextConfig);
-      publishStockConfigInBackground(nextConfig);
-
-      ids.forEach((id) => applyBatchStatusLocally(id, status, statusUpdatedAt));
-      setSelectedBatchIds(new Set());
-      toast.success(`อัปเดตสถานะสำเร็จ ${successCount} รายการ`, { id: loadingToastId });
-    } catch (error) {
-      if (isAuthFailure(error)) {
-        setAdminToken('');
-        onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
-          id: loadingToastId,
-          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
-        });
-        return;
-      }
-      toast.error(`ดำเนินการสำเร็จบางส่วน (${successCount} รายการ) เกิดข้อผิดพลาด`, {
-        id: loadingToastId,
-        description: error?.message || 'การเชื่อมต่อขัดข้อง กรุณาลองใหม่อีกครั้ง',
-      });
-      await loadData({ silent: true });
-    }
-  }
-
   async function updateBatchStatus(batchId, status) {
     const statusUpdatedAt = new Date().toISOString();
     setStatusLoadingId(batchId);
@@ -5436,16 +5337,12 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         a.type.localeCompare(b.type, 'th')
     )
     .slice(0, 5);
-  const selectedPieces = Array.from(selectedBatchIds).reduce((sum, id) => {
-    const batch = batches.find((item) => item.batchId === id);
-    return sum + (batch ? getBatchPieces(batch) : 0);
-  }, 0);
   const useSplitOrderColumns = isWideScreen && orderRows.length > 4;
   const visibleOrderColumnSet = new Set(visibleOrderColumns);
   const visibleEmployeeColumnSet = new Set(visibleEmployeeColumns);
   const isOrderColumnVisible = (columnId) => visibleOrderColumnSet.has(columnId);
   const isEmployeeColumnVisible = (columnId) => visibleEmployeeColumnSet.has(columnId);
-  const orderTableColSpan = visibleOrderColumns.length + 2;
+  const orderTableColSpan = visibleOrderColumns.length + 1;
   const toggleBatchExpanded = (batchId) => {
     setExpandedBatchIds((prev) => {
       const next = new Set(prev);
@@ -5711,27 +5608,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                     <table className="dashboard-batch-table">
                       <thead>
                         <tr>
-                          <th>
-                            <input
-                              type="checkbox"
-                              className="dashboard-row-checkbox"
-                              checked={
-                                orderRows.length > 0 &&
-                                orderRows.every((batch) => selectedBatchIds.has(batch.batchId))
-                              }
-                              onChange={() => {
-                                const allSelected = orderRows.every((batch) => selectedBatchIds.has(batch.batchId));
-                                setSelectedBatchIds((prev) => {
-                                  const next = new Set(prev);
-                                  orderRows.forEach((batch) => {
-                                    if (allSelected) next.delete(batch.batchId);
-                                    else next.add(batch.batchId);
-                                  });
-                                  return next;
-                                });
-                              }}
-                            />
-                          </th>
                           {isOrderColumnVisible('code') && <th>รหัสคำสั่ง</th>}
                           {isOrderColumnVisible('date') && <th>วันที่</th>}
                           {isOrderColumnVisible('company') && <th>บริษัท/หน่วยงาน</th>}
@@ -5753,26 +5629,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                             onClick={() => toggleBatchExpanded(batch.batchId)}
                             onKeyDown={(event) => handleBatchRowKeyDown(event, batch.batchId)}
                           >
-                            <td>
-                              <input
-                                type="checkbox"
-                                className="dashboard-row-checkbox"
-                                checked={selectedBatchIds.has(batch.batchId)}
-                                onClick={(event) => event.stopPropagation()}
-                                onChange={() => {
-                                  setSelectedBatchIds((prev) => {
-                                    const next = new Set(prev);
-                                    if (next.has(batch.batchId)) next.delete(batch.batchId);
-                                    else next.add(batch.batchId);
-                                    return next;
-                                  });
-                                }}
-                              />
-                            </td>
                             {isOrderColumnVisible('code') && (
                             <td>
                               <button
-                                className="dashboard-link"
+                                className="dashboard-link dashboard-row-open"
                                 title={String(batch.batchId)}
                                 type="button"
                                 onClick={(event) => {
@@ -5780,7 +5640,12 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                   toggleBatchExpanded(batch.batchId);
                                 }}
                               >
-                                {String(batch.batchId)}
+                                <span>{String(batch.batchId)}</span>
+                                {expandedBatchIds.has(batch.batchId) ? (
+                                  <ChevronUp className="size-4" />
+                                ) : (
+                                  <ChevronDown className="size-4" />
+                                )}
                               </button>
                             </td>
                             )}
@@ -5945,27 +5810,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               <table className="dashboard-batch-table">
               <thead>
                 <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      className="dashboard-row-checkbox"
-                      checked={
-                        orderRows.length > 0 &&
-                        orderRows.every((batch) => selectedBatchIds.has(batch.batchId))
-                      }
-                      onChange={() => {
-                        const allSelected = orderRows.every((batch) => selectedBatchIds.has(batch.batchId));
-                        setSelectedBatchIds((prev) => {
-                          const next = new Set(prev);
-                          orderRows.forEach((batch) => {
-                            if (allSelected) next.delete(batch.batchId);
-                            else next.add(batch.batchId);
-                          });
-                          return next;
-                        });
-                      }}
-                    />
-                  </th>
                   {isOrderColumnVisible('code') && <th>รหัสคำสั่ง</th>}
                   {isOrderColumnVisible('date') && <th>วันที่</th>}
                   {isOrderColumnVisible('company') && <th>บริษัท/หน่วยงาน</th>}
@@ -5987,26 +5831,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                       onClick={() => toggleBatchExpanded(batch.batchId)}
                       onKeyDown={(event) => handleBatchRowKeyDown(event, batch.batchId)}
                     >
-                    <td>
-                      <input
-                        type="checkbox"
-                        className="dashboard-row-checkbox"
-                        checked={selectedBatchIds.has(batch.batchId)}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={() => {
-                          setSelectedBatchIds((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(batch.batchId)) next.delete(batch.batchId);
-                            else next.add(batch.batchId);
-                            return next;
-                          });
-                        }}
-                      />
-                    </td>
                     {isOrderColumnVisible('code') && (
                     <td>
                       <button
-                        className="dashboard-link"
+                        className="dashboard-link dashboard-row-open"
                         title={String(batch.batchId)}
                         type="button"
                         onClick={(event) => {
@@ -6014,7 +5842,12 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                           toggleBatchExpanded(batch.batchId);
                         }}
                       >
-                        {String(batch.batchId)}
+                        <span>{String(batch.batchId)}</span>
+                        {expandedBatchIds.has(batch.batchId) ? (
+                          <ChevronUp className="size-4" />
+                        ) : (
+                          <ChevronDown className="size-4" />
+                        )}
                       </button>
                     </td>
                     )}
@@ -6492,25 +6325,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             onAuthExpired={onAuthExpired}
           />
         </section>
-      )}
-
-      {selectedBatchIds.size > 0 && (
-        <div className="dashboard-bulk-bar">
-          <div>
-            <strong>{selectedBatchIds.size} รายการที่เลือก</strong>
-            <span>{selectedPieces} ชิ้น</span>
-          </div>
-          <button onClick={() => handleBulkStatusChange(ORDER_STATUS_DELIVERED)}>
-            <CheckSquare className="size-4" /> จัดส่งแล้ว
-          </button>
-          <button onClick={() => handleBulkStatusChange(ORDER_STATUS_PENDING)}>
-            <RefreshCw className="size-4" /> รอจัดส่ง
-          </button>
-          <button onClick={() => handleBulkStatusChange(ORDER_STATUS_CANCELED)}>
-            <X className="size-4" /> ยกเลิก
-          </button>
-          <button onClick={() => setSelectedBatchIds(new Set())}>ล้างเลือก</button>
-        </div>
       )}
 
       <BatchDetailDialog
