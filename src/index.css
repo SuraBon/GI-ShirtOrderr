@@ -1002,7 +1002,8 @@ body {
   gap: 12px !important;
   width: min(24rem, calc(100vw - 32px)) !important;
   max-width: 24rem !important;
-  padding: 12px 16px !important;
+  min-height: 52px !important;
+  padding: 12px 44px 12px 16px !important;
   border-radius: 14px !important;
   border-width: 1px !important;
   background: linear-gradient(90deg, #072043, #0b2b56) !important;
@@ -1024,30 +1025,40 @@ body {
 
 [data-sonner-toast].gi-toast [data-icon] {
   margin-top: 0 !important;
-  flex: 0 0 44px !important;
-  width: 44px !important;
-  height: 44px !important;
+  flex: 0 0 20px !important;
+  width: 20px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
   display: inline-grid !important;
   place-items: center !important;
-  background: rgba(255,255,255,0.06) !important;
-  border-radius: 10px !important;
+  background: transparent !important;
+  border-radius: 999px !important;
   color: #ffffff !important;
+}
+
+[data-sonner-toast].gi-toast [data-icon] svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+}
+
+[data-sonner-toast].gi-toast [data-content] {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
 }
 
 /* Type-specific icon backgrounds */
 [data-sonner-toast][data-type='success'] .gi-toast [data-icon],
 [data-sonner-toast][data-type='success'] [data-icon] {
-  background: rgba(16,185,129,0.12) !important;
   color: #10b981 !important;
 }
 [data-sonner-toast][data-type='error'] .gi-toast [data-icon],
 [data-sonner-toast][data-type='error'] [data-icon] {
-  background: rgba(239,68,68,0.08) !important;
   color: #ef4444 !important;
 }
 [data-sonner-toast][data-type='loading'] .gi-toast [data-icon],
 [data-sonner-toast][data-type='loading'] [data-icon] {
-  background: rgba(255,255,255,0.03) !important;
   color: #ffffff !important;
 }
 
