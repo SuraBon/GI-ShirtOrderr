@@ -1,15 +1,37 @@
 import React from 'react';
 
 export function Donut({ data = [], size = 140, stroke = 18 }) {
-  const total = Math.max(data.reduce((s, r) => s + (r.value || 0), 0), 1);
+  const visibleData = data.filter((row) => Number(row.value || 0) > 0);
+  const total = visibleData.reduce((s, r) => s + Number(r.value || 0), 0);
+  if (!total) {
+    return (
+      <div
+        aria-label="ไม่มีข้อมูลสำหรับแผนภูมิ"
+        style={{
+          width: size,
+          height: size,
+          display: 'grid',
+          placeItems: 'center',
+          borderRadius: '999px',
+          background: '#F8FAFC',
+          color: '#64748B',
+          fontSize: 12,
+          fontWeight: 900,
+          textAlign: 'center',
+        }}
+      >
+        ไม่มีข้อมูล
+      </div>
+    );
+  }
   const radius = (size - stroke) / 2;
   const cx = size / 2;
   const cy = size / 2;
   const circumference = 2 * Math.PI * radius;
-  const segments = data.map((d, i) => {
+  const segments = visibleData.map((d, i) => {
     const value = Math.max(0, d.value || 0);
     const portion = value / total;
-    const offsetPortion = data
+    const offsetPortion = visibleData
       .slice(0, i)
       .reduce((sum, item) => sum + Math.max(0, item.value || 0) / total, 0);
     return {

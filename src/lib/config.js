@@ -193,6 +193,7 @@ export async function loadSharedClothingConfig() {
   const normalized = migrateStandardSizeTables(data.config);
   saveClothingConfig(normalized);
   localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
+  if (data?.updatedAt) localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(data.updatedAt));
   return normalized;
 }
 
