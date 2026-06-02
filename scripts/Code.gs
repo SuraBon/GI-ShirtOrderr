@@ -87,20 +87,20 @@ function doPost(e) {
 
 function parsePayload_(e) {
   const raw = e && e.postData && e.postData.contents;
-  if (!raw) throw new Error("Missing request body");
+  if (!raw) throw new Error("ไม่พบข้อมูลที่ส่งมา");
   return JSON.parse(raw);
 }
 
 function validateBatch_(batch) {
-  if (!batch || typeof batch !== "object") throw new Error("Invalid batch payload");
-  if (!batch.batchId) throw new Error("Missing batchId");
-  if (!Array.isArray(batch.orders) || !batch.orders.length) throw new Error("Missing orders");
+  if (!batch || typeof batch !== "object") throw new Error("ข้อมูลคำสั่งเบิกไม่ถูกต้อง");
+  if (!batch.batchId) throw new Error("ไม่พบรหัสคำสั่งเบิก");
+  if (!Array.isArray(batch.orders) || !batch.orders.length) throw new Error("ไม่พบรายการพนักงานในคำสั่งเบิก");
 }
 
 function updateBatchStatus_(sheet, payload) {
-  if (!payload.batchId) throw new Error("Missing batchId");
-  if (!payload.status) throw new Error("Missing status");
-  if (ORDER_STATUSES.indexOf(String(payload.status)) === -1) throw new Error("Invalid status");
+  if (!payload.batchId) throw new Error("ไม่พบรหัสคำสั่งเบิก");
+  if (!payload.status) throw new Error("ไม่พบสถานะที่ต้องการอัปเดต");
+  if (ORDER_STATUSES.indexOf(String(payload.status)) === -1) throw new Error("สถานะที่ส่งมาไม่ถูกต้อง");
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
@@ -116,7 +116,7 @@ function updateBatchStatus_(sheet, payload) {
     return [payload.status, statusUpdatedAt];
   });
 
-  if (!updatedRows) throw new Error("Batch not found");
+  if (!updatedRows) throw new Error("ไม่พบคำสั่งเบิกนี้ใน Google Sheets");
   sheet.getRange(2, 2, rowCount, 2).setValues(
     statusValues.map((row, index) => row || [values[index][1], values[index][2]])
   );
@@ -130,12 +130,12 @@ function getRequestToken_(e, key) {
 
 function requireAdmin_(token) {
   const expected = PropertiesService.getScriptProperties().getProperty("ADMIN_TOKEN");
-  if (!expected) throw new Error("Missing ADMIN_TOKEN");
-  if (String(token || "") !== String(expected)) throw new Error("Unauthorized");
+  if (!expected) throw new Error("ยังไม่ได้ตั้งค่า ADMIN_TOKEN ใน Apps Script");
+  if (String(token || "") !== String(expected)) throw new Error("ไม่มีสิทธิ์ดำเนินการ กรุณาเข้าสู่ระบบใหม่");
 }
 
 function deleteBatch_(sheet, batchId) {
-  if (!batchId) throw new Error("Missing batchId");
+  if (!batchId) throw new Error("ไม่พบรหัสคำสั่งเบิก");
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
@@ -145,7 +145,7 @@ function deleteBatch_(sheet, batchId) {
     return String(row[0]) === String(batchId);
   });
 
-  if (!deletedRows) throw new Error("Batch not found");
+  if (!deletedRows) throw new Error("ไม่พบคำสั่งเบิกนี้ใน Google Sheets");
   return deletedRows;
 }
 
@@ -292,11 +292,11 @@ function shipBatchItems_(sheet, payload) {
   const batchId = payload.batchId;
   const items = payload.items; // array of { employeeName, gender, type, size, shippedQty, pendingQty, canceledQty }
   const statusUpdatedAt = payload.statusUpdatedAt || new Date().toISOString();
-  if (!batchId) throw new Error("Missing batchId");
-  if (!Array.isArray(items) || !items.length) throw new Error("Missing shipment items");
+  if (!batchId) throw new Error("ไม่พบรหัสคำสั่งเบิก");
+  if (!Array.isArray(items) || !items.length) throw new Error("ไม่พบรายการเสื้อที่ต้องการบันทึกการจัดส่ง");
 
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) throw new Error("No orders found");
+  if (lastRow < 2) throw new Error("ยังไม่มีข้อมูลคำสั่งเบิกใน Google Sheets");
 
   const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
   
@@ -309,7 +309,7 @@ function shipBatchItems_(sheet, payload) {
     }
   }
 
-  if (!meta) throw new Error("Batch not found");
+  if (!meta) throw new Error("ไม่พบคำสั่งเบิกนี้ใน Google Sheets");
 
   const submittedAt = meta[3];
   const companyName = meta[4];

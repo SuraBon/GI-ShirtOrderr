@@ -2,7 +2,7 @@ import { getGasAdminToken, requireAdmin, sendError } from "../_security.js";
 
 export default async function handler(request, response) {
   if (request.method !== "GET") {
-    response.status(405).json({ error: "Method not allowed" });
+    response.status(405).json({ error: "ไม่รองรับวิธีเรียกใช้งานนี้" });
     return;
   }
   if (!requireAdmin(request, response)) return;
@@ -10,7 +10,7 @@ export default async function handler(request, response) {
   try {
     const gasUrl = process.env.VITE_GAS_URL || process.env.GAS_URL || "";
     if (!gasUrl || gasUrl.includes("YOUR_SCRIPT_URL")) {
-      sendError(response, 500, "Dashboard data source is not configured");
+      sendError(response, 500, "ยังไม่ได้ตั้งค่าแหล่งข้อมูล Google Sheets สำหรับแดชบอร์ด");
       return;
     }
 
@@ -18,7 +18,7 @@ export default async function handler(request, response) {
     const adminToken = getGasAdminToken();
     if (!adminToken) {
       console.error("Missing GAS_ADMIN_TOKEN");
-      sendError(response, 500, "Dashboard data access is not configured");
+      sendError(response, 500, "ยังไม่ได้ตั้งค่าสิทธิ์อ่านข้อมูล Google Sheets");
       return;
     }
     url.searchParams.set("adminToken", adminToken);
@@ -28,6 +28,6 @@ export default async function handler(request, response) {
     response.send(text || JSON.stringify({ success: false }));
   } catch (error) {
     console.error("Dashboard orders proxy failed", error);
-    sendError(response, 500, "Could not load dashboard data");
+    sendError(response, 500, "โหลดข้อมูลแดชบอร์ดจาก Google Sheets ไม่สำเร็จ");
   }
 }

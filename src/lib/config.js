@@ -187,7 +187,7 @@ export function saveClothingConfig(config) {
 
 export async function loadSharedClothingConfig() {
   const response = await fetch('/api/blob/config', { cache: 'no-store' });
-  if (!response.ok) throw new Error('Shared clothing config is not available');
+  if (!response.ok) throw new Error('โหลดข้อมูลแบบเสื้อไม่สำเร็จ');
   const data = await response.json();
   if (!Array.isArray(data?.config) || !data.config.length) return null;
   const normalized = migrateStandardSizeTables(data.config);
@@ -217,7 +217,7 @@ export async function publishSharedClothingConfig(config) {
     try {
       await loadSharedClothingConfig();
     } catch {
-      const error = new Error(server?.error || 'Version conflict and failed to reload latest config');
+      const error = new Error(server?.error || 'ข้อมูลแบบเสื้อมีการอัปเดตจากที่อื่น และโหลดข้อมูลล่าสุดไม่สำเร็จ');
       error.status = 409;
       error.server = server;
       throw error;
@@ -235,7 +235,7 @@ export async function publishSharedClothingConfig(config) {
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    const error = new Error(data?.error || 'Shared clothing config sync failed');
+    const error = new Error(data?.error || 'บันทึกข้อมูลแบบเสื้อไม่สำเร็จ');
     error.status = response.status;
     error.server = data;
     throw error;

@@ -104,7 +104,7 @@ export function getBearerToken(request) {
 
 export function requireAdmin(request, response) {
   if (verifyAdminToken(getBearerToken(request))) return true;
-  response.status(401).json({ error: "Unauthorized" });
+  response.status(401).json({ error: "สิทธิ์เข้าใช้งานหมดอายุ กรุณาเข้าสู่ระบบใหม่" });
   return false;
 }
 
@@ -117,6 +117,6 @@ export function getGasAdminToken() {
   );
 }
 
-export function sendError(response, status, message = "Request failed") {
+export function sendError(response, status, message = "ดำเนินการไม่สำเร็จ") {
   response.status(status).json({ error: message });
 }

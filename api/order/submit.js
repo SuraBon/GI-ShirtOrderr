@@ -53,25 +53,25 @@ function normalizePayload(payload) {
 
 export default async function handler(request, response) {
   if (request.method !== "POST") {
-    response.status(405).json({ error: "Method not allowed" });
+    response.status(405).json({ error: "ไม่รองรับวิธีเรียกใช้งานนี้" });
     return;
   }
 
   if (!rateLimit(request, { key: "order-submit", limit: 20, windowMs: 60_000 })) {
-    sendError(response, 429, "Too many requests");
+    sendError(response, 429, "ส่งคำขอถี่เกินไป กรุณารอสักครู่แล้วลองใหม่");
     return;
   }
 
   try {
     const gasUrl = process.env.VITE_GAS_URL || process.env.GAS_URL || "";
     if (!gasUrl || gasUrl.includes("YOUR_SCRIPT_URL")) {
-      sendError(response, 500, "Order data source is not configured");
+      sendError(response, 500, "ยังไม่ได้ตั้งค่าแหล่งข้อมูลสำหรับบันทึกคำสั่งเบิก");
       return;
     }
 
     const payload = normalizePayload(await readJsonBody(request));
     if (!payload) {
-      sendError(response, 400, "Invalid order payload");
+      sendError(response, 400, "ข้อมูลคำสั่งเบิกไม่ครบถ้วนหรือไม่ถูกต้อง");
       return;
     }
 
@@ -85,6 +85,6 @@ export default async function handler(request, response) {
     response.send(text || JSON.stringify({ success: false }));
   } catch (error) {
     console.error("Order submit proxy failed", error);
-    sendError(response, error?.message === "REQUEST_TOO_LARGE" ? 413 : 500, "Order submit failed");
+    sendError(response, error?.message === "REQUEST_TOO_LARGE" ? 413 : 500, "ส่งคำสั่งเบิกไม่สำเร็จ");
   }
 }

@@ -13,7 +13,7 @@ export function setAdminToken(token) {
 }
 
 export function isAuthFailure(error) {
-  return error?.status === 401 || error?.message === 'Unauthorized';
+  return error?.status === 401 || String(error?.message || '').includes('สิทธิ์');
 }
 
 export async function authFetch(url, options = {}) {
@@ -32,7 +32,7 @@ export async function authFetch(url, options = {}) {
     });
     clearTimeout(timeoutId);
     if (response.status === 401) {
-      const error = new Error('Unauthorized');
+      const error = new Error('สิทธิ์เข้าใช้งานหมดอายุ กรุณาเข้าสู่ระบบใหม่');
       error.status = 401;
       throw error;
     }
@@ -40,7 +40,7 @@ export async function authFetch(url, options = {}) {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      const timeoutError = new Error('การเชื่อมต่อหมดเวลา (Timeout) กรุณาลองใหม่อีกครั้ง');
+      const timeoutError = new Error('การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง');
       timeoutError.name = 'TimeoutError';
       throw timeoutError;
     }

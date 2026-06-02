@@ -231,7 +231,7 @@ function setAdminToken(token) {
 }
 
 function isAuthFailure(error) {
-  return error?.status === 401 || error?.message === 'Unauthorized';
+  return error?.status === 401 || String(error?.message || '').includes('สิทธิ์');
 }
 
 async function authFetch(url, options = {}) {
@@ -250,7 +250,7 @@ async function authFetch(url, options = {}) {
     });
     clearTimeout(timeoutId);
     if (response.status === 401) {
-      const error = new Error('Unauthorized');
+      const error = new Error('สิทธิ์เข้าใช้งานหมดอายุ กรุณาเข้าสู่ระบบใหม่');
       error.status = 401;
       throw error;
     }
@@ -258,7 +258,7 @@ async function authFetch(url, options = {}) {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      const timeoutError = new Error('การเชื่อมต่อหมดเวลา (Timeout) กรุณาลองใหม่อีกครั้ง');
+      const timeoutError = new Error('การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง');
       timeoutError.name = 'TimeoutError';
       throw timeoutError;
     }
@@ -669,11 +669,14 @@ function getDashboardLoadErrorDescription(error) {
   if (message.includes('not configured') || message.includes('YOUR_SCRIPT_URL')) {
     return 'ยังไม่ได้ตั้งค่า VITE_GAS_URL หรือ GAS_ADMIN_TOKEN สำหรับอ่านข้อมูลจริงจาก Google Sheets';
   }
-  if (message.includes('Invalid dashboard data')) {
+  if (message.includes('Invalid dashboard data') || message.includes('รูปแบบข้อมูลแดชบอร์ด')) {
     return 'รูปแบบข้อมูลจาก Google Sheets ไม่ตรงกับที่ระบบต้องการ กรุณาตรวจ Apps Script';
   }
   if (message.includes('Timeout')) {
     return 'การเชื่อมต่อ Google Sheets หมดเวลา กรุณาลองโหลดใหม่อีกครั้ง';
+  }
+  if (message && !/[A-Za-z]{3,}/.test(message)) {
+    return message;
   }
   return 'ระบบอ่านข้อมูลจาก Google Sheets ไม่สำเร็จ กรุณาลองใหม่หรือติดต่อผู้ดูแลระบบ';
 }
@@ -1071,7 +1074,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
             });
             clearTimeout(id);
             const json = await res.json().catch(() => null);
-            if (!res.ok || json?.success === false) throw new Error(json?.error || 'GAS request failed');
+            if (!res.ok || json?.success === false) throw new Error(json?.error || 'บันทึกคำสั่งเบิกไม่สำเร็จ');
             return json;
           } catch (err) {
             lastErr = err;
@@ -1089,10 +1092,13 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       setShowIncompleteOnly(false);
       setMobileEmployeeId('');
       setEditingCardId('');
-    } catch {
+    } catch (error) {
       toast.error('ไม่สามารถส่งคำขอเบิกได้', {
         id: loadingToastId,
-        description: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
+        description:
+          error?.message && !/[A-Za-z]{3,}/.test(error.message)
+            ? error.message
+            : 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
       });
     } finally {
       setIsSubmitting(false);
@@ -3399,7 +3405,7 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
         body: JSON.stringify({ passcode }),
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.token) throw new Error(data?.error || 'Invalid passcode');
+      if (!response.ok || !data?.token) throw new Error(data?.error || 'รหัสเข้าแดชบอร์ดไม่ถูกต้อง');
       setError('');
       onUnlock(data.token);
     } catch {
@@ -3877,7 +3883,7 @@ function validateImageFile(file) {
 
 async function uploadImageToBlob(file) {
   const token = getAdminToken();
-  if (!token) throw new Error('Unauthorized');
+  if (!token) throw new Error('สิทธิ์อัปโหลดหมดอายุ กรุณาเข้าสู่แดชบอร์ดใหม่');
   return upload(file.name, file, {
     access: 'public',
     handleUploadUrl: '/api/blob/upload',
@@ -4549,9 +4555,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       const response = await authFetch('/api/dashboard/orders', { cache: 'no-store' });
       const result = await response.json();
       if (!response.ok || result?.success === false)
-        throw new Error(result?.error || 'GAS request failed');
+        throw new Error(result?.error || 'โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ');
       const data = Array.isArray(result) ? result : result?.data;
-      if (!Array.isArray(data)) throw new Error('Invalid dashboard data');
+      if (!Array.isArray(data)) throw new Error('รูปแบบข้อมูลแดชบอร์ดไม่ถูกต้อง');
       const remoteBatches = data.map(normalizeBatch).filter((batch) => batch.orders.length);
       setBatches(remoteBatches);
       setDataError('');
@@ -4708,7 +4714,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     });
     const result = await response.json().catch(() => null);
     if (!response.ok || result?.success === false)
-      throw new Error(result?.error || 'GAS request failed');
+      throw new Error(result?.error || 'บันทึกข้อมูลไปยัง Google Sheets ไม่สำเร็จ');
     // If GAS returned an updated clothing config, persist its version
     if (result?.updatedConfig && result?.updatedConfig.updatedAt) {
       localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedConfig.updatedAt));

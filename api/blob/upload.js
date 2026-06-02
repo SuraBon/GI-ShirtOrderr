@@ -19,17 +19,17 @@ function getUploadToken(...args) {
 
 export default async function handler(request, response) {
   if (request.method !== "POST") {
-    response.status(405).json({ error: "Method not allowed" });
+    response.status(405).json({ error: "ไม่รองรับวิธีเรียกใช้งานนี้" });
     return;
   }
 
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      response.status(500).json({ error: "Missing BLOB_READ_WRITE_TOKEN" });
+      response.status(500).json({ error: "ยังไม่ได้ตั้งค่าพื้นที่อัปโหลดรูป" });
       return;
     }
     if (!rateLimit(request, { key: "blob-upload", limit: 30, windowMs: 60_000 })) {
-      response.status(429).json({ error: "Too many requests" });
+      response.status(429).json({ error: "อัปโหลดถี่เกินไป กรุณารอสักครู่แล้วลองใหม่" });
       return;
     }
 
@@ -38,7 +38,7 @@ export default async function handler(request, response) {
       body,
       request,
       onBeforeGenerateToken: async (...args) => {
-        if (!verifyAdminToken(getUploadToken(...args))) throw new Error("Unauthorized");
+        if (!verifyAdminToken(getUploadToken(...args))) throw new Error("สิทธิ์อัปโหลดหมดอายุ กรุณาเข้าสู่แดชบอร์ดใหม่");
         return {
           allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],
           addRandomSuffix: true
@@ -51,6 +51,7 @@ export default async function handler(request, response) {
     response.status(200).json(jsonResponse);
   } catch (error) {
     console.error("Upload failed", error);
-    response.status(error?.message === "Unauthorized" ? 401 : 400).json({ error: error?.message === "Unauthorized" ? "Unauthorized" : "Upload failed" });
+    const isUnauthorized = String(error?.message || "").includes("สิทธิ์");
+    response.status(isUnauthorized ? 401 : 400).json({ error: isUnauthorized ? error.message : "อัปโหลดรูปไม่สำเร็จ" });
   }
 }

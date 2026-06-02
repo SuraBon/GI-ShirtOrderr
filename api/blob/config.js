@@ -3,7 +3,7 @@ import { rateLimit, readJsonBody, requireAdmin } from "../_security.js";
 
 function requireBlobToken(response) {
   if (process.env.BLOB_READ_WRITE_TOKEN) return false;
-  response.status(500).json({ error: "Missing BLOB_READ_WRITE_TOKEN" });
+  response.status(500).json({ error: "ยังไม่ได้ตั้งค่าพื้นที่เก็บข้อมูลแบบเสื้อ" });
   return true;
 }
 
@@ -23,7 +23,7 @@ export default async function handler(request, response) {
       }
 
       const configResponse = await fetch(blob.url, { cache: "no-store" });
-      if (!configResponse.ok) throw new Error("Could not read clothing config");
+      if (!configResponse.ok) throw new Error("อ่านข้อมูลแบบเสื้อไม่สำเร็จ");
       response.status(200).json(await configResponse.json());
       return;
     }
@@ -31,14 +31,14 @@ export default async function handler(request, response) {
     if (request.method === "POST") {
       if (!requireAdmin(request, response)) return;
       if (!rateLimit(request, { key: "blob-config", limit: 30, windowMs: 60_000 })) {
-        response.status(429).json({ error: "Too many requests" });
+        response.status(429).json({ error: "บันทึกข้อมูลถี่เกินไป กรุณารอสักครู่แล้วลองใหม่" });
         return;
       }
       const body = await readJsonBody(request);
       const config = Array.isArray(body?.config) ? body.config : [];
       const expected = body?.expectedUpdatedAt || null;
       if (!config.length || config.length > MAX_CONFIG_ITEMS) {
-        response.status(400).json({ error: "Invalid clothing config" });
+        response.status(400).json({ error: "ข้อมูลแบบเสื้อไม่ถูกต้อง" });
         return;
       }
 
@@ -51,14 +51,14 @@ export default async function handler(request, response) {
           const currentJson = await currentResponse.json().catch(() => null);
           const currentUpdatedAt = currentJson?.updatedAt || null;
           if (expected && currentUpdatedAt && expected !== currentUpdatedAt) {
-            response.status(409).json({ error: 'Version mismatch', current: currentJson });
+            response.status(409).json({ error: 'ข้อมูลแบบเสื้อมีการอัปเดตจากที่อื่น กรุณาโหลดข้อมูลล่าสุดแล้วลองใหม่', current: currentJson });
             return;
           }
         }
       } else {
         if (expected) {
           // Expected a version but none exists
-          response.status(409).json({ error: 'Version mismatch', current: null });
+          response.status(409).json({ error: 'ข้อมูลแบบเสื้อมีการอัปเดตจากที่อื่น กรุณาโหลดข้อมูลล่าสุดแล้วลองใหม่', current: null });
           return;
         }
       }
@@ -90,9 +90,9 @@ export default async function handler(request, response) {
       return;
     }
 
-    response.status(405).json({ error: "Method not allowed" });
+    response.status(405).json({ error: "ไม่รองรับวิธีเรียกใช้งานนี้" });
   } catch (error) {
     console.error("Clothing config sync failed", error);
-    response.status(error?.message === "REQUEST_TOO_LARGE" ? 413 : 500).json({ error: "Clothing config sync failed" });
+    response.status(error?.message === "REQUEST_TOO_LARGE" ? 413 : 500).json({ error: "บันทึกข้อมูลแบบเสื้อไม่สำเร็จ" });
   }
 }
