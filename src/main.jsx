@@ -4833,83 +4833,16 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
           <DashboardOverview
             onRefresh={() => loadData({ silent: true })}
             metrics={metrics}
-            filteredBatches={filteredBatches}
             rows={rows}
-            stockSummaryTotals={stockSummaryTotals}
-            pendingPiecePercent={pendingPiecePercent}
+            filteredBatches={filteredBatches}
             stockSummaryRows={stockSummaryRows}
-            inventoryRows={inventoryRows}
-            countByStatus={countByStatus}
-            statusOptions={ORDER_STATUSES}
+            pendingPiecePercent={pendingPiecePercent}
             statuses={{
               pending: ORDER_STATUS_PENDING,
               delivered: ORDER_STATUS_DELIVERED,
               canceled: ORDER_STATUS_CANCELED,
             }}
           />
-          <div className="dashboard-overview-workspace">
-              <article className="dashboard-work-card">
-                <div>
-                  <h2>คิวรอจัดส่ง</h2>
-                  <p>{pendingBatchRows.length} คำสั่ง · {metrics.pendingPieces} ชิ้นที่ยังไม่ปิดงาน</p>
-                </div>
-                {oldestPendingBatches.length ? (
-                  <div className="dashboard-priority-list">
-                    {oldestPendingBatches.map((batch) => (
-                      <button
-                        key={batch.batchId}
-                        type="button"
-                        onClick={() => {
-                          onViewChange?.('orders');
-                          setExpandedBatchIds((current) => new Set(current).add(batch.batchId));
-                        }}
-                      >
-                        <span>
-                          <strong>{batch.batchId}</strong>
-                          <small>{batch.companyName || '-'} · {batch.branch || '-'}</small>
-                        </span>
-                        <span>
-                          <strong>{getBatchPieces(batch)} ชิ้น</strong>
-                          <small>{formatDashboardDate(batch.submittedAt)}</small>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="dashboard-empty-line">ไม่มีคำสั่งที่รอจัดส่ง</div>
-                )}
-              </article>
-              <article className="dashboard-work-card">
-                <div>
-                  <h2>สต๊อกที่ควรดู</h2>
-                  <p>รายการที่คงเหลือน้อยหรือถูกเบิกมากเทียบกับของคงเหลือ</p>
-                </div>
-                {stockWatchRows.length ? (
-                  <div className="dashboard-priority-list">
-                    {stockWatchRows.map((row) => (
-                      <button key={row.id} type="button" onClick={() => onViewChange?.('inventory')}>
-                        <span>
-                          <strong>{row.type}</strong>
-                          <small>{row.gender} · {row.size || '-'}</small>
-                        </span>
-                        <span>
-                          <strong>เหลือ {row.remaining} ชิ้น</strong>
-                          <small>เบิกแล้ว {row.withdrawn} ชิ้น</small>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="dashboard-empty-line">สต๊อกยังอยู่ในระดับปกติ</div>
-                )}
-                <div className="dashboard-panel-actions">
-                  <button onClick={() => onViewChange?.('inventory')}>
-                    <Shirt className="size-4" />
-                    <span>ดูสต๊อก</span>
-                  </button>
-                </div>
-              </article>
-            </div>
         </section>
       )}
 
