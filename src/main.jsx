@@ -5775,6 +5775,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                 className="dashboard-link"
                                 title={String(batch.batchId)}
                                 type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleBatchExpanded(batch.batchId);
+                                }}
                               >
                                 {String(batch.batchId)}
                               </button>
@@ -6005,6 +6009,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                         className="dashboard-link"
                         title={String(batch.batchId)}
                         type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleBatchExpanded(batch.batchId);
+                        }}
                       >
                         {String(batch.batchId)}
                       </button>
@@ -6166,14 +6174,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               <article
                 key={batch.batchId}
                 className="dashboard-mobile-order-card"
-                onClick={() => {
-                  setExpandedBatchIds((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(batch.batchId)) next.delete(batch.batchId);
-                    else next.add(batch.batchId);
-                    return next;
-                  });
-                }}
               >
                 <div className="dashboard-mobile-order-top">
                         <div>
@@ -6190,7 +6190,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                 </div>
                 <div className="dashboard-mobile-order-bottom">
                   <StatusBadge status={batch.status} />
-                  <button type="button">ดูรายละเอียด</button>
+                  <button type="button" onClick={() => setSelectedBatch(batch)}>
+                    ดูรายละเอียด
+                  </button>
                 </div>
               </article>
             ))}
@@ -6200,6 +6202,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             <span>แสดง {filteredBatches.length ? orderStartIndex + 1 : 0} - {orderStartIndex + orderRows.length} จาก {filteredBatches.length} รายการ</span>
             <div>
               <button
+                type="button"
                 disabled={safeOrderPage <= 1 || isOrderPageLoading}
                 onClick={() => setPageWithSkeleton('orders', setOrderPage, (page) => Math.max(1, page - 1))}
               >
@@ -6207,6 +6210,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               </button>
               <strong>{safeOrderPage}</strong>
               <button
+                type="button"
                 disabled={safeOrderPage >= orderPageCount || isOrderPageLoading}
                 onClick={() => setPageWithSkeleton('orders', setOrderPage, (page) => Math.min(orderPageCount, page + 1))}
               >
@@ -6318,7 +6322,16 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   </div>
                   <div className="dashboard-mobile-order-bottom">
                     <span>อัปเดตล่าสุด {formatDashboardDate(row.statusUpdatedAt || row.submittedAt)}</span>
-                    <button type="button">ดูคำสั่ง</button>
+                    <button
+                      type="button"
+                      disabled={!rowBatch}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (rowBatch) setSelectedBatch(rowBatch);
+                      }}
+                    >
+                      ดูคำสั่ง
+                    </button>
                   </div>
                 </article>
               );
@@ -6329,6 +6342,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             <span>แสดง {employeeRows.length ? employeeStartIndex + 1 : 0} - {employeeStartIndex + pagedEmployeeRows.length} จาก {employeeRows.length} รายการ</span>
             <div>
               <button
+                type="button"
                 disabled={safeEmployeePage <= 1 || isEmployeePageLoading}
                 onClick={() => setPageWithSkeleton('employees', setEmployeePage, (page) => Math.max(1, page - 1))}
               >
@@ -6336,6 +6350,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               </button>
               <strong>{safeEmployeePage}</strong>
               <button
+                type="button"
                 disabled={safeEmployeePage >= employeePageCount || isEmployeePageLoading}
                 onClick={() => setPageWithSkeleton('employees', setEmployeePage, (page) => Math.min(employeePageCount, page + 1))}
               >
@@ -7395,13 +7410,16 @@ function DashboardOverviewChart({ batches, metrics }) {
         <h3>แผนภูมิภาพรวม</h3>
         <label className="dashboard-chart-select">
           <span>แสดงผล</span>
-          <select value={chartView} onChange={(event) => setChartView(event.target.value)}>
-            {DASHBOARD_CHART_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            id="dashboard-chart-view"
+            value={chartView}
+            values={DASHBOARD_CHART_OPTIONS.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+            onChange={setChartView}
+            compact
+          />
         </label>
       </div>
       <div className="dashboard-overview-chart-subhead">
