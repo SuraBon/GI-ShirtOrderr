@@ -73,7 +73,7 @@ export function DashboardHeader({
     { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
     { id: 'employees', label: 'ข้อมูลพนักงาน', icon: Users },
     { id: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
-    { id: 'inventory', label: 'แบบเสื้อและสต็อก', icon: Shirt },
+    { id: 'inventory', label: 'แบบเสื้อและสต๊อก', icon: Shirt },
   ];
 
   return (
@@ -93,7 +93,7 @@ export function DashboardHeader({
             </button>
           ))}
         </nav>
-        <div className="flex items-center gap-2 md:ml-auto">
+        <div className="dashboard-header-actions flex items-center gap-2 md:ml-auto">
           <button
             onClick={onManualOpen}
             className="dashboard-header-icon hidden min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-black text-white/90 hover:bg-white/10 lg:flex"
@@ -106,11 +106,11 @@ export function DashboardHeader({
           <button
             onClick={onLogout}
             aria-label="ออกจากระบบ"
-            className="dashboard-logout-button grid place-items-center rounded-full p-2 text-red-600 hover:bg-red-50"
+            className="dashboard-logout-button grid place-items-center rounded-full"
             title="ออกจากระบบแอดมิน"
             type="button"
           >
-            <LogOut size={18} className="text-red-600" />
+            <LogOut size={16} />
           </button>
         </div>
       </div>

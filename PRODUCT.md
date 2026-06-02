@@ -1,33 +1,28 @@
 # Product
 
-## Register
+## ระบบ
 
-product
+GI Shirt Order คือระบบเบิกเสื้อพนักงานสำหรับรวมคำขอเบิก สต๊อก และการจัดส่งไว้ในที่เดียว
 
-## Users
+## ผู้ใช้งาน
 
-Branch supervisors use the order form to submit employee uniform requisitions quickly, often on laptops or phones while coordinating with staff at a branch. Company administrators use the dashboard to review submitted batches, manage clothing configuration and stock, track pending or backordered items, and update shipping status.
+- คนขอเบิก: กรอกข้อมูลบริษัท สาขา ผู้ติดต่อ และรายการเสื้อของพนักงาน
+- คนดูแดชบอร์ด: ตรวจคำสั่งเบิก รายการย่อย และสถานะงาน
+- คนคุมระบบ: ตรวจข้อมูลจริง โหลดข้อมูลใหม่ ลบหรือแก้รายการที่จำเป็น
+- คนจัดการสต๊อก: ดูแลแบบเสื้อ รายละเอียดไซส์ รูปภาพ และจำนวนคงเหลือ
 
-## Product Purpose
+## เป้าหมาย
 
-Gold Integrate Shirt Requisition centralizes employee uniform requests, stock visibility, and fulfillment tracking. The product should reduce manual coordination, keep branch submissions complete and consistent, and give administrators a clear operational view of what has been requested, shipped, or needs production.
+ระบบต้องลดงานประสานมือ ลดข้อมูลผิด และทำให้เห็นชัดว่าคำสั่งใด `รอจัดส่ง` หรือ `จัดส่งแล้ว`
 
-## Brand Personality
+## หลักการออกแบบ
 
-Professional corporate, reliable, efficient, practical, and calm. The interface should feel like an internal operations tool that users can trust for repeated daily work, not a marketing surface or decorative SaaS template.
+1. ใช้คำสั้นและตรงงาน เช่น `คำสั่งเบิก`, `ข้อมูลพนักงาน`, `แบบเสื้อและสต๊อก`
+2. สถานะใช้เพียง `รอจัดส่ง` และ `จัดส่งแล้ว`
+3. ตารางต้องอ่านง่าย ซ่อนคอลัมน์ที่ไม่ต้องดูได้ และใช้พื้นที่จอกว้างด้วยการแบ่งคอลัมน์
+4. สต๊อกต้องอิงข้อมูลจริง ถ้าของไม่พอจะจัดส่งไม่ได้
+5. การลบข้อมูลสำคัญต้องมีหน้าต่างยืนยันก่อนเสมอ
 
-## Anti-references
+## โทนระบบ
 
-Avoid oversized marketing heroes, decorative dashboards, generic SaaS card grids, glassmorphism, gradient text, heavy shadows, side-stripe card accents, low-contrast gray text, busy tables without hierarchy, stretched mobile controls, and playful visual treatments that slow down data entry.
-
-## Design Principles
-
-1. Clarity over friction: keep the order flow, validation, checklists, and summaries predictable so supervisors can finish requests without training.
-2. Operational density with hierarchy: support dense employee, size, stock, and shipment data while making totals, exceptions, and required actions easy to scan.
-3. Mobile durability: preserve tap targets, prevent horizontal overflow, and keep inline editing usable on narrow screens.
-4. State visibility: distinguish ready stock, pending shipment, delivered items, and backorders with consistent labels, colors, and status placement.
-5. Familiar controls first: use standard form, table, tab, dialog, and dashboard patterns before inventing custom interactions.
-
-## Accessibility & Inclusion
-
-Target WCAG AA contrast for text and controls. Keep body copy, placeholders, labels, badges, and table cells readable against their backgrounds. Maintain keyboard-visible focus states, sufficient touch targets on mobile, reduced-motion alternatives for animations, and color-independent status cues where possible.
+เรียบ กระชับ เป็นเครื่องมือทำงานจริง ไม่ใช้คำการตลาด ไม่ตกแต่งเกินจำเป็น และต้องรองรับการใช้งานซ้ำทุกวัน

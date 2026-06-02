@@ -1907,13 +1907,23 @@ body {
 }
 
 .gi-dashboard-header .dashboard-logout-button {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72) !important;
+  padding: 0 !important;
 }
 
 .gi-dashboard-header .dashboard-logout-button:hover {
   border-color: rgba(255, 255, 255, 0.32);
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff !important;
+}
+
+.gi-dashboard-header .dashboard-logout-button svg {
+  color: currentColor !important;
 }
 
 .manual-dialog-head {
@@ -2284,13 +2294,28 @@ body {
 
 .dashboard-filter-rail {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-items: end;
   gap: 0.82rem;
 }
 
 .dashboard-filter-rail .dashboard-panel-title {
   grid-column: 1 / -1;
+}
+
+.dashboard-filter-body {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.82rem;
+}
+
+.dashboard-filter-title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dashboard-filter-toggle {
+  display: none !important;
 }
 
 .dashboard-panel-title,
@@ -3036,6 +3061,7 @@ body {
 
 .dashboard-overview-workspace {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
 }
 
@@ -3621,6 +3647,34 @@ body {
   gap: 0.85rem;
 }
 
+.inventory-size-fields-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.inventory-add-detail-field {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--gi-border);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 0.75rem;
+  color: var(--gi-navy);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.inventory-add-detail-field:hover {
+  border-color: var(--gi-blue);
+  background: #eff6ff;
+}
+
 .inventory-size-fields-top strong {
   display: block;
   color: var(--gi-text);
@@ -4052,8 +4106,11 @@ body {
   }
 
   .dashboard-filter-rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 0.8rem;
+  }
+
+  .dashboard-filter-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-filter-rail .dashboard-panel-title,
@@ -4075,6 +4132,7 @@ body {
   }
 
   .dashboard-overview-stats,
+  .dashboard-overview-workspace,
   .dashboard-stock-status-grid,
   .dashboard-inventory-zones,
   .dashboard-work-panel {
@@ -4140,6 +4198,14 @@ body {
     padding-top: 0.35rem;
   }
 
+  .dashboard-header-actions {
+    order: 2;
+    width: auto !important;
+    margin-left: auto;
+    justify-content: flex-end !important;
+    flex: 0 0 auto;
+  }
+
   .gi-dashboard-nav button {
     min-height: 2rem;
     flex: 1 0 auto;
@@ -4160,6 +4226,18 @@ body {
     justify-content: flex-end;
   }
 
+  .gi-dashboard-header .dashboard-header-actions button {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .gi-dashboard-header .dashboard-logout-button {
+    width: 1.9rem;
+    height: 1.9rem;
+    flex-basis: 1.9rem;
+    border-radius: 999px;
+  }
+
   .gi-dashboard-header .btn-outline {
     flex: 0 0 auto;
     min-width: 2.5rem;
@@ -4172,6 +4250,27 @@ body {
 
   .dashboard-filter-rail {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-filter-body {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-filter-toggle {
+    display: inline-grid !important;
+  }
+
+  .dashboard-filter-rail.collapsed {
+    gap: 0;
+    padding-block: 0.65rem;
+  }
+
+  .dashboard-filter-rail.collapsed .dashboard-filter-body {
+    display: none;
+  }
+
+  .dashboard-filter-rail.collapsed .dashboard-panel-title {
+    margin: 0;
   }
 
   .dashboard-panel-head {

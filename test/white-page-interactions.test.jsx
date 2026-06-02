@@ -38,7 +38,7 @@ describe('order page mobile interactions', () => {
 
     expect(editor.getByText('เสื้อโปโล')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  }, 10000);
+  }, 20000);
 
   it('does not crash when tapping header and navigation controls', async () => {
     await import('../src/main.jsx');

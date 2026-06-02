@@ -9,6 +9,7 @@ import {
   Check,
   CheckSquare,
   ChevronDown,
+  ChevronUp,
   ClipboardList,
   Copy,
   Download,
@@ -1095,7 +1096,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     });
 
     if (issues.length) {
-      toast.error('สต็อกไม่พอ ไม่สามารถส่งคำสั่งเบิกได้', {
+      toast.error('สต๊อกไม่พอ ไม่สามารถส่งคำสั่งเบิกได้', {
         description: issues
           .slice(0, 3)
           .map((item) => `${item.type} ${item.gender} ไซส์ ${item.size}: ต้องการ ${item.qty} มี ${item.available || 0}`)
@@ -3502,8 +3503,8 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
   }
 
   return (
-    <main className="relative z-10 mx-auto grid min-h-screen w-full gi-container place-items-center py-10">
-      <Card className="w-full p-6 sm:p-8">
+    <main className="relative z-10 mx-auto grid min-h-screen w-full px-4 py-10">
+      <Card className="w-full max-w-[34rem] p-6 sm:p-8">
         <div className="mb-7 flex items-center justify-between gap-4">
           <Logo />
           <span className="grid size-12 place-items-center rounded-2xl bg-[#E8F0FF] text-[#002B5B]">
@@ -3829,7 +3830,7 @@ function UserManualDialog({ open, setOpen }) {
               <Dialog.Title className="manual-dialog-title">
                 <BookOpen className="size-5" /> คู่มือการเบิกเสื้อพนักงาน
               </Dialog.Title>
-              <p>สำหรับผู้กรอกคำขอเบิก ใช้ทำรายการให้ครบและลดการส่งข้อมูลผิด</p>
+              <p>สำหรับคนขอเบิก ใช้กรอกข้อมูลให้ครบ ตรวจรายการ และส่งคำขอเบิกเข้าระบบ</p>
             </div>
             <Dialog.Close className="manual-close-button" aria-label="ปิด">
               <X className="size-5" />
@@ -3837,7 +3838,7 @@ function UserManualDialog({ open, setOpen }) {
           </div>
 
           <div className="manual-dialog-body">
-            <ManualSection icon={UserCheck} title="ขั้นตอนที่ 1: ข้อมูลผู้เบิกและสถานที่จัดส่ง">
+            <ManualSection icon={UserCheck} title="คนขอเบิก: ข้อมูลผู้ขอและที่จัดส่ง">
               <ManualList
                 items={[
                   'กรอกชื่อบริษัทหรือหน่วยงาน เลือกสาขาที่จัดส่ง ระบุชื่อผู้ติดต่อ และเบอร์ติดต่อให้ครบ',
@@ -3847,7 +3848,7 @@ function UserManualDialog({ open, setOpen }) {
               />
             </ManualSection>
 
-            <ManualSection icon={Users} title="ขั้นตอนที่ 2: รายชื่อพนักงานและรายการเสื้อ">
+            <ManualSection icon={Users} title="คนขอเบิก: รายชื่อพนักงานและเสื้อที่เบิก">
               <ManualList
                 items={[
                   'เพิ่มพนักงานทีละคนหรือเพิ่มหลายแถวพร้อมกันได้',
@@ -3860,13 +3861,13 @@ function UserManualDialog({ open, setOpen }) {
               />
             </ManualSection>
 
-            <ManualSection icon={ClipboardList} title="ขั้นตอนที่ 3: ตรวจสอบและส่งคำขอ">
+            <ManualSection icon={ClipboardList} title="คนขอเบิก: ตรวจสอบและส่งคำขอ">
               <ManualList
                 items={[
                   'ตรวจชื่อพนักงาน เพศ แบบเสื้อ ไซส์ และจำนวนให้ถูกต้องก่อนส่ง',
                   'ระบบสรุปจำนวนแยกตามแบบเสื้อและไซส์เพื่อให้ตรวจง่าย',
                   'เมื่อส่งสำเร็จ ระบบจะสร้างรหัสคำสั่งเบิกสำหรับติดตามงาน',
-                  'ฝั่งผู้เบิกจะไม่เห็นรายละเอียดสต็อกคงเหลือ เพราะส่วนนี้เป็นหน้าที่ของแอดมิน',
+                  'คนขอเบิกจะไม่เห็นยอดสต๊อกคงเหลือ ระบบจะตรวจสต๊อกให้ก่อนส่งคำขอ',
                 ]}
               />
             </ManualSection>
@@ -3893,9 +3894,9 @@ function AdminManualDialog({ open, setOpen }) {
           <div className="manual-dialog-head">
             <div className="min-w-0">
               <Dialog.Title className="manual-dialog-title">
-                <PackageSearch className="size-5" /> คู่มือแอดมินและการจัดการสต็อก
+                <PackageSearch className="size-5" /> คู่มือแดชบอร์ดและสต๊อก
               </Dialog.Title>
-              <p>สำหรับตรวจคำสั่งเบิก จัดส่ง และบันทึกสต็อกแบบมีประวัติ</p>
+              <p>สำหรับคนดูแดชบอร์ด คนคุมระบบ และคนจัดการสต๊อก ใช้ตรวจงานและอัปเดตข้อมูลจริง</p>
             </div>
             <Dialog.Close className="manual-close-button" aria-label="ปิด">
               <X className="size-5" />
@@ -3903,37 +3904,38 @@ function AdminManualDialog({ open, setOpen }) {
           </div>
 
           <div className="manual-dialog-body">
-            <ManualSection icon={ClipboardList} title="หน้ารายการเบิก">
+            <ManualSection icon={ClipboardList} title="คนดูแดชบอร์ด: รายการเบิก">
               <ManualList
                 items={[
                   'ใช้ดูคำสั่งเบิกทั้งหมด ค้นหาตามรหัสคำสั่ง บริษัท ผู้ติดต่อ เบอร์โทร หรือชื่อพนักงาน',
                   'กรองตามสาขา เดือน และสถานะ เพื่อจัดลำดับงานที่ต้องดำเนินการ',
                   'กดรายการเพื่อดูรายละเอียดพนักงานและเสื้อที่เบิกในคำสั่งนั้น',
-                  'เปลี่ยนสถานะเป็นจัดส่งแล้วเมื่อจ่ายของจริง ระบบจะตัดสต็อกและเพิ่มยอดเบิกแล้วให้เอง',
-                  'ถ้าสต็อกไม่พอ ระบบจะแจ้งรายการที่ขาดและไม่ควรฝืนจัดส่งจนกว่าจะเติมสต็อก',
+                  'ใช้สถานะเพียง 2 ค่า: รอจัดส่ง และ จัดส่งแล้ว',
+                  'เปลี่ยนเป็นจัดส่งแล้วเมื่อจ่ายของจริง ระบบจะตัดสต๊อกและเพิ่มยอดเบิกแล้วให้เอง',
+                  'ถ้าสต๊อกไม่พอ ระบบจะแจ้งรายการที่ขาดและไม่ให้จัดส่งจนกว่าจะเติมสต๊อก',
                 ]}
               />
             </ManualSection>
 
-            <ManualSection icon={BarChart3} title="หน้าภาพรวม">
+            <ManualSection icon={BarChart3} title="คนคุมระบบ: ภาพรวม">
               <ManualList
                 items={[
                   'ดูจำนวนคำสั่งเบิกทั้งหมด งานรอจัดส่ง และงานที่จัดส่งแล้ว',
-                  'ส่วนสรุปสต็อกเสื้อแสดงจำนวนที่เคยมี เบิกแล้ว และคงเหลือ แยกตามแบบเสื้อ เพศ และไซส์',
-                  'ใช้ส่วนนี้ตรวจแนวโน้มการใช้เสื้อ และดูว่าสต็อกแบบไหนลดเร็วหรือควรเติมก่อน',
+                  'ส่วนสรุปสต๊อกเสื้อแสดงจำนวนที่เคยมี เบิกแล้ว และคงเหลือ แยกตามแบบเสื้อ เพศ และไซส์',
+                  'ใช้ส่วนนี้ตรวจแนวโน้มการใช้เสื้อ และดูว่าสต๊อกแบบไหนลดเร็วหรือควรเติมก่อน',
                 ]}
               />
             </ManualSection>
 
-            <ManualSection icon={PackageSearch} title="หน้าแบบเสื้อและสต็อก">
+            <ManualSection icon={PackageSearch} title="คนจัดการสต๊อก: แบบเสื้อและสต๊อก">
               <ManualList
                 items={[
-                  'แท็บข้อมูลเสื้อใช้แก้ชื่อแบบเสื้อ รูปภาพ และรายละเอียดไซส์ เช่น อกหรือเอว',
-                  'รายละเอียดไซส์แยกตามเพศ หากแก้ค่าอก/เอวตรงนี้ ผู้เบิกจะเห็นค่าที่อัปเดตในหน้าข้อมูลเสื้อ',
-                  'แท็บสต็อกตามไซส์ใช้แก้เฉพาะจำนวนคงเหลือ เพื่อไม่ให้ข้อมูลอก/เอวปนกับงานคลัง',
-                  'ใส่เลขบวก เช่น 20 แล้วกดเพิ่ม เพื่อบันทึกรับสต็อกเข้า',
-                  'ใส่เลขลบ เช่น -2 แล้วกดเพิ่ม เพื่อปรับลดกรณีเคยกรอกผิดหรือต้องตัดยอดแก้ไข',
-                  'ไม่ต้องแก้เลขคงเหลือตรง ๆ เพราะระบบจะเก็บประวัติเป็นยอดตั้งต้น เพิ่มเข้า ปรับลด เบิกแล้ว และคงเหลือ',
+                  'แท็บข้อมูลเสื้อใช้แก้ชื่อแบบเสื้อ รูปภาพ และรายละเอียดไซส์ เช่น อก เอว หรือรายละเอียดอื่น',
+                  'รายละเอียดไซส์แยกตามเพศ เพิ่ม แก้ หรือลบหัวข้อได้ ข้อมูลนี้จะแสดงให้คนขอเบิกเห็น',
+                  'แท็บสต๊อกตามไซส์ใช้แก้เฉพาะจำนวนคงเหลือ เพื่อแยกงานคลังออกจากข้อมูลเสื้อ',
+                  'ใส่เลขบวก เช่น 20 แล้วกดเพิ่ม เพื่อบันทึกรับสต๊อกเข้า',
+                  'ใส่เลขลบ เช่น -2 แล้วกดเพิ่ม เพื่อปรับลดกรณีกรอกผิดหรือตัดยอดแก้ไข',
+                  'ไม่แก้เลขคงเหลือในชีทโดยตรง ให้แก้ผ่านระบบเพื่อเก็บประวัติยอดตั้งต้น เพิ่มเข้า ปรับลด เบิกแล้ว และคงเหลือ',
                 ]}
               />
             </ManualSection>
@@ -3943,7 +3945,7 @@ function AdminManualDialog({ open, setOpen }) {
                 items={[
                   'ปุ่มส่งออก CSV ใช้ดาวน์โหลดข้อมูลคำสั่งเบิกตามตัวกรองที่เลือก',
                   'ชีท Orders เก็บข้อมูลคำสั่งเบิกและสถานะ',
-                  'ชีท Stock สร้างและอัปเดตจากระบบโดยอัตโนมัติ แสดงยอดตั้งต้น เพิ่มเข้า ปรับลด เบิกแล้ว สต็อกทั้งหมด และคงเหลือ',
+                  'ชีท Stock สร้างและอัปเดตจากระบบโดยอัตโนมัติ แสดงยอดตั้งต้น เพิ่มเข้า ปรับลด เบิกแล้ว สต๊อกทั้งหมด และคงเหลือ',
                   'ไม่ควรแก้ตัวเลขในชีท Stock โดยตรง เพราะการ sync ครั้งถัดไปจะเขียนทับจากข้อมูลในระบบ',
                 ]}
               />
@@ -4136,6 +4138,39 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
     );
   }
 
+  function addDetailField(id) {
+    commit(
+      config.map((item) => {
+        if (item.id !== id) return item;
+        const currentFields = item.detailFields?.length ? item.detailFields : ['อก'];
+        let nextField = `รายละเอียด ${currentFields.length + 1}`;
+        let suffix = currentFields.length + 1;
+        while (currentFields.includes(nextField)) {
+          suffix += 1;
+          nextField = `รายละเอียด ${suffix}`;
+        }
+
+        return {
+          ...item,
+          detailFields: [...currentFields, nextField],
+          genderSizeRows: GENDERS.reduce((rows, gender) => {
+            const sizeRows = item.genderSizeRows?.[gender] || item.sizeRows || [];
+            return {
+              ...rows,
+              [gender]: sizeRows.map((row) => ({
+                ...row,
+                details: {
+                  ...(row.details || {}),
+                  [nextField]: '',
+                },
+              })),
+            };
+          }, {}),
+        };
+      })
+    );
+  }
+
   function removeDetailField(id, fieldIndex) {
     commit(
       config.map((item) => {
@@ -4317,7 +4352,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
           <div>
             <h3>{selectedItem.type || 'ยังไม่ระบุชื่อ'}</h3>
             <p>
-              ใช้แท็บข้อมูลเสื้อสำหรับชื่อและรูป ส่วนแท็บสต็อกใช้แก้จำนวนคงเหลือตามไซส์
+              ใช้แท็บข้อมูลเสื้อสำหรับชื่อและรูป ส่วนแท็บสต๊อกใช้แก้จำนวนคงเหลือตามไซส์
             </p>
           </div>
           <button className={editing ? 'done' : ''} onClick={() => setEditing((value) => !value)}>
@@ -4341,7 +4376,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
             role="tab"
             aria-selected={activeSection === 'stock'}
           >
-            สต็อกตามไซส์
+            สต๊อกตามไซส์
           </button>
         </div>
 
@@ -4391,16 +4426,28 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
                 <strong>รายละเอียดไซส์</strong>
                 <span>แก้ค่าอก/เอวแยกตามเพศ ข้อมูลนี้จะแสดงในตารางไซส์ของผู้เบิก</span>
               </div>
-              <div className="inventory-gender-toggle">
-                {GENDERS.map((gender) => (
+              <div className="inventory-size-fields-actions">
+                {editing && (
                   <button
-                    key={gender}
-                    className={selectedGender === gender ? 'active' : ''}
-                    onClick={() => setSelectedGender(gender)}
+                    type="button"
+                    className="inventory-add-detail-field"
+                    onClick={() => addDetailField(selectedItem.id)}
                   >
-                    {gender}
+                    <Plus className="size-4" />
+                    เพิ่มรายละเอียด
                   </button>
-                ))}
+                )}
+                <div className="inventory-gender-toggle">
+                  {GENDERS.map((gender) => (
+                    <button
+                      key={gender}
+                      className={selectedGender === gender ? 'active' : ''}
+                      onClick={() => setSelectedGender(gender)}
+                    >
+                      {gender}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {editing && (
@@ -4479,7 +4526,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
         <section className={cn('inventory-stock-card', activeSection !== 'stock' && 'hidden')}>
           <div className="inventory-section-head">
             <div>
-              <h4>สต็อกตามไซส์</h4>
+              <h4>สต๊อกตามไซส์</h4>
               <p>แก้เฉพาะจำนวนคงเหลือ แยกตามเพศ ส่วนอก/เอวอยู่ในแท็บข้อมูลเสื้อ</p>
             </div>
             <div className="inventory-gender-toggle">
@@ -4535,7 +4582,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
       title="ยืนยันลบแบบเสื้อ"
       description={
         deleteClothingItem
-          ? `ลบแบบเสื้อ "${deleteClothingItem.type || 'ยังไม่ระบุชื่อ'}" และข้อมูลไซส์/สต็อกทั้งหมด?`
+          ? `ลบแบบเสื้อ "${deleteClothingItem.type || 'ยังไม่ระบุชื่อ'}" และข้อมูลไซส์/สต๊อกทั้งหมด?`
           : ''
       }
       confirmLabel="ลบแบบเสื้อ"
@@ -4570,6 +4617,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false);
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState('');
   const [exportExpanded, setExportExpanded] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [columnSettingsTable, setColumnSettingsTable] = useState('');
   const [visibleOrderColumns, setVisibleOrderColumns] = useState(() =>
     readDashboardTableColumns('orders', ORDER_TABLE_COLUMNS)
@@ -4768,7 +4816,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         const requested = Number(item.qty || 0);
 
         if (!clothing || !sizeKey || requested <= 0) {
-          issues.push(`แบบเสื้อ ${type} ไซส์ ${sizeKey || 'ไม่ระบุ'} ไม่มีข้อมูลสต็อก`);
+          issues.push(`แบบเสื้อ ${type} ไซส์ ${sizeKey || 'ไม่ระบุ'} ไม่มีข้อมูลสต๊อก`);
           return;
         }
 
@@ -4777,7 +4825,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         const available = Number(row?.qty || 0);
         if (available < requested) {
           issues.push(
-            `แบบเสื้อ ${type} ไซส์ ${sizeKey} (${gender}) ต้องการ ${requested} ชิ้น แต่มีสต็อก ${available} ชิ้น`
+            `แบบเสื้อ ${type} ไซส์ ${sizeKey} (${gender}) ต้องการ ${requested} ชิ้น แต่มีสต๊อก ${available} ชิ้น`
           );
         }
       });
@@ -4957,13 +5005,13 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
 
       if (allIssues.length > 0) {
         if (successfulBatchIds.length === 0) {
-          toast.error('ไม่สามารถจัดส่งใบสั่งซื้อได้เนื่องจากสต๊อกไม่พอ', {
+          toast.error('ไม่สามารถจัดส่งคำสั่งเบิกได้เนื่องจากสต๊อกไม่พอ', {
             description: `พบปัญหาในทุกคำสั่งที่เลือก (${allIssues.length} คำสั่ง) กรุณาเพิ่มคลังสินค้าก่อน`,
           });
           return;
         }
 
-        const confirmMsg = `พบปัญหาสต๊อกไม่พอกับจำนวนที่ต้องการใน ${allIssues.length} ใบสั่งซื้อ (เช่น ${allIssues[0].companyName} - ${allIssues[0].errors[0]}) ต้องการจัดส่งเฉพาะคำสั่งที่คลังสินค้าพร้อมจำนวน ${successfulBatchIds.length} รายการ หรือไม่?`;
+        const confirmMsg = `พบปัญหาสต๊อกไม่พอกับจำนวนที่ต้องการใน ${allIssues.length} คำสั่งเบิก (เช่น ${allIssues[0].companyName} - ${allIssues[0].errors[0]}) ต้องการจัดส่งเฉพาะคำสั่งที่สต๊อกพร้อมจำนวน ${successfulBatchIds.length} รายการ หรือไม่?`;
         if (!window.confirm(confirmMsg)) {
           return;
         }
@@ -4981,7 +5029,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   async function executeBulkStatusChange(ids, status, initialConfig) {
     const statusUpdatedAt = new Date().toISOString();
     const loadingToastId = toast.loading(`กำลังอัปเดตสถานะกลุ่ม (${ids.length} รายการ)...`, {
-      description: 'ระบบกำลังบันทึกข้อมูลและปรับสต๊อกสินค้า...',
+      description: 'ระบบกำลังบันทึกข้อมูลและปรับสต๊อก...',
     });
 
     let successCount = 0;
@@ -5078,7 +5126,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           });
           return;
         }
-        toast.error('บันทึกสต็อกไม่สำเร็จ', {
+        toast.error('บันทึกสต๊อกไม่สำเร็จ', {
           description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
         });
     });
@@ -5355,7 +5403,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     const batch = batches.find((item) => item.batchId === id);
     return sum + (batch ? getBatchPieces(batch) : 0);
   }, 0);
-  const useSplitOrderColumns = false;
+  const useSplitOrderColumns = isWideScreen && orderRows.length > 4;
   const visibleOrderColumnSet = new Set(visibleOrderColumns);
   const visibleEmployeeColumnSet = new Set(visibleEmployeeColumns);
   const isOrderColumnVisible = (columnId) => visibleOrderColumnSet.has(columnId);
@@ -5392,24 +5440,12 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <div className="dashboard-overview-hero">
             <div>
               <h2>ภาพรวมการดำเนินงาน</h2>
-              <p>ติดตามคำสั่งเบิก สต็อก และข้อมูลพนักงาน ได้ครบในหน้าเดียว</p>
+              <p>ติดตามคำสั่งเบิก สต๊อก และข้อมูลพนักงาน ได้ครบในหน้าเดียว</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 <span>โหลดข้อมูลใหม่</span>
-              </button>
-              <button className="dark" onClick={() => onViewChange?.('orders')}>
-                <ClipboardList className="size-4" />
-                <span>คำสั่งเบิก</span>
-              </button>
-              <button className="dark" onClick={() => onViewChange?.('employees')}>
-                <Users className="size-4" />
-                <span>ข้อมูลพนักงาน</span>
-              </button>
-              <button className="dark" onClick={() => onViewChange?.('inventory')}>
-                <Shirt className="size-4" />
-                <span>สต็อก</span>
               </button>
             </div>
           </div>
@@ -5429,17 +5465,17 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             <div className="dashboard-overview-stock-card">
               <div className="dashboard-panel-head slim">
                 <div>
-                  <h2>ภาพรวมสต็อก</h2>
-                  <p>สต็อกรวมทั้งหมดและรายการที่ต้องติดตาม</p>
+                  <h2>ภาพรวมสต๊อก</h2>
+                  <p>สต๊อกรวมทั้งหมดและรายการที่ต้องติดตาม</p>
                 </div>
               </div>
               <div className="dashboard-stock-summary-totals dashboard-stock-summary-totals-grid">
-                <span>สต็อกตั้งต้น {stockSummaryTotals.totalStock} ชิ้น</span>
+                <span>สต๊อกตั้งต้น {stockSummaryTotals.totalStock} ชิ้น</span>
                 <span>เบิกแล้ว {stockSummaryTotals.withdrawn} ชิ้น</span>
                 <span>คงเหลือ {stockSummaryTotals.remaining} ชิ้น</span>
               </div>
               <div className="dashboard-stock-summary-notes">
-                <p>ดูรายการสต็อกต่ำที่สุดด้านล่าง เพื่อเลือกงานที่ต้องแก้ก่อนจัดส่ง</p>
+                <p>ดูรายการสต๊อกต่ำที่สุดด้านล่าง เพื่อเลือกงานที่ต้องแก้ก่อนจัดส่ง</p>
               </div>
             </div>
           </div>
@@ -5448,12 +5484,11 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               <article className="dashboard-work-card">
                 <div>
                   <h2>งานที่ต้องติดตาม</h2>
-                  <p>แยกจากงานสต็อก เพื่อให้ภาพรวมโฟกัสที่คำสั่งเบิกและการจัดส่ง</p>
+                  <p>แยกจากงานสต๊อก เพื่อให้ภาพรวมโฟกัสที่คำสั่งเบิกและการจัดส่ง</p>
                 </div>
                 <div className="dashboard-work-list">
                   <p><span className="dot red" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
-                  <p><span className="dot amber" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
-                  <p><span className="dot green" /> ส่งแล้ว <strong>{countByStatus(ORDER_STATUS_DELIVERED)} รายการ</strong></p>
+                  <p><span className="dot green" /> จัดส่งแล้ว <strong>{countByStatus(ORDER_STATUS_DELIVERED)} รายการ</strong></p>
                 </div>
                 <div className="dashboard-panel-actions">
                   <button onClick={() => onViewChange?.('orders')}>
@@ -5489,13 +5524,25 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           activeView !== 'orders' && activeView !== 'employees' && 'hidden'
         )}
       >
-        <aside className="dashboard-filter-rail">
+        <aside className={cn('dashboard-filter-rail', filtersCollapsed && 'collapsed')}>
           <div className="dashboard-panel-title">
             <h2>ตัวกรอง</h2>
-            <button type="button" onClick={clearFilters} title="ล้างตัวกรอง">
-              <Eraser className="size-4" />
-            </button>
+            <div className="dashboard-filter-title-actions">
+              <button
+                type="button"
+                className="dashboard-filter-toggle"
+                onClick={() => setFiltersCollapsed((value) => !value)}
+                title={filtersCollapsed ? 'เปิดตัวกรอง' : 'ย่อตัวกรอง'}
+                aria-expanded={!filtersCollapsed}
+              >
+                {filtersCollapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
+              </button>
+              <button type="button" onClick={clearFilters} title="ล้างตัวกรอง">
+                <Eraser className="size-4" />
+              </button>
+            </div>
           </div>
+          <div className="dashboard-filter-body">
           <Field label="สาขา">
             <Select value={branchFilter} onChange={setBranchFilter} values={['ทุกสาขา', ...BRANCHES]} />
           </Field>
@@ -5515,6 +5562,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <button className="dashboard-primary-action" onClick={clearFilters}>
             ล้างตัวกรอง
           </button>
+          </div>
         </aside>
 
         {activeView === 'orders' && (
@@ -5578,7 +5626,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             </div>
           )}
 
-          {useSplitOrderColumns && isWideScreen && orderRows.length > 4 ? (
+          {useSplitOrderColumns ? (
             <div className="dashboard-orders-columns">
               {(() => {
                 const half = Math.ceil(orderRows.length / 2);
@@ -5609,21 +5657,21 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                               }}
                             />
                           </th>
-                          <th>เลขที่คำสั่งเบิก</th>
-                          <th>วันที่ทำรายการ</th>
-                          <th>บริษัท/หน่วยงาน</th>
-                          <th>สาขา</th>
-                          <th>ผู้ติดต่อ</th>
-                          <th>จำนวน</th>
-                          <th>สถานะ</th>
-                          <th>อัปเดตล่าสุด</th>
+                          {isOrderColumnVisible('code') && <th>รหัสคำสั่ง</th>}
+                          {isOrderColumnVisible('date') && <th>วันที่</th>}
+                          {isOrderColumnVisible('company') && <th>บริษัท/หน่วยงาน</th>}
+                          {isOrderColumnVisible('branch') && <th>สาขา</th>}
+                          {isOrderColumnVisible('contact') && <th>ผู้ติดต่อ</th>}
+                          {isOrderColumnVisible('total') && <th>จำนวนรวม</th>}
+                          {isOrderColumnVisible('status') && <th>สถานะ</th>}
+                          {isOrderColumnVisible('updated') && <th>อัปเดตล่าสุด</th>}
                           <th>จัดการ</th>
                         </tr>
                       </thead>
                       <tbody>
                         {rows.map((batch) => (
+                          <React.Fragment key={batch.batchId}>
                           <tr
-                            key={batch.batchId}
                             className="dashboard-clickable-row"
                             tabIndex={0}
                             aria-expanded={expandedBatchIds.has(batch.batchId)}
@@ -5645,6 +5693,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                 }}
                               />
                             </td>
+                            {isOrderColumnVisible('code') && (
                             <td>
                               <div className="flex items-center gap-2">
                                 <button
@@ -5669,15 +5718,18 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                 </button>
                               </div>
                             </td>
-                            <td>{formatDashboardDate(batch.submittedAt)}</td>
-                            <td>{batch.companyName || '-'}</td>
-                            <td>{batch.branch || '-'}</td>
-                            <td>{batch.supervisorName || '-'}</td>
-                            <td>{getBatchPieces(batch)}</td>
+                            )}
+                            {isOrderColumnVisible('date') && <td>{formatDashboardDate(batch.submittedAt)}</td>}
+                            {isOrderColumnVisible('company') && <td>{batch.companyName || '-'}</td>}
+                            {isOrderColumnVisible('branch') && <td>{batch.branch || '-'}</td>}
+                            {isOrderColumnVisible('contact') && <td>{batch.supervisorName || '-'}</td>}
+                            {isOrderColumnVisible('total') && <td>{getBatchPieces(batch)}</td>}
+                            {isOrderColumnVisible('status') && (
                             <td>
                               <StatusBadge status={batch.status} />
                             </td>
-                            <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>
+                            )}
+                            {isOrderColumnVisible('updated') && <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>}
                             <td className="dashboard-row-actions">
                               <div className="dashboard-row-actions-group">
                                 {batch.status !== ORDER_STATUS_DELIVERED && (
@@ -5688,12 +5740,110 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                       updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED);
                                     }}
                                   >
-                                    ส่งแล้ว
+                                    จัดส่งแล้ว
                                   </button>
                                 )}
                               </div>
                             </td>
                           </tr>
+                          <tr className="batch-detail-row" key={`${batch.batchId}-details`}>
+                            <td colSpan={orderTableColSpan} className="p-0">
+                              <div className="batch-detail-container">
+                                <div className={cn('batch-detail-inner', expandedBatchIds.has(batch.batchId) && 'open')}>
+                                  <table className="batch-detail-table text-center">
+                                    <thead>
+                                      <tr>
+                                        <th>ชื่อพนักงาน</th>
+                                        <th>เพศ</th>
+                                        <th>เสื้อ</th>
+                                        <th>ไซส์</th>
+                                        <th>จำนวน</th>
+                                        <th>สถานะ</th>
+                                        <th>บริษัท</th>
+                                        <th>สาขา</th>
+                                        <th>เลขที่คำสั่ง</th>
+                                        <th>วันที่เบิก</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {batch.orders.flatMap((order) =>
+                                        order.items.map((item, idx) => {
+                                          const requested = Number(item.qty || 0);
+                                          const clothing = (clothingConfig || []).find((c) => c.type === item.type);
+                                          const sizeRows = (clothing?.genderSizeRows?.[order.gender] || clothing?.sizeRows) || [];
+                                          const sizeRow = sizeRows.find((r) => String(r.size) === String(item.size));
+                                          const available = Number(sizeRow?.qty || 0);
+                                          const understock = requested > available && item.size !== OTHER_SIZE;
+                                          return (
+                                            <tr key={`${batch.batchId}-${order.name}-${idx}`} className={cn('batch-detail-item', understock && 'understock')}>
+                                              <td>{order.name}</td>
+                                              <td>{order.gender}</td>
+                                              <td>{item.type}</td>
+                                              <td>{item.size}</td>
+                                              <td>
+                                                {requested}
+                                                {understock && (
+                                                  <div className="understock-flag">สต๊อกไม่พอ (มี {available})</div>
+                                                )}
+                                              </td>
+                                              <td>
+                                                <div className="batch-item-status-cell">
+                                                  <StatusBadge status={item.status || batch.status} small />
+                                                  <div className="batch-item-status-actions">
+                                                    <button
+                                                      type="button"
+                                                      disabled={
+                                                        statusLoadingId === batch.batchId ||
+                                                        item.status === ORDER_STATUS_DELIVERED ||
+                                                        understock
+                                                      }
+                                                      onClick={() =>
+                                                        updateSingleItemStatus(
+                                                          batch,
+                                                          order,
+                                                          item,
+                                                          ORDER_STATUS_DELIVERED
+                                                        )
+                                                      }
+                                                      title={understock ? `สต๊อกไม่พอ (มี ${available})` : 'จัดส่งรายการนี้'}
+                                                    >
+                                                      จัดส่งแล้ว
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      disabled={
+                                                        statusLoadingId === batch.batchId ||
+                                                        item.status === ORDER_STATUS_PENDING
+                                                      }
+                                                      onClick={() =>
+                                                        updateSingleItemStatus(
+                                                          batch,
+                                                          order,
+                                                          item,
+                                                          ORDER_STATUS_PENDING
+                                                        )
+                                                      }
+                                                    >
+                                                      รอจัดส่ง
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              </td>
+                                              <td>{batch.companyName || '-'}</td>
+                                              <td>{batch.branch || '-'}</td>
+                                              <td>{String(batch.batchId)}</td>
+                                              <td>{formatDashboardDate(batch.submittedAt)}</td>
+                                            </tr>
+                                          );
+                                        })
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
@@ -5741,7 +5891,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   {isOrderColumnVisible('total') && <th>จำนวนรวม</th>}
                   {isOrderColumnVisible('status') && <th>สถานะ</th>}
                   {isOrderColumnVisible('updated') && <th>อัปเดตล่าสุด</th>}
-                  <th>ปฏิบัติการ</th>
+                  <th>จัดการ</th>
                 </tr>
               </thead>
               <tbody>
@@ -5861,7 +6011,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                                                 <td>
                                                   {requested}
                                                   {understock && (
-                                                    <div className="understock-flag">สต็อกไม่พอ (มี {available})</div>
+                                                    <div className="understock-flag">สต๊อกไม่พอ (มี {available})</div>
                                                   )}
                                                 </td>
                                                 <td>
@@ -6146,7 +6296,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           </div>
           <div className="dashboard-kpi-grid">
             <MiniMetric label="คำสั่งเบิกทั้งหมด" value={filteredBatches.length} />
-            <MiniMetric label="กำลังดำเนินการ" value={countByStatus(ORDER_STATUS_PENDING)} />
+            <MiniMetric label="รอจัดส่ง" value={countByStatus(ORDER_STATUS_PENDING)} />
             <MiniMetric label="จัดส่งแล้ว" value={countByStatus(ORDER_STATUS_DELIVERED)} />
           </div>
           <div className="dashboard-alert-card">
@@ -6158,7 +6308,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           </div>
           <div className="dashboard-alert-card">
             <div className="dashboard-section-title">
-              <h3>แจ้งเตือนสต็อกต่ำ</h3>
+              <h3>แจ้งเตือนสต๊อกต่ำ</h3>
             </div>
             {lowStockRows.length ? (
               lowStockRows.map((item) => (
@@ -6167,7 +6317,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                 </p>
               ))
             ) : (
-              <p>สต็อกอยู่ในระดับปกติ <strong>{inventoryRows.length} รายการ</strong></p>
+              <p>สต๊อกอยู่ในระดับปกติ <strong>{inventoryRows.length} รายการ</strong></p>
             )}
           </div>
         </aside>
@@ -6177,8 +6327,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         <section className="dashboard-inventory-manager">
           <div className="dashboard-panel-head">
             <div>
-              <h2>จัดการแบบเสื้อและสต็อกไซส์</h2>
-              <p>รวมงานข้อมูลเสื้อและสต็อกไว้ในหน้าเดียว แยกเป็นโซนภาพรวม ข้อมูลเสื้อ และสต็อกตามไซส์</p>
+              <h2>จัดการแบบเสื้อและสต๊อกไซส์</h2>
+              <p>รวมงานข้อมูลเสื้อและสต๊อกไว้ในหน้าเดียว แยกเป็นโซนภาพรวม ข้อมูลเสื้อ และสต๊อกตามไซส์</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => onViewChange?.('orders')}>
@@ -6206,7 +6356,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <div className="dashboard-stock-summary">
             <div className="dashboard-panel-head slim">
               <div>
-                <h2>ภาพรวมสต็อก</h2>
+                <h2>ภาพรวมสต๊อก</h2>
                 <p>จำนวนรวมและรายการที่ควรตรวจ ก่อนลงไปแก้ข้อมูลเสื้อหรือจำนวนคงเหลือ</p>
               </div>
               <div className="dashboard-stock-summary-totals">
@@ -6242,11 +6392,11 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                   </p>
                 ))}
                 {!stockSummaryRows.length && (
-                  <div className="dashboard-stock-ledger-empty">ยังไม่มีข้อมูลสต็อก</div>
+                  <div className="dashboard-stock-ledger-empty">ยังไม่มีข้อมูลสต๊อก</div>
                 )}
               </div>
               <div className="dashboard-stock-focus-list">
-                <h3>สต็อกต่ำที่ควรดู</h3>
+                <h3>สต๊อกต่ำที่ควรดู</h3>
                 {lowStockRows.length ? (
                   lowStockRows.map((item) => (
                     <p key={item.id}>
@@ -6255,7 +6405,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                     </p>
                   ))
                 ) : (
-                  <div className="dashboard-stock-ledger-empty">ยังไม่มีรายการสต็อกต่ำ</div>
+                  <div className="dashboard-stock-ledger-empty">ยังไม่มีรายการสต๊อกต่ำ</div>
                 )}
               </div>
             </div>
@@ -6504,7 +6654,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
           <div className="flex items-center justify-between border-b border-[#E7EAF0] px-4 py-3">
             <div>
               <Dialog.Title className="text-lg font-black text-[#071638]">
-                จัดการการจัดส่งสินค้า
+                จัดการจัดส่ง
               </Dialog.Title>
               <p className="text-xs font-semibold text-[#64748B] mt-0.5">
                 ระบุจำนวนที่สามารถจัดส่งได้ในรอบนี้ ส่วนที่ยังไม่ส่งจะคงสถานะเป็น "รอจัดส่ง"
@@ -6521,7 +6671,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
           <div className="employee-scroll-region flex-1 overflow-auto p-4 bg-[#F8FAFC]">
             {activeItems.length === 0 ? (
               <div className="py-8 text-center text-sm font-semibold text-[#64748B]">
-                ไม่มีรายการสินค้าที่รอจัดส่ง
+                ไม่มีรายการเสื้อที่รอจัดส่ง
               </div>
             ) : (
               <div className="grid gap-3">
@@ -6530,7 +6680,7 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
                   const pendingQty = item.requestedQty - item.shippedQty;
 
                   let stockColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-                  let stockText = `มีสต็อกพอ (${item.currentStock} ชิ้น)`;
+                  let stockText = `มีสต๊อกพอ (${item.currentStock} ชิ้น)`;
 
                   if (item.currentStock === 0) {
                     stockColor = 'text-rose-600 bg-rose-50 border-rose-200';
