@@ -317,6 +317,7 @@ function App() {
 }
 
 function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, branchesLoading = false }) {
+  const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [sizeOpen, setSizeOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -340,7 +341,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
     setMobileEmployeeId(id);
   }
 
-  const [state, dispatch] = useReducer(orderReducer, branches[0], createInitialOrderState);
+  const [state, dispatch] = useReducer(orderReducer, effectiveBranches[0], createInitialOrderState);
   const clothingTypes = getClothingTypes();
 
   const isCompanyComplete = Boolean(
@@ -917,7 +918,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
            {/* Wizard Steps */}
           {activeStep === 1 && (
             <div className="space-y-6">
-              <QuickOrderSetupPanel state={state} dispatch={dispatch} forceExpand={true} branches={branches} />
+              <QuickOrderSetupPanel state={state} dispatch={dispatch} forceExpand={true} branches={effectiveBranches} />
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 bg-white p-4 rounded-xl border border-neutral-200/80 shadow-xs">
                 <span className="hidden sm:block" />
                 <button
@@ -1694,6 +1695,7 @@ function SetupWarning() {
 }
 
 function QuickOrderSetupPanel({ state, dispatch, forceExpand = false, branches = BRANCHES }) {
+  const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const complete = Boolean(
     state.companyName.trim() &&
     state.branch &&
@@ -2854,7 +2856,8 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
     </Dialog.Root>
   );
 }
-function DashboardApp({ onOpenOrder, branches, refreshBranches }) {
+function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
+  const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [adminToken, setDashboardToken] = useState(getAdminToken);
   const [dashboardView, setDashboardView] = useState('dashboard');
   const [manualOpen, setManualOpen] = useState(false);
@@ -4188,9 +4191,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const exportBranchOptions = useMemo(
     () => [
       'ทุกสาขา',
-      ...uniqueSorted([...branches, ...batches.map((batch) => batch.branch).filter(Boolean)]),
+      ...uniqueSorted([...effectiveBranches, ...batches.map((batch) => batch.branch).filter(Boolean)]),
     ],
-    [batches, branches]
+    [batches, effectiveBranches]
   );
   const exportRows = useMemo(() => {
     const startKey = getMonthKeyFromInput(exportStartMonth);
@@ -4215,16 +4218,16 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   }, [monthFilter, monthFilterOptions]);
 
   useEffect(() => {
-    if (branchFilter !== 'ทุกสาขา' && !branches.includes(branchFilter)) {
+    if (branchFilter !== 'ทุกสาขา' && !effectiveBranches.includes(branchFilter)) {
       setBranchFilter('ทุกสาขา');
     }
-  }, [branches, branchFilter]);
+  }, [effectiveBranches, branchFilter]);
 
   useEffect(() => {
-    if (exportBranchFilter !== 'ทุกสาขา' && !branches.includes(exportBranchFilter)) {
+    if (exportBranchFilter !== 'ทุกสาขา' && !effectiveBranches.includes(exportBranchFilter)) {
       setExportBranchFilter('ทุกสาขา');
     }
-  }, [branches, exportBranchFilter]);
+  }, [effectiveBranches, exportBranchFilter]);
 
   async function syncDashboardAction(payload) {
     const expectedUpdatedAt = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
@@ -5049,7 +5052,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           </div>
           <div className="dashboard-filter-body">
           <Field label="สาขา">
-            <Select value={branchFilter} onChange={setBranchFilter} values={['ทุกสาขา', ...branches]} />
+            <Select value={branchFilter} onChange={setBranchFilter} values={['ทุกสาขา', ...effectiveBranches]} />
           </Field>
           <Field label="เดือน">
             <Select value={monthFilter} onChange={setMonthFilter} values={monthFilterOptions} />
