@@ -50,6 +50,11 @@ import {
   getClothingTypes,
   getSizeOptions,
   getSizeOptionsWithLabels,
+  patchSizeWithDefaultQty,
+  IMAGE_UPLOAD_TYPES,
+  IMAGE_UPLOAD_MAX_BYTES,
+  GENDERS,
+  OTHER_SIZE,
 } from './lib/config';
 import {
   EMPLOYEE_TABLE_COLUMNS,
@@ -70,7 +75,39 @@ import {
   Select,
   GridSelect,
   Card,
+  BranchManager,
 } from './components';
+import {
+  getAdminToken,
+  setAdminToken,
+  isAuthFailure,
+  authFetch,
+  DASHBOARD_SESSION_KEY,
+} from './lib/api';
+import {
+  phoneDigitsOnly,
+  formatPhone,
+  genderSymbol,
+  formatDashboardDate,
+  PHONE_LENGTH,
+  formatMonthLabel,
+  formatMonthInputValue,
+  getMonthKey,
+  getMonthKeyFromInput,
+  csvCell,
+  buildCsvFilename,
+  uniqueSorted,
+} from './lib/utils';
+import {
+  normalizeStockLedger,
+  applyStockMovement,
+  getStockLedgerSummary,
+} from './lib/stockHelpers';
+import {
+  TOAST_DURATION_MS,
+  TOAST_VISIBLE_COUNT,
+  TOAST_GAP_PX,
+} from './lib/magicNumbers';
 import {
   DashboardDataNotice,
   DashboardPageSkeleton,
@@ -97,155 +134,12 @@ import {
   normalizeOrderStatus,
   orderReducer,
 } from './lib/orderState';
+import { loadBranchesWithFallback } from './lib/branches';
 import { BRANCHES } from './constants/branches';
 import './index.css';
 
 const DASHBOARD_PATH = '#/dashboard';
 const ORDER_PATH = '/';
-const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
-// clothing config keys and helpers are imported from ./lib/config
-const IMAGE_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
-
-const GENDERS = ['ชาย', 'หญิง'];
-
-function genderSymbol(gender) {
-  return gender === 'ชาย' ? '♂' : '♀';
-}
-const OTHER_SIZE = 'อื่นๆ';
-const PHONE_LENGTH = 10;
-
-function formatDashboardDate(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString('th-TH', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function normalizeStockLedger(row, qty = Number(row?.qty || 0)) {
-  const stockAdded = Number(row?.stockAdded || 0);
-  const stockWithdrawn = Number(row?.stockWithdrawn || row?.withdrawn || 0);
-  const stockAdjustedOut = Number(row?.stockAdjustedOut || 0);
-  const stockOpeningQty =
-    row?.stockOpeningQty !== undefined
-      ? Number(row.stockOpeningQty || 0)
-      : Math.max(0, Number(qty || 0) + stockWithdrawn - stockAdded + stockAdjustedOut);
-  return {
-    stockOpeningQty,
-    stockAdded,
-    stockWithdrawn,
-    stockAdjustedOut,
-  };
-}
-
-function applyStockMovement(row, delta, movementType = 'manual') {
-  const currentQty = Number(row?.qty || 0);
-  const nextQty = Math.max(0, currentQty + Number(delta || 0));
-  const actualDelta = nextQty - currentQty;
-  const ledger = normalizeStockLedger(row, currentQty);
-
-  if (movementType === 'withdraw' && actualDelta < 0) {
-    ledger.stockWithdrawn += Math.abs(actualDelta);
-  } else if (movementType === 'restore' && actualDelta > 0) {
-    ledger.stockWithdrawn = Math.max(0, ledger.stockWithdrawn - actualDelta);
-  } else if (movementType === 'manual') {
-    if (actualDelta > 0) ledger.stockAdded += actualDelta;
-    if (actualDelta < 0) ledger.stockAdjustedOut += Math.abs(actualDelta);
-  }
-
-  return { ...row, qty: nextQty, ...ledger };
-}
-
-function getStockLedgerSummary(row) {
-  const qty = Number(row?.qty || 0);
-  const ledger = normalizeStockLedger(row, qty);
-  const totalStock = Math.max(0, ledger.stockOpeningQty + ledger.stockAdded - ledger.stockAdjustedOut);
-  return {
-    opening: ledger.stockOpeningQty,
-    added: ledger.stockAdded,
-    adjustedOut: ledger.stockAdjustedOut,
-    withdrawn: ledger.stockWithdrawn,
-    totalStock,
-    remaining: qty,
-  };
-}
-
-// Clothing config helpers are provided by ./lib/config (imported at top)
-
-function getAdminToken() {
-  return sessionStorage.getItem(DASHBOARD_SESSION_KEY) || '';
-}
-
-function setAdminToken(token) {
-  if (token) sessionStorage.setItem(DASHBOARD_SESSION_KEY, token);
-  else sessionStorage.removeItem(DASHBOARD_SESSION_KEY);
-}
-
-function isAuthFailure(error) {
-  return error?.status === 401 || String(error?.message || '').includes('สิทธิ์');
-}
-
-async function authFetch(url, options = {}) {
-  const token = getAdminToken();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        ...(options.headers || {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-    clearTimeout(timeoutId);
-    if (response.status === 401) {
-      const error = new Error('สิทธิ์เข้าใช้งานหมดอายุ กรุณาเข้าสู่ระบบใหม่');
-      error.status = 401;
-      throw error;
-    }
-    return response;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      const timeoutError = new Error('การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง');
-      timeoutError.name = 'TimeoutError';
-      throw timeoutError;
-    }
-    throw err;
-  }
-}
-
-// Clothing helpers (getClothingTypes, findClothingConfig, getSizeRows, getSizeOptions, defaultSize)
-// are provided by ./lib/config and imported at the top.
-
-function patchSizeWithDefaultQty(item, size) {
-  return {
-    size,
-    customSize: size === OTHER_SIZE ? item.customSize : '',
-    qty: item.qty || 2,
-  };
-}
-
-function phoneDigitsOnly(value) {
-  return digitsOnly(value).slice(0, PHONE_LENGTH);
-}
-
-function formatPhone(value) {
-  const phone = phoneDigitsOnly(value);
-  if (phone.length <= 3) return phone;
-  if (phone.length <= 6) return `${phone.slice(0, 3)}-${phone.slice(3)}`;
-  return `${phone.slice(0, 3)}-${phone.slice(3, 6)}-${phone.slice(6)}`;
-}
-
-function isGasConfigured() {
-  return true;
-}
 
 function getDashboardLoadErrorDescription(error) {
   const message = String(error?.message || '');
@@ -329,7 +223,7 @@ function getRoute() {
 function App() {
   const [path, setPath] = useState(getRoute);
   const [configVersion, setConfigVersion] = useState(0);
-  const gasConfigured = isGasConfigured();
+  const gasConfigured = true;
 
   function navigate(pathname) {
     if (pathname.startsWith('#')) {
@@ -360,6 +254,26 @@ function App() {
       .catch(() => {});
   }, []);
 
+  const [branches, setBranches] = useState(BRANCHES);
+  const [branchesLoading, setBranchesLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function refresh() {
+      setBranchesLoading(true);
+      const loadedBranches = await loadBranchesWithFallback();
+      if (!active) return;
+      setBranches(loadedBranches);
+      setBranchesLoading(false);
+    }
+
+    refresh();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const isDashboard = path === '/dashboard';
 
   return (
@@ -368,22 +282,29 @@ function App() {
         <DashboardApp
           key={`dashboard-${configVersion}`}
           onOpenOrder={() => navigate(ORDER_PATH)}
+          branches={branches}
+          refreshBranches={async () => {
+            const loadedBranches = await loadBranchesWithFallback();
+            setBranches(loadedBranches);
+          }}
         />
       ) : (
         <QuickOrderApp
           key={`order-${configVersion}`}
           gasConfigured={gasConfigured}
+          branches={branches}
+          branchesLoading={branchesLoading}
           onOpenDashboard={() => navigate(DASHBOARD_PATH)}
         />
       )}
       <Toaster
         richColors
         closeButton
-        visibleToasts={2}
-        gap={10}
+        visibleToasts={TOAST_VISIBLE_COUNT}
+        gap={TOAST_GAP_PX}
         position="bottom-right"
         toastOptions={{
-          duration: 4800,
+          duration: TOAST_DURATION_MS,
           classNames: {
             toast: 'gi-toast text-sm font-semibold',
             title: 'gi-toast-title font-extrabold',
@@ -395,7 +316,7 @@ function App() {
   );
 }
 
-function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
+function QuickOrderApp({ gasConfigured, onOpenDashboard, branches, branchesLoading }) {
   const [sizeOpen, setSizeOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -419,7 +340,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
     setMobileEmployeeId(id);
   }
 
-  const [state, dispatch] = useReducer(orderReducer, undefined, createInitialOrderState);
+  const [state, dispatch] = useReducer(orderReducer, branches[0], createInitialOrderState);
   const clothingTypes = getClothingTypes();
 
   const isCompanyComplete = Boolean(
@@ -443,6 +364,12 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
       setActiveTab('table');
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!branchesLoading && branches.length && !branches.includes(state.branch)) {
+      dispatch({ type: 'patchBatch', patch: { branch: branches[0] } });
+    }
+  }, [branches, branchesLoading, state.branch]);
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -990,7 +917,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard }) {
            {/* Wizard Steps */}
           {activeStep === 1 && (
             <div className="space-y-6">
-              <QuickOrderSetupPanel state={state} dispatch={dispatch} forceExpand={true} />
+              <QuickOrderSetupPanel state={state} dispatch={dispatch} forceExpand={true} branches={branches} />
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 bg-white p-4 rounded-xl border border-neutral-200/80 shadow-xs">
                 <span className="hidden sm:block" />
                 <button
@@ -1766,7 +1693,7 @@ function SetupWarning() {
   );
 }
 
-function QuickOrderSetupPanel({ state, dispatch, forceExpand = false }) {
+function QuickOrderSetupPanel({ state, dispatch, forceExpand = false, branches }) {
   const complete = Boolean(
     state.companyName.trim() &&
     state.branch &&
@@ -1861,7 +1788,7 @@ function QuickOrderSetupPanel({ state, dispatch, forceExpand = false }) {
               id="setup-branch"
               value={state.branch}
               onChange={(value) => dispatch({ type: 'patchBatch', patch: { branch: value } })}
-              values={BRANCHES}
+              values={branches}
               placeholder="เลือกสาขา"
             />
           </Field>
@@ -2927,7 +2854,7 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
     </Dialog.Root>
   );
 }
-function DashboardApp({ onOpenOrder }) {
+function DashboardApp({ onOpenOrder, branches, refreshBranches }) {
   const [adminToken, setDashboardToken] = useState(getAdminToken);
   const [dashboardView, setDashboardView] = useState('dashboard');
   const [manualOpen, setManualOpen] = useState(false);
@@ -4261,9 +4188,9 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
   const exportBranchOptions = useMemo(
     () => [
       'ทุกสาขา',
-      ...uniqueSorted([...BRANCHES, ...batches.map((batch) => batch.branch).filter(Boolean)]),
+      ...uniqueSorted([...branches, ...batches.map((batch) => batch.branch).filter(Boolean)]),
     ],
-    [batches]
+    [batches, branches]
   );
   const exportRows = useMemo(() => {
     const startKey = getMonthKeyFromInput(exportStartMonth);
@@ -4286,6 +4213,18 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
       setMonthFilter(monthFilterOptions[0] || 'ทุกเดือน');
     }
   }, [monthFilter, monthFilterOptions]);
+
+  useEffect(() => {
+    if (branchFilter !== 'ทุกสาขา' && !branches.includes(branchFilter)) {
+      setBranchFilter('ทุกสาขา');
+    }
+  }, [branches, branchFilter]);
+
+  useEffect(() => {
+    if (exportBranchFilter !== 'ทุกสาขา' && !branches.includes(exportBranchFilter)) {
+      setExportBranchFilter('ทุกสาขา');
+    }
+  }, [branches, exportBranchFilter]);
 
   async function syncDashboardAction(payload) {
     const expectedUpdatedAt = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
@@ -5110,7 +5049,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           </div>
           <div className="dashboard-filter-body">
           <Field label="สาขา">
-            <Select value={branchFilter} onChange={setBranchFilter} values={['ทุกสาขา', ...BRANCHES]} />
+            <Select value={branchFilter} onChange={setBranchFilter} values={['ทุกสาขา', ...branches]} />
           </Field>
           <Field label="เดือน">
             <Select value={monthFilter} onChange={setMonthFilter} values={monthFilterOptions} />
@@ -5924,6 +5863,32 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         </section>
       )}
 
+      {activeView === 'branches' && (
+        <section className="dashboard-branches-panel">
+          <div className="dashboard-panel-head">
+            <div>
+              <h2>จัดการสาขา</h2>
+              <p>เพิ่ม แก้ไข หรือลบสาขาที่ใช้งานในระบบเบิกเสื้อ</p>
+            </div>
+            <div className="dashboard-panel-actions">
+              <button onClick={() => onViewChange?.('orders')}>
+                <ClipboardList className="size-4" />
+                <span>กลับไปรายการเบิก</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mx-auto max-w-2xl px-4 py-6">
+            <BranchManager 
+              onSaved={async () => {
+                toast.success('บันทึกข้อมูลสาขาสำเร็จ');
+                await refreshBranches();
+              }} 
+            />
+          </div>
+        </section>
+      )}
+
       <BatchDetailDialog
         batch={selectedBatch}
         onClose={() => setSelectedBatch(null)}
@@ -6551,49 +6516,6 @@ function buildBatchItemSummary(batch) {
       a.gender.localeCompare(b.gender, 'th', { numeric: true }) ||
       a.size.localeCompare(b.size, 'th', { numeric: true })
   );
-}
-
-function uniqueSorted(values, sorter) {
-  const unique = [...new Set(values.filter(Boolean))];
-  return sorter
-    ? unique.sort(sorter)
-    : unique.sort((a, b) => String(a).localeCompare(String(b), 'th', { numeric: true }));
-}
-
-function formatMonthLabel(value) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('th-TH', { month: 'long', year: 'numeric' }).format(date);
-}
-
-function formatMonthInputValue(value) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function getMonthKey(value) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return 0;
-  return date.getFullYear() * 100 + date.getMonth() + 1;
-}
-
-function getMonthKeyFromInput(value) {
-  if (!value) return 0;
-  const [year, month] = String(value).split('-').map(Number);
-  if (!year || !month) return 0;
-  return year * 100 + month;
-}
-
-function csvCell(value) {
-  const text = String(value ?? '');
-  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-}
-
-function buildCsvFilename(branch, startMonth, endMonth) {
-  const cleanBranch = branch === 'ทุกสาขา' ? 'all-branches' : branch.replace(/[\\/:*?"<>|]/g, '-');
-  const range = startMonth && endMonth ? `${startMonth}_to_${endMonth}` : 'all-months';
-  return `uniform-orders_${cleanBranch}_${range}.csv`;
 }
 
 function buildMonthFilterOptions(rows) {

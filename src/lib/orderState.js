@@ -57,10 +57,10 @@ export function createEmployeeFromQuickOrder(name, index, quickOrder) {
   };
 }
 
-export function createInitialOrderState() {
+export function createInitialOrderState(defaultBranch = BRANCHES[0]) {
   return {
     companyName: DEFAULT_COMPANY_NAME,
-    branch: BRANCHES[0],
+    branch: defaultBranch,
     supervisorName: '',
     supervisorPhone: '',
     employees: Array.from({ length: 1 }, (_, index) => createEmployee(index)),

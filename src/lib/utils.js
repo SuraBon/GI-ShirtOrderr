@@ -76,3 +76,18 @@ export function buildCsvFilename(branch, startMonth, endMonth) {
   const range = startMonth && endMonth ? `${startMonth}_to_${endMonth}` : 'all-months';
   return `uniform-orders_${cleanBranch}_${range}.csv`;
 }
+
+export function genderSymbol(gender) {
+  return gender === 'ชาย' ? '♂' : '♀';
+}
+
+export function formatDashboardDate(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}

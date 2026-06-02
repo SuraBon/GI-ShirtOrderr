@@ -12,3 +12,6 @@ export { Card, Section, CardMetric } from './CardComponents';
 
 // Alerts & Badges
 export { Alert, Badge, Pill } from './AlertComponents';
+
+// Management
+export { BranchManager } from './BranchManager';

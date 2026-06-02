@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, ClipboardList, HelpCircle, LayoutDashboard, LogOut, Ruler, Shirt, Users } from 'lucide-react';
+import { BookOpen, ClipboardList, HelpCircle, LayoutDashboard, LogOut, Ruler, Shirt, Users, Building2 } from 'lucide-react';
 
 export function Logo({ surface = 'order' }) {
   const isDashboard = surface === 'dashboard';
@@ -74,6 +74,7 @@ export function DashboardHeader({
     { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
     { id: 'employees', label: 'ข้อมูลพนักงาน', icon: Users },
     { id: 'inventory', label: 'แบบเสื้อและสต๊อก', icon: Shirt },
+    { id: 'branches', label: 'จัดการสาขา', icon: Building2 },
   ];
 
   return (
