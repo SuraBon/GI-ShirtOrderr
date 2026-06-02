@@ -2742,6 +2742,14 @@ body {
   font-weight: 900;
 }
 
+.dashboard-request-employee-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-request-employee-summary div {
+  min-height: 5.1rem;
+}
+
 .dashboard-overview-note {
   margin-top: 1rem;
   padding: 1rem 1.25rem;
@@ -3488,7 +3496,18 @@ body {
 
 .dashboard-overview-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.85rem;
+}
+
+.dashboard-overview-stat-card {
+  padding: 1rem;
+  min-height: 7.5rem;
+}
+
+.dashboard-overview-stat-card > div {
+  display: flex;
+  align-items: center;
   gap: 0.85rem;
 }
 
@@ -3504,6 +3523,71 @@ body {
 .dashboard-overview-chart-grid {
   display: grid;
   gap: 0.9rem;
+}
+
+.dashboard-management-panel {
+  border: 1px solid var(--gi-border);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: var(--gi-shadow-soft);
+  padding: 1rem;
+}
+
+.dashboard-management-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-management-tab {
+  flex: 1 1 10rem;
+  min-width: 10rem;
+  border: 1px solid var(--gi-border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--gi-text);
+  font-size: 0.88rem;
+  font-weight: 900;
+  padding: 0.82rem 1rem;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.dashboard-management-tab.active {
+  background: var(--gi-primary);
+  border-color: var(--gi-primary);
+  color: white;
+}
+
+.dashboard-management-tab:hover {
+  background: #eff6ff;
+}
+
+.dashboard-management-content > * {
+  min-height: 22rem;
+}
+
+.dashboard-request-employee-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-request-employee-summary div {
+  min-height: 5.4rem;
+}
+
+.dashboard-request-employee-summary span {
+  display: block;
+  color: var(--gi-muted);
+  font-size: 0.8rem;
+  margin-bottom: 0.4rem;
+}
+
+.dashboard-request-employee-summary strong {
+  display: block;
+  color: var(--gi-text);
+  font-size: 1rem;
+  font-weight: 900;
 }
 
 .dashboard-chart-with-legend {
@@ -3576,6 +3660,8 @@ body {
 
 .dashboard-recent-requests-table td button {
   white-space: nowrap;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.85rem;
 }
 
 .dashboard-overview-stat-card p {
