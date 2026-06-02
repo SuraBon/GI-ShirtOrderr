@@ -102,6 +102,8 @@ import {
   normalizeStockLedger,
   applyStockMovement,
   getStockLedgerSummary,
+  findStockIssuesForStatusChange,
+  adjustStockForStatusChange,
 } from './lib/stockHelpers';
 import {
   TOAST_DURATION_MS,
@@ -4361,87 +4363,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
     });
   }
 
-  function findStockIssuesForStatusChange(config, batch, targetStatus) {
-    if (targetStatus !== ORDER_STATUS_DELIVERED) return [];
-    const issues = [];
-    batch.orders.forEach((order) => {
-      const gender = order.gender || GENDERS[0];
-      order.items.forEach((item) => {
-        if (item.status === ORDER_STATUS_DELIVERED) return; // already shipped
-        if (item.size === OTHER_SIZE) return; // bypass stock check for custom sizes
-        const type = item.type;
-        const clothing = config.find((c) => c.type === type);
-        const sizeKey = item.size;
-        const requested = Number(item.qty || 0);
-
-        if (!clothing || !sizeKey || requested <= 0) {
-          issues.push(`แบบเสื้อ ${type} ไซส์ ${sizeKey || 'ไม่ระบุ'} ไม่มีข้อมูลสต๊อก`);
-          return;
-        }
-
-        const rows = clothing.genderSizeRows?.[gender] || clothing.sizeRows || [];
-        const row = rows.find((r) => r.size === sizeKey);
-        const available = Number(row?.qty || 0);
-        if (available < requested) {
-          issues.push(
-            `แบบเสื้อ ${type} ไซส์ ${sizeKey} (${gender}) ต้องการ ${requested} ชิ้น แต่มีสต๊อก ${available} ชิ้น`
-          );
-        }
-      });
-    });
-    return issues;
-  }
-
-  function adjustStockForStatusChange(config, batch, targetStatus) {
-    return config.map((clothing) => {
-      const ordersForType = batch.orders.flatMap((order) =>
-        order.items
-          .filter((item) => item.type === clothing.type && item.size !== OTHER_SIZE)
-          .map((item) => ({
-            gender: order.gender || GENDERS[0],
-            size: item.size,
-            qty: Number(item.qty || 0),
-            currentStatus: item.status || ORDER_STATUS_PENDING,
-          }))
-      );
-
-      if (!ordersForType.length) return clothing;
-
-      const genderSizeRows = { ...(clothing.genderSizeRows || {}) };
-      let changed = false;
-
-      ordersForType.forEach((orderItem) => {
-        const gender = orderItem.gender;
-        const sizeKey = orderItem.size;
-        const requested = orderItem.qty;
-        const wasShipped = orderItem.currentStatus === ORDER_STATUS_DELIVERED;
-
-        let delta = 0;
-        if (targetStatus === ORDER_STATUS_DELIVERED) {
-          if (!wasShipped) {
-            delta = -requested;
-          }
-        } else {
-          if (wasShipped) {
-            delta = requested;
-          }
-        }
-
-        if (delta === 0) return;
-
-        const rows = genderSizeRows[gender] || clothing.sizeRows || [];
-        const updatedRows = rows.map((row) => {
-          if (row.size !== sizeKey) return row;
-          changed = true;
-          return applyStockMovement(row, delta, delta < 0 ? 'withdraw' : 'restore');
-        });
-        genderSizeRows[gender] = updatedRows;
-      });
-
-      return changed ? { ...clothing, genderSizeRows } : clothing;
-    });
-  }
-
   function getStockAvailable(config, item) {
     if (!item || item.size === OTHER_SIZE) return Number.POSITIVE_INFINITY;
     const clothing = config.find((c) => c.type === item.type);
@@ -4986,12 +4907,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
                 ) : (
                   <div className="dashboard-empty-line">ไม่มีคำสั่งที่รอจัดส่ง</div>
                 )}
-                <div className="dashboard-panel-actions">
-                  <button onClick={() => onViewChange?.('orders')}>
-                    <ClipboardList className="size-4" />
-                    <span>ดูคำสั่งเบิก</span>
-                  </button>
-                </div>
               </article>
               <article className="dashboard-work-card">
                 <div>
@@ -5610,10 +5525,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, 
               <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 <span>โหลดใหม่</span>
-              </button>
-              <button onClick={() => onViewChange?.('orders')}>
-                <ClipboardList className="size-4" />
-                <span>ดูคำสั่งเบิก</span>
               </button>
             </div>
           </div>
