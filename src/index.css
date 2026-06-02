@@ -3458,18 +3458,8 @@ body {
 }
 
 .dashboard-overview-chart-body {
-  display: grid;
-  grid-template-columns: 10rem minmax(0, 1fr);
-  align-items: center;
-  gap: 1rem;
+  display: block;
   padding-top: 0.3rem;
-}
-
-.dashboard-overview-donut {
-  display: grid;
-  width: 10rem;
-  height: 10rem;
-  place-items: center;
 }
 
 .dashboard-overview-bars {
@@ -3489,11 +3479,6 @@ body {
   .dashboard-chart-select {
     flex-basis: auto;
     width: 100%;
-  }
-
-  .dashboard-overview-chart-body {
-    grid-template-columns: 1fr;
-    justify-items: center;
   }
 
   .dashboard-overview-bars {

@@ -66,7 +66,7 @@ import {
   GridSelect,
   Card,
 } from './components';
-import { Donut, MiniBar } from './components/SimpleCharts';
+import { MiniBar } from './components/SimpleCharts';
 import './index.css';
 
 const DASHBOARD_PATH = '#/dashboard';
@@ -7389,7 +7389,6 @@ function DashboardOverviewChart({ batches, metrics }) {
     [chartView, batches, metrics]
   );
   const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
-  const donutData = rows.map((r) => ({ label: r.label, value: r.value, color: r.color }));
   return (
     <div className="dashboard-overview-chart">
       <div className="dashboard-overview-chart-head">
@@ -7413,9 +7412,6 @@ function DashboardOverviewChart({ batches, metrics }) {
         <strong>{total.toLocaleString('th-TH')} {selectedOption.unit}</strong>
       </div>
       <div className="dashboard-overview-chart-body">
-        <div className="dashboard-overview-donut">
-          <Donut data={donutData} size={160} stroke={20} />
-        </div>
         <div className="dashboard-overview-bars">
           <MiniBar rows={rows} />
         </div>
