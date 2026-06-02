@@ -3339,12 +3339,8 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
 }
 function DashboardApp({ onOpenOrder }) {
   const [adminToken, setDashboardToken] = useState(getAdminToken);
-  const [dashboardView, setDashboardView] = useState('orders');
+  const [dashboardView, setDashboardView] = useState('dashboard');
   const [manualOpen, setManualOpen] = useState(false);
-  const BATCH_ID_FORMAT_KEY = 'gi-batch-id-format';
-  const [batchFormat, setBatchFormat] = useState(() =>
-    localStorage.getItem(BATCH_ID_FORMAT_KEY) || import.meta.env.VITE_BATCH_ID_FORMAT || 'day-tail'
-  );
 
   function handleUnlock(token) {
     setAdminToken(token);
@@ -3361,11 +3357,6 @@ function DashboardApp({ onOpenOrder }) {
     setDashboardToken('');
   }
 
-  function handleBatchFormatChange(value) {
-    localStorage.setItem(BATCH_ID_FORMAT_KEY, value);
-    setBatchFormat(value);
-  }
-
   if (!adminToken) {
     return <DashboardLogin onUnlock={handleUnlock} onOpenOrder={onOpenOrder} />;
   }
@@ -3378,8 +3369,6 @@ function DashboardApp({ onOpenOrder }) {
         onOpenOrder={onOpenOrder}
         onManualOpen={() => setManualOpen(true)}
         onLogout={handleLogout}
-        batchFormat={batchFormat}
-        onBatchFormatChange={handleBatchFormatChange}
       />
       <main className="relative z-10 mx-auto flex w-full gi-container flex-col gap-3 pb-10 pt-3 lg:gap-4">
         <Dashboard
@@ -4678,17 +4667,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     [rows]
   );
 
-  const employeeCompanyGroups = useMemo(() => {
-    const counts = new Map();
-    employeeRows.forEach((row) => {
-      const company = row.companyName || 'ไม่ระบุบริษัท';
-      counts.set(company, (counts.get(company) || 0) + 1);
-    });
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'th'))
-      .slice(0, 3);
-  }, [employeeRows]);
-
   const monthFilterOptions = useMemo(() => buildMonthFilterOptions(rows), [rows]);
   const metrics = useMemo(() => buildDashboardMetrics(filteredBatches), [filteredBatches]);
   const allRows = useMemo(() => flattenBatches(batches), [batches]);
@@ -5433,6 +5411,29 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
     }),
     { totalStock: 0, withdrawn: 0, remaining: 0 }
   );
+  const pendingBatchRows = filteredBatches.filter((batch) => batch.status === ORDER_STATUS_PENDING);
+  const oldestPendingBatches = [...pendingBatchRows]
+    .sort(
+      (a, b) =>
+        new Date(a.submittedAt || 0).getTime() - new Date(b.submittedAt || 0).getTime() ||
+        a.batchId.localeCompare(b.batchId, 'th', { numeric: true })
+    )
+    .slice(0, 4);
+  const shippedPiecePercent = metrics.totalPieces
+    ? Math.round((metrics.shippedPieces / metrics.totalPieces) * 100)
+    : 0;
+  const pendingPiecePercent = metrics.totalPieces
+    ? Math.round((metrics.pendingPieces / metrics.totalPieces) * 100)
+    : 0;
+  const stockWatchRows = stockSummaryRows
+    .filter((row) => row.remaining <= 10 || row.remaining <= row.withdrawn)
+    .sort(
+      (a, b) =>
+        a.remaining - b.remaining ||
+        b.withdrawn - a.withdrawn ||
+        a.type.localeCompare(b.type, 'th')
+    )
+    .slice(0, 5);
   const selectedPieces = Array.from(selectedBatchIds).reduce((sum, id) => {
     const batch = batches.find((item) => item.batchId === id);
     return sum + (batch ? getBatchPieces(batch) : 0);
@@ -5473,8 +5474,8 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
         <section className="dashboard-overview-page">
           <div className="dashboard-overview-hero">
             <div>
-              <h2>ภาพรวมการดำเนินงาน</h2>
-              <p>ติดตามคำสั่งเบิก สต๊อก และข้อมูลพนักงาน ได้ครบในหน้าเดียว</p>
+              <h2>ภาพรวม</h2>
+              <p>สรุปงานที่ต้องทำก่อน: คิวรอจัดส่ง สัดส่วนงานที่ปิดแล้ว และสต๊อกที่ควรตรวจ</p>
             </div>
             <div className="dashboard-panel-actions">
               <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
@@ -5486,10 +5487,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
 
           <div className="dashboard-overview-grid">
             <div className="dashboard-overview-stats">
-              <Stat icon={ClipboardList} value={filteredBatches.length} label="คำสั่งเบิกทั้งหมด" />
-              <Stat icon={PackageSearch} value={metrics.totalCompanies} label="บริษัท / หน่วยงาน" />
-              <Stat icon={Users} value={`${metrics.totalEmployees} คน`} label="พนักงานที่เบิก" />
+              <Stat icon={Truck} value={`${metrics.pendingPieces} ชิ้น`} label="รอจัดส่ง" />
               <Stat icon={PackageCheck} value={`${metrics.shippedPieces} ชิ้น`} label="จัดส่งแล้ว" />
+              <Stat icon={BarChart3} value={`${shippedPiecePercent}%`} label="อัตราจัดส่ง" />
+              <Stat icon={PackageSearch} value={`${stockSummaryTotals.remaining} ชิ้น`} label="สต๊อกคงเหลือ" />
             </div>
 
             <div className="dashboard-overview-chart-card">
@@ -5509,7 +5510,7 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
                 <span>คงเหลือ {stockSummaryTotals.remaining} ชิ้น</span>
               </div>
               <div className="dashboard-stock-summary-notes">
-                <p>ดูรายการสต๊อกต่ำที่สุดด้านล่าง เพื่อเลือกงานที่ต้องแก้ก่อนจัดส่ง</p>
+                <p>รอจัดส่ง {pendingPiecePercent}% ของจำนวนที่เบิกทั้งหมด ใช้คู่กับรายการสต๊อกที่ควรดูด้านล่าง</p>
               </div>
             </div>
           </div>
@@ -5517,14 +5518,34 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
           <div className="dashboard-overview-workspace">
               <article className="dashboard-work-card">
                 <div>
-                  <h2>งานที่ต้องติดตาม</h2>
-                  <p>แยกจากงานสต๊อก เพื่อให้ภาพรวมโฟกัสที่คำสั่งเบิกและการจัดส่ง</p>
+                  <h2>คิวรอจัดส่ง</h2>
+                  <p>{pendingBatchRows.length} คำสั่ง · {metrics.pendingPieces} ชิ้นที่ยังไม่ปิดงาน</p>
                 </div>
-                <div className="dashboard-work-list">
-                  <p><span className="dot red" /> รอจัดส่ง <strong>{countByStatus(ORDER_STATUS_PENDING)} รายการ</strong></p>
-                  <p><span className="dot green" /> จัดส่งแล้ว <strong>{countByStatus(ORDER_STATUS_DELIVERED)} รายการ</strong></p>
-                  <p><span className="dot blue" /> ยกเลิก <strong>{countByStatus(ORDER_STATUS_CANCELED)} รายการ</strong></p>
-                </div>
+                {oldestPendingBatches.length ? (
+                  <div className="dashboard-priority-list">
+                    {oldestPendingBatches.map((batch) => (
+                      <button
+                        key={batch.batchId}
+                        type="button"
+                        onClick={() => {
+                          onViewChange?.('orders');
+                          setExpandedBatchIds((current) => new Set(current).add(batch.batchId));
+                        }}
+                      >
+                        <span>
+                          <strong>{batch.batchId}</strong>
+                          <small>{batch.companyName || '-'} · {batch.branch || '-'}</small>
+                        </span>
+                        <span>
+                          <strong>{getBatchPieces(batch)} ชิ้น</strong>
+                          <small>{formatDashboardDate(batch.submittedAt)}</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="dashboard-empty-line">ไม่มีคำสั่งที่รอจัดส่ง</div>
+                )}
                 <div className="dashboard-panel-actions">
                   <button onClick={() => onViewChange?.('orders')}>
                     <ClipboardList className="size-4" />
@@ -5534,17 +5555,31 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
               </article>
               <article className="dashboard-work-card">
                 <div>
-                  <h2>ข้อมูลพนักงาน</h2>
-                  <p>ดูรายคนว่าเบิกเสื้ออะไร ไซส์ไหน จำนวนเท่าไร และอยู่คำสั่งใด</p>
+                  <h2>สต๊อกที่ควรดู</h2>
+                  <p>รายการที่คงเหลือน้อยหรือถูกเบิกมากเทียบกับของคงเหลือ</p>
                 </div>
-                <div className="dashboard-work-list">
-                  <p><span className="dot blue" /> รายการเบิกรายคน <strong>{employeeRows.length} รายการ</strong></p>
-                  <p><span className="dot green" /> จำนวนพนักงาน <strong>{metrics.totalEmployees} คน</strong></p>
-                </div>
+                {stockWatchRows.length ? (
+                  <div className="dashboard-priority-list">
+                    {stockWatchRows.map((row) => (
+                      <button key={row.id} type="button" onClick={() => onViewChange?.('inventory')}>
+                        <span>
+                          <strong>{row.type}</strong>
+                          <small>{row.gender} · {row.size || '-'}</small>
+                        </span>
+                        <span>
+                          <strong>เหลือ {row.remaining} ชิ้น</strong>
+                          <small>เบิกแล้ว {row.withdrawn} ชิ้น</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="dashboard-empty-line">สต๊อกยังอยู่ในระดับปกติ</div>
+                )}
                 <div className="dashboard-panel-actions">
-                  <button onClick={() => onViewChange?.('employees')}>
-                    <Users className="size-4" />
-                    <span>ดูข้อมูลพนักงาน</span>
+                  <button onClick={() => onViewChange?.('inventory')}>
+                    <Shirt className="size-4" />
+                    <span>ดูสต๊อก</span>
                   </button>
                 </div>
               </article>
@@ -6203,24 +6238,10 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
             </div>
           </div>
           <div className="dashboard-panel-summary">
-            <MiniMetric label="พนักงานทั้งหมด" value={employeeRows.length} />
-            <MiniMetric label="บริษัท" value={metrics.totalCompanies} />
-            <MiniMetric label="สาขา" value={branchFilter} />
-            <MiniMetric label="ค้นหา" value={query || '-'} />
-          </div>
-
-          <div className="dashboard-group-summary">
-            <h3>บริษัทที่มีรายการมากที่สุด</h3>
-            {employeeCompanyGroups.length ? (
-              employeeCompanyGroups.map(([company, count]) => (
-                <p key={company}>
-                  <strong>{company}</strong>
-                  <span>{count} รายการ</span>
-                </p>
-              ))
-            ) : (
-              <p>ยังไม่มีข้อมูลบริษัท</p>
-            )}
+            <MiniMetric label="รายการพนักงาน" value={employeeRows.length} />
+            <MiniMetric label="จำนวนรวม" value={`${metrics.totalPieces} ชิ้น`} />
+            <MiniMetric label="รอจัดส่ง" value={`${metrics.pendingPieces} ชิ้น`} />
+            <MiniMetric label="จัดส่งแล้ว" value={`${metrics.shippedPieces} ชิ้น`} />
           </div>
 
           {isEmployeePageLoading ? (
@@ -7264,16 +7285,14 @@ function buildDashboardMetrics(batches) {
 
 function Stat({ icon: Icon, value, label }) {
   return (
-    <Card className="min-w-0 p-3 sm:p-4 hover:-translate-y-0.5 active:translate-y-0 transition duration-300">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#EEF4FF] text-[#002B5B] sm:size-10 shadow-xs">
-          <Icon className="size-4 sm:size-5" />
-        </div>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="shrink-0 text-xl font-black leading-none text-[#071638] sm:text-2xl">
-            {value}
-          </p>
-          <p className="min-w-0 truncate text-[11px] font-bold text-neutral-400 sm:text-xs uppercase tracking-wider">{label}</p>
+    <Card className="dashboard-overview-stat-card">
+      <div>
+        <span>
+          <Icon className="size-4" />
+        </span>
+        <div>
+          <p>{value}</p>
+          <small>{label}</small>
         </div>
       </div>
     </Card>
@@ -7288,16 +7307,16 @@ function DashboardOverviewChart({ metrics }) {
   ];
   const donutData = rows.map((r) => ({ label: r.label, value: r.value, color: r.color }));
   return (
-    <div className="dashboard-overview-chart gi-card">
+    <div className="dashboard-overview-chart">
       <div className="dashboard-overview-chart-head">
         <h3>กราฟสถานะคำสั่งเบิก</h3>
         <p>เปรียบเทียบจำนวนชิ้นตามสถานะเพื่อดูภาพรวม</p>
       </div>
-      <div style={{ display: 'flex', gap: 18, alignItems: 'center', paddingTop: 8 }}>
-        <div style={{ width: 160, height: 160 }}>
+      <div className="dashboard-overview-chart-body">
+        <div className="dashboard-overview-donut">
           <Donut data={donutData} size={160} stroke={20} />
         </div>
-        <div style={{ flex: 1 }}>
+        <div className="dashboard-overview-bars">
           <MiniBar rows={rows} />
         </div>
       </div>

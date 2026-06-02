@@ -70,9 +70,9 @@ export function DashboardHeader({
   onLogout,
 }) {
   const navItems = [
+    { id: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
     { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
     { id: 'employees', label: 'ข้อมูลพนักงาน', icon: Users },
-    { id: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
     { id: 'inventory', label: 'แบบเสื้อและสต๊อก', icon: Shirt },
   ];
 
