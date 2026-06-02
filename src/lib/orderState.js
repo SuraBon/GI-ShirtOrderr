@@ -1,10 +1,5 @@
 import { BRANCHES } from '../constants/branches';
-import {
-  OTHER_SIZE,
-  getSizeOptions,
-  getClothingTypes,
-  defaultSize,
-} from './config';
+import { OTHER_SIZE, getSizeOptions, getClothingTypes, defaultSize } from './config';
 import { digitsOnly } from './utils';
 
 export const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
@@ -144,6 +139,22 @@ export function orderReducer(state, action) {
         ...state,
         employees: state.employees.filter((employee) => employee.id !== action.id),
       };
+    case 'cloneEmployee': {
+      const source = state.employees.find((employee) => employee.id === action.id);
+      if (!source) return state;
+      const index = state.employees.findIndex((employee) => employee.id === action.id);
+      const cloned = {
+        id: crypto.randomUUID(),
+        employeeId: '',
+        name: source.name ? `${source.name} (คัดลอก)` : '',
+        gender: source.gender,
+        expanded: false,
+        items: source.items.map((item) => ({ ...item })),
+      };
+      const employees = [...state.employees];
+      employees.splice(index + 1, 0, cloned);
+      return { ...state, employees };
+    }
     case 'toggleExpand':
       return {
         ...state,
@@ -253,7 +264,7 @@ export function flattenBatches(batches) {
         supervisorPhone: batch.supervisorPhone,
         status: batch.status,
         itemStatus: normalizeOrderStatus(item.status, normalizeOrderStatus(batch.status)),
-        statusUpdatedAt: batch.statusUpdatedAt,
+        statusUpdatedAt: item.statusUpdatedAt || batch.statusUpdatedAt,
         name: order.name,
         gender: order.gender,
         type: item.type,
@@ -268,15 +279,15 @@ export function normalizeBatch(batch) {
   const normalizedOrders = Array.isArray(batch.orders)
     ? batch.orders
         .map((order) => ({
-          name: order.name || '-',
-          gender: order.gender || '-',
+          name: String(order?.name || '-'),
+          gender: String(order?.gender || '-'),
           items: Array.isArray(order.items)
             ? order.items
                 .map((item) => ({
-                  type: item.type || '-',
-                  size: item.size || '-',
-                  qty: Number(item.qty || 0),
-                  status: normalizeOrderStatus(item.status, normalizeOrderStatus(batch.status)),
+                  type: String(item?.type || '-'),
+                  size: String(item?.size || '-'),
+                  qty: Number(item?.qty || 0),
+                  status: normalizeOrderStatus(item?.status, normalizeOrderStatus(batch.status)),
                   statusUpdatedAt:
                     item.statusUpdatedAt ||
                     batch.statusUpdatedAt ||
@@ -301,11 +312,11 @@ export function normalizeBatch(batch) {
   }
 
   return {
-    batchId: batch.batchId || `ORD-${Date.now()}`,
-    companyName: batch.companyName || '',
-    branch: batch.branch || '-',
-    supervisorName: batch.supervisorName || '',
-    supervisorPhone: batch.supervisorPhone || '',
+    batchId: String(batch.batchId || `ORD-${Date.now()}`),
+    companyName: String(batch.companyName || ''),
+    branch: String(batch.branch || '-'),
+    supervisorName: String(batch.supervisorName || ''),
+    supervisorPhone: String(batch.supervisorPhone || ''),
     submittedAt: batch.submittedAt || new Date().toISOString(),
     status: batchStatus,
     statusUpdatedAt: batch.statusUpdatedAt || batch.submittedAt || new Date().toISOString(),
@@ -361,8 +372,6 @@ export function hasEmployeeData(employee) {
   return Boolean(
     employee.name.trim() ||
     employee.gender ||
-    employee.items.some(
-      (item) => item.size || item.customSize.trim() || Number(item.qty || 0) > 0
-    )
+    employee.items.some((item) => item.size || item.customSize.trim() || Number(item.qty || 0) > 0)
   );
 }

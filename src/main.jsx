@@ -39,7 +39,7 @@ import {
   AlertTriangle,
   Edit3,
 } from 'lucide-react';
-import { cn } from './lib/utils';
+import { cn, digitsOnly } from './lib/utils';
 import {
   readClothingConfig,
   saveClothingConfig,
@@ -50,7 +50,6 @@ import {
   getClothingTypes,
   getSizeOptions,
   getSizeOptionsWithLabels,
-  defaultSize,
 } from './lib/config';
 import {
   EMPLOYEE_TABLE_COLUMNS,
@@ -72,7 +71,33 @@ import {
   GridSelect,
   Card,
 } from './components';
+import {
+  DashboardDataNotice,
+  DashboardPageSkeleton,
+  MiniMetric,
+  MobileInfo,
+  SkeletonDashboard,
+  Stat,
+  StatusBadge,
+} from './components/DashboardCommon';
 import { DashboardOverviewChart } from './components/DashboardOverviewChart';
+import {
+  ORDER_STATUS_CANCELED,
+  ORDER_STATUS_DELIVERED,
+  ORDER_STATUS_PENDING,
+  ORDER_STATUSES,
+  buildOrderSummaryRows,
+  canDeleteEmployee,
+  createInitialOrderState,
+  flattenBatches,
+  getEmployeeMissingFields,
+  hasEmployeeData,
+  isEmployeeComplete,
+  normalizeBatch,
+  normalizeOrderStatus,
+  orderReducer,
+} from './lib/orderState';
+import { BRANCHES } from './constants/branches';
 import './index.css';
 
 const DASHBOARD_PATH = '#/dashboard';
@@ -81,37 +106,7 @@ const DASHBOARD_SESSION_KEY = 'gi-dashboard-admin-token';
 // clothing config keys and helpers are imported from ./lib/config
 const IMAGE_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const IMAGE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
-const DEFAULT_COMPANY_NAME = 'โกลด์ อินทิเกรท จำกัด';
-const ORDER_STATUS_PENDING = 'รอจัดส่ง';
-const ORDER_STATUS_DELIVERED = 'จัดส่งแล้ว';
-const ORDER_STATUS_CANCELED = 'ยกเลิก';
-const ORDER_STATUSES = [ORDER_STATUS_PENDING, ORDER_STATUS_DELIVERED, ORDER_STATUS_CANCELED];
 
-function normalizeOrderStatus(status, fallback = ORDER_STATUS_PENDING) {
-  if (status === 'รอของ' || String(status || '').includes('บางส่วน')) return ORDER_STATUS_PENDING;
-  return ORDER_STATUSES.includes(status) ? status : fallback;
-}
-
-const BRANCHES = [
-  'GI(สาขาใหญ่)',
-  'EV7(สาขาใหญ่)',
-  'The Mall บางกะปิ',
-  'The Mall บางแค',
-  'Warehouse',
-  'กาญจนาภิเษก',
-  'บางนา ทาวเวอร์',
-  'พิบูลสงคราม',
-  'มหาชัย',
-  'มีนบุรี',
-  'วิภาวดี',
-  'ศาลายา',
-  'อยุธยา',
-  'อุบลราชธานี',
-  'เซ็นทรัลพระราม 2',
-  'เลียบคลอง 2',
-  'เลียบด่วนรามอินทรา',
-  'เอ็มสเฟียร์',
-];
 const GENDERS = ['ชาย', 'หญิง'];
 
 function genderSymbol(gender) {
@@ -237,10 +232,6 @@ function patchSizeWithDefaultQty(item, size) {
   };
 }
 
-function digitsOnly(value) {
-  return String(value ?? '').replace(/\D/g, '');
-}
-
 function phoneDigitsOnly(value) {
   return digitsOnly(value).slice(0, PHONE_LENGTH);
 }
@@ -250,374 +241,6 @@ function formatPhone(value) {
   if (phone.length <= 3) return phone;
   if (phone.length <= 6) return `${phone.slice(0, 3)}-${phone.slice(3)}`;
   return `${phone.slice(0, 3)}-${phone.slice(3, 6)}-${phone.slice(6)}`;
-}
-
-function createEmployee(index = 0) {
-  return {
-    id: crypto.randomUUID(),
-    employeeId: '',
-    name: '',
-    gender: '',
-    expanded: index === 0,
-    items: [],
-  };
-}
-
-function createOrderItem(type, gender, size = '', qty = 2) {
-  const options = gender ? getSizeOptions(type, gender) : [];
-  const nextSize = size && options.includes(size) ? size : gender ? defaultSize(type, gender) : '';
-  return {
-    type,
-    size: nextSize,
-    customSize: '',
-    qty: digitsOnly(qty || 2),
-  };
-}
-
-function createQuickOrderItems({ gender, defaultSizeValue, customItems }) {
-  const sourceItems = getClothingTypes()
-    .map((type, index) => ({
-      type,
-      qty: customItems?.[index]?.qty || 2,
-      enabled: Boolean(customItems?.[index]?.enabled),
-    }))
-    .filter((item) => item.enabled);
-
-  return sourceItems.map((item) => createOrderItem(item.type, gender, defaultSizeValue, item.qty));
-}
-
-function createEmployeeFromQuickOrder(name, index, quickOrder) {
-  return {
-    ...createEmployee(index),
-    name,
-    gender: quickOrder.gender,
-    expanded: index === 0,
-    items: createQuickOrderItems(quickOrder),
-  };
-}
-
-function createInitialOrderState() {
-  return {
-    companyName: DEFAULT_COMPANY_NAME,
-    branch: BRANCHES[0],
-    supervisorName: '',
-    supervisorPhone: '',
-    employees: Array.from({ length: 1 }, (_, index) => createEmployee(index)),
-  };
-}
-
-function canDeleteEmployee(employees) {
-  return employees.length > 1;
-}
-
-function orderReducer(state, action) {
-  switch (action.type) {
-    case 'patchBatch':
-      return { ...state, ...action.patch };
-    case 'generate':
-      return {
-        ...state,
-        employees: Array.from({ length: action.count }, (_, index) => createEmployee(index)),
-      };
-    case 'syncCount': {
-      const count = Math.max(1, Number(action.count || 1));
-      const employees = state.employees.slice(0, count);
-      while (employees.length < count) employees.push(createEmployee(employees.length));
-      return { ...state, employees };
-    }
-    case 'setNamesFromPaste': {
-      const names = action.names.filter(Boolean);
-      if (!names.length) return state;
-      const employees = names.map((name, index) => ({
-        ...(state.employees[index] || createEmployee(index)),
-        name,
-        expanded: index === 0,
-      }));
-      return { ...state, employees };
-    }
-    case 'applyQuickOrder': {
-      const names = action.names.filter(Boolean);
-      if (!names.length) return state;
-      return {
-        ...state,
-        employees: names.map((name, index) =>
-          createEmployeeFromQuickOrder(name, index, action.quickOrder)
-        ),
-      };
-    }
-    case 'copyFirstSetupToAll': {
-      const source = state.employees[0];
-      if (!source) return state;
-      return {
-        ...state,
-        employees: state.employees.map((employee, index) =>
-          index === 0
-            ? employee
-            : {
-                ...employee,
-                gender: source.gender,
-                items: source.items.map((item) => ({ ...item })),
-              }
-        ),
-      };
-    }
-    case 'removeBlankEmployees': {
-      const employees = state.employees.filter(hasEmployeeData);
-      return { ...state, employees: employees.length ? employees : [createEmployee(0)] };
-    }
-    case 'add': {
-      const newEmployee = createEmployee(state.employees.length);
-      if (action.id) {
-        newEmployee.id = action.id;
-      }
-      return { ...state, employees: [...state.employees, newEmployee] };
-    }
-    case 'delete':
-      if (!canDeleteEmployee(state.employees)) return state;
-      return {
-        ...state,
-        employees: state.employees.filter((employee) => employee.id !== action.id),
-      };
-    case 'cloneEmployee': {
-      const source = state.employees.find((employee) => employee.id === action.id);
-      if (!source) return state;
-      const index = state.employees.findIndex((employee) => employee.id === action.id);
-      const cloned = {
-        id: crypto.randomUUID(),
-        employeeId: '',
-        name: source.name ? `${source.name} (คัดลอก)` : '',
-        gender: source.gender,
-        expanded: false,
-        items: source.items.map((item) => ({ ...item })),
-      };
-      const employees = [...state.employees];
-      employees.splice(index + 1, 0, cloned);
-      return { ...state, employees };
-    }
-    case 'toggleExpand':
-      return {
-        ...state,
-        employees: state.employees.map((employee) =>
-          employee.id === action.id ? { ...employee, expanded: !employee.expanded } : employee
-        ),
-      };
-    case 'focusEmployee':
-      return {
-        ...state,
-        employees: state.employees.map((employee) => ({
-          ...employee,
-          expanded: employee.id === action.id,
-        })),
-      };
-    case 'saveAndOpenNext':
-      return {
-        ...state,
-        employees: state.employees.map((employee, index) => ({
-          ...employee,
-          expanded: index === action.nextIndex,
-        })),
-      };
-    case 'patchEmployee':
-      return {
-        ...state,
-        employees: state.employees.map((employee) => {
-          if (employee.id !== action.id) return employee;
-          const next = { ...employee, ...action.patch };
-          if ('gender' in action.patch) {
-            next.items = next.items.map((item) => ({
-              ...item,
-              size: '',
-              customSize: '',
-            }));
-          }
-          return next;
-        }),
-      };
-    case 'toggleType':
-      return {
-        ...state,
-        employees: state.employees.map((employee) => {
-          if (employee.id !== action.id) return employee;
-          const exists = employee.items.some((item) => item.type === action.itemType);
-          const items = exists
-            ? employee.items.filter((item) => item.type !== action.itemType)
-            : [...employee.items, createOrderItem(action.itemType, employee.gender)];
-          return { ...employee, items };
-        }),
-      };
-    case 'patchItem':
-      return {
-        ...state,
-        employees: state.employees.map((employee) =>
-          employee.id === action.id
-            ? {
-                ...employee,
-                items: employee.items.map((item) =>
-                  item.type === action.itemType
-                    ? {
-                        ...item,
-                        ...action.patch,
-                        ...(action.patch?.type && action.patch.type !== item.type
-                          ? { size: '', customSize: '' }
-                          : {}),
-                      }
-                    : item
-                ),
-              }
-            : employee
-        ),
-      };
-    case 'copyEmployeeSetup': {
-      const source = state.employees.find((employee) => employee.id === action.sourceId);
-      if (!source) return state;
-      return {
-        ...state,
-        employees: state.employees.map((employee) =>
-          employee.id === action.id
-            ? {
-                ...employee,
-                gender: source.gender,
-                items: source.items.map((item) => ({ ...item })),
-              }
-            : employee
-        ),
-      };
-    }
-    case 'reset':
-      return createInitialOrderState();
-    default:
-      return state;
-  }
-}
-
-function flattenBatches(batches) {
-  return batches.flatMap((batch) =>
-    batch.orders.flatMap((order) =>
-      order.items.map((item, index) => ({
-        id: `${batch.batchId}-${order.name}-${item.type}-${index}`,
-        batchId: batch.batchId,
-        submittedAt: batch.submittedAt,
-        companyName: batch.companyName,
-        branch: batch.branch,
-        supervisorName: batch.supervisorName,
-        supervisorPhone: batch.supervisorPhone,
-        status: batch.status,
-        itemStatus: normalizeOrderStatus(item.status, normalizeOrderStatus(batch.status)),
-        statusUpdatedAt: item.statusUpdatedAt || batch.statusUpdatedAt,
-        name: order.name,
-        gender: order.gender,
-        type: item.type,
-        size: item.size,
-        qty: Number(item.qty || 0),
-      }))
-    )
-  );
-}
-
-function normalizeBatch(batch) {
-  const normalizedOrders = Array.isArray(batch.orders)
-    ? batch.orders
-        .map((order) => ({
-          name: String(order?.name || '-'),
-          gender: String(order?.gender || '-'),
-          items: Array.isArray(order.items)
-            ? order.items
-                .map((item) => ({
-                  type: String(item?.type || '-'),
-                  size: String(item?.size || '-'),
-                  qty: Number(item?.qty || 0),
-                  status: normalizeOrderStatus(
-                    item?.status,
-                    normalizeOrderStatus(batch.status)
-                  ),
-                  statusUpdatedAt:
-                    item.statusUpdatedAt ||
-                    batch.statusUpdatedAt ||
-                    batch.submittedAt ||
-                    new Date().toISOString(),
-                }))
-                .filter((item) => item.qty > 0)
-            : [],
-        }))
-        .filter((order) => order.items.length)
-    : [];
-
-  const allItems = normalizedOrders.flatMap((o) => o.items);
-  let batchStatus = normalizeOrderStatus(batch.status);
-  if (allItems.length > 0) {
-    const uniqueStatuses = new Set(allItems.map((i) => i.status));
-    if (uniqueStatuses.size === 1) {
-      batchStatus = Array.from(uniqueStatuses)[0];
-    } else {
-      batchStatus = ORDER_STATUS_PENDING;
-    }
-  }
-
-  return {
-    batchId: String(batch.batchId || `ORD-${Date.now()}`),
-    companyName: String(batch.companyName || ''),
-    branch: String(batch.branch || '-'),
-    supervisorName: String(batch.supervisorName || ''),
-    supervisorPhone: String(batch.supervisorPhone || ''),
-    submittedAt: batch.submittedAt || new Date().toISOString(),
-    status: batchStatus,
-    statusUpdatedAt: batch.statusUpdatedAt || batch.submittedAt || new Date().toISOString(),
-    orders: normalizedOrders,
-  };
-}
-
-function buildOrderSummaryRows(employees) {
-  return employees.flatMap((employee) =>
-    employee.items
-      .filter((item) => item.size)
-      .map((item) => ({
-        id: `${employee.id}-${item.type}-${item.size}`,
-        name: employee.name || '-',
-        type: item.type,
-        size: item.size === OTHER_SIZE ? item.customSize || '-' : item.size,
-        qty: Number(item.qty || 0),
-      }))
-  );
-}
-
-function isEmployeeComplete(employee) {
-  return Boolean(
-    employee.name.trim() &&
-    employee.gender &&
-    employee.items.length &&
-    employee.items.every(
-      (item) =>
-        item.size &&
-        Number(item.qty || 0) > 0 &&
-        (item.size !== OTHER_SIZE || item.customSize.trim())
-    )
-  );
-}
-
-function getEmployeeMissingFields(employee) {
-  const missing = [];
-  if (!employee.name.trim()) missing.push('ชื่อ');
-  if (!employee.gender) missing.push('เพศ');
-  if (!employee.items.length) {
-    missing.push('ประเภทเสื้อ');
-    return missing;
-  }
-
-  if (employee.items.some((item) => !item.size)) missing.push('ไซส์');
-  if (employee.items.some((item) => Number(item.qty || 0) <= 0)) missing.push('จำนวน');
-  if (employee.items.some((item) => item.size === OTHER_SIZE && !item.customSize.trim()))
-    missing.push('ระบุไซส์เพิ่มเติม');
-  return missing;
-}
-
-function hasEmployeeData(employee) {
-  return Boolean(
-    employee.name.trim() ||
-    employee.gender ||
-    employee.items.some(
-      (item) => item.size || item.customSize.trim() || Number(item.qty || 0) > 0
-    )
-  );
 }
 
 function isGasConfigured() {
@@ -6351,22 +5974,6 @@ function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
 
 }
 
-function MobileInfo({ label, value, compact = false, strong = false }) {
-  return (
-    <div className={cn('min-w-0 rounded-lg bg-[#F8FAFC] px-2.5 py-2', compact && 'bg-white')}>
-      <p className="truncate text-[11px] font-bold text-[#64748B]">{label}</p>
-      <p
-        className={cn(
-          'mt-0.5 break-words text-xs leading-5 text-[#071638]',
-          strong ? 'font-black' : 'font-bold'
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
 function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onItemStatusChange }) {
   const requested = Number(item.qty || 0);
   const gender = order.gender || GENDERS[0];
@@ -6419,38 +6026,6 @@ function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onIte
           ยกเลิก
         </button>
       </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const displayStatus = normalizeOrderStatus(status);
-  let classes = 'bg-[#CBD5E1] text-[#334155]'; // default/gray
-  if (displayStatus === ORDER_STATUS_DELIVERED) {
-    classes = 'bg-[#DCFCE7] text-[#166534]'; // green
-  } else if (displayStatus === ORDER_STATUS_PENDING) {
-    classes = 'bg-[#FEE2E2] text-[#991B1B]'; // red (waiting shipment)
-  } else if (displayStatus === ORDER_STATUS_CANCELED) {
-    classes = 'bg-[#E2E8F0] text-[#475569]'; // slate
-  }
-  return (
-    <span
-      data-status={displayStatus}
-      className={cn(
-        'status-badge inline-flex shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold',
-        classes
-      )}
-    >
-      {displayStatus}
-    </span>
-  );
-}
-
-function MiniMetric({ label, value }) {
-  return (
-    <div className="min-w-0 rounded-lg bg-[#F4F7FC] px-2.5 py-2">
-      <p className="truncate text-xs font-bold text-[#64748B]">{label}</p>
-      <p className="mt-0.5 truncate text-sm font-extrabold text-[#071638]">{value}</p>
     </div>
   );
 }
@@ -6944,32 +6519,6 @@ function BatchDetailDialog({
   );
 }
 
-function DashboardDataNotice({ message, detail, onRetry, refreshing }) {
-  return (
-    <section className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-yellow-900 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-yellow-700" />
-          <div>
-            <h2 className="text-sm font-black">ยังโหลดข้อมูลจริงจาก Google Sheets ไม่สำเร็จ</h2>
-            <p className="mt-1 text-xs font-bold leading-5">{message}</p>
-            {detail && <p className="mt-1 text-xs font-semibold leading-5 text-yellow-800">{detail}</p>}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onRetry}
-          disabled={refreshing}
-          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-yellow-300 bg-white px-3 text-xs font-black text-yellow-900 shadow-xs transition hover:bg-yellow-100 disabled:opacity-60"
-        >
-          {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-          โหลดใหม่
-        </button>
-      </div>
-    </section>
-  );
-}
-
 function getBatchPieces(batch) {
   return flattenBatches([batch]).reduce((sum, row) => sum + Number(row.qty || 0), 0);
 }
@@ -7086,55 +6635,6 @@ function buildDashboardMetrics(batches) {
     deliveredBatches: batches.filter((batch) => batch.status === ORDER_STATUS_DELIVERED).length,
     canceledBatches: batches.filter((batch) => batch.status === ORDER_STATUS_CANCELED).length,
   };
-}
-
-function Stat({ icon: Icon, value, label }) {
-  return (
-    <Card className="dashboard-overview-stat-card">
-      <div>
-        <span>
-          <Icon className="size-4" />
-        </span>
-        <div>
-          <p>{value}</p>
-          <small>{label}</small>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function DashboardPageSkeleton({ rows = 6 }) {
-  return (
-    <div className="dashboard-page-skeleton" aria-busy="true" aria-live="polite">
-      {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="dashboard-page-skeleton-row">
-          <span className="skeleton" />
-          <span className="skeleton" />
-          <span className="skeleton" />
-          <span className="skeleton" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SkeletonDashboard() {
-  return (
-    <div
-      className="relative z-10 mx-auto grid w-full max-w-[1240px] gap-4 px-4 py-6 sm:px-6"
-      aria-busy="true"
-      aria-live="polite"
-    >
-      <div className="flex min-h-24 items-center justify-center gap-3 rounded-2xl border border-[#D8DEEA] bg-white/90 text-sm font-bold text-[#44536A] shadow-sm">
-        <Loader2 className="size-5 animate-spin text-[#002B5B]" />
-        <span>กำลังโหลดข้อมูล...</span>
-      </div>
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="h-32 animate-pulse rounded-2xl bg-white/80" />
-      ))}
-    </div>
-  );
 }
 
 const rootElement = document.getElementById('root');

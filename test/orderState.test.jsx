@@ -1,4 +1,4 @@
-import { normalizeBatch, orderReducer } from '../src/lib/orderState';
+import { flattenBatches, normalizeBatch, orderReducer } from '../src/lib/orderState';
 
 describe('orderReducer', () => {
   it('resets size fields when changing an item type', () => {
@@ -90,5 +90,77 @@ describe('orderReducer', () => {
 
     expect(batch.status).toBe('ยกเลิก');
     expect(batch.orders[0].items[0].status).toBe('ยกเลิก');
+  });
+
+  it('clones an employee directly after the source row', () => {
+    const state = {
+      companyName: '',
+      branch: '',
+      supervisorName: '',
+      supervisorPhone: '',
+      employees: [
+        {
+          id: 'employee-1',
+          employeeId: 'E001',
+          name: 'A',
+          gender: 'male',
+          expanded: true,
+          items: [{ type: 'polo', size: 'L', customSize: '', qty: '1' }],
+        },
+        {
+          id: 'employee-2',
+          employeeId: '',
+          name: 'B',
+          gender: 'female',
+          expanded: false,
+          items: [],
+        },
+      ],
+    };
+
+    const nextState = orderReducer(state, { type: 'cloneEmployee', id: 'employee-1' });
+
+    expect(nextState.employees).toHaveLength(3);
+    expect(nextState.employees[1]).toMatchObject({
+      employeeId: '',
+      name: expect.stringMatching(/^A \(.+\)$/),
+      gender: 'male',
+      expanded: false,
+      items: [{ type: 'polo', size: 'L', customSize: '', qty: '1' }],
+    });
+    expect(nextState.employees[1].id).not.toBe('employee-1');
+    expect(nextState.employees[2].id).toBe('employee-2');
+  });
+
+  it('keeps item status update timestamps when flattening batches', () => {
+    const rows = flattenBatches([
+      {
+        batchId: 'ORD-1',
+        submittedAt: '2026-06-01T00:00:00.000Z',
+        companyName: 'Company',
+        branch: 'Branch',
+        supervisorName: 'Supervisor',
+        supervisorPhone: '0812345678',
+        status: 'pending',
+        statusUpdatedAt: '2026-06-01T01:00:00.000Z',
+        orders: [
+          {
+            name: 'Employee A',
+            gender: 'male',
+            items: [
+              {
+                type: 'polo',
+                size: 'L',
+                qty: 1,
+                status: 'delivered',
+                statusUpdatedAt: '2026-06-02T01:00:00.000Z',
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    expect(rows[0].statusUpdatedAt).toBe('2026-06-02T01:00:00.000Z');
   });
 });
