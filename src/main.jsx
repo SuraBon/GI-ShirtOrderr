@@ -2893,6 +2893,7 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
       <main className="relative z-10 mx-auto flex w-full gi-container flex-col gap-3 pb-10 pt-3 lg:gap-4">
         <Dashboard
           activeView={dashboardView}
+          branches={effectiveBranches}
           onAuthExpired={handleAuthExpired}
           onViewChange={setDashboardView}
         />
@@ -4022,7 +4023,8 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
   );
 }
 
-function Dashboard({ activeView = 'orders', onAuthExpired, onViewChange }) {
+function Dashboard({ activeView = 'orders', branches = BRANCHES, onAuthExpired, onViewChange }) {
+  const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
