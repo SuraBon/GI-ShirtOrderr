@@ -3730,7 +3730,7 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
         <div className="inventory-list-head">
           <div>
             <h3>แบบเสื้อ</h3>
-            <p>{config.length} รายการ</p>
+            <p className="inventory-list-count">{config.length} รายการ</p>
           </div>
           <button onClick={addClothing}>
             <Plus className="size-4" /> เพิ่ม
@@ -3784,6 +3784,10 @@ function InventoryManager({ config, setConfig, onAuthExpired }) {
             <p>
               ใช้แท็บข้อมูลเสื้อสำหรับชื่อและรูป ส่วนแท็บสต๊อกใช้แก้จำนวนคงเหลือตามไซส์
             </p>
+            <div className="inventory-toolbar-meta">
+              <span>{stockRows.length} ไซส์</span>
+              <span>{selectedItem.imageUrl ? 'มีรูปภาพ' : 'ยังไม่มีรูป'}</span>
+            </div>
           </div>
           <button className={editing ? 'done' : ''} onClick={() => setEditing((value) => !value)}>
             <Pencil className="size-4" />

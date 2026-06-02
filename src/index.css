@@ -3691,6 +3691,110 @@ body {
   font-weight: 750;
 }
 
+.inventory-list-count {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #1e3a8a;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.inventory-toolbar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.inventory-toolbar-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--gi-text);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.inventory-item-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.inventory-item-delete {
+  display: inline-flex;
+  width: 2.3rem;
+  height: 2.3rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.inventory-item-delete:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inventory-size-detail-header,
+.inventory-stock-header {
+  background: #f1f5f9;
+  border: 1px solid var(--gi-border);
+}
+
+.inventory-size-detail-header {
+  border-radius: 9px;
+  padding: 0.75rem 0.55rem;
+}
+
+.inventory-stock-header {
+  border-radius: 9px;
+  padding: 0.75rem 0.55rem;
+}
+
+.inventory-size-detail-row {
+  transition: background 0.2s ease;
+}
+
+.inventory-size-detail-row:nth-child(even) {
+  background: #f8fafc;
+}
+
+.inventory-stock-row:nth-child(even) {
+  background: #eef2ff;
+}
+
+.inventory-stock-row input,
+.inventory-size-detail-row input {
+  width: 100%;
+}
+
+.inventory-stock-table {
+  border: 1px solid var(--gi-border);
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #ffffff;
+}
+
+.inventory-size-detail-table {
+  border: 1px solid var(--gi-border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #ffffff;
+}
+
+.inventory-add-stock {
+  margin-top: 0.95rem;
+  border-radius: 12px;
+}
+
 .inventory-list-head button,
 .inventory-edit-toolbar button,
 .inventory-inline-head button,
