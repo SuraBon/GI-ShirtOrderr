@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { RefreshCw, Truck, PackageCheck, BarChart3, PackageSearch } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { RefreshCw, Truck, PackageCheck, BarChart3, PackageSearch, X } from 'lucide-react';
 import { Stat } from './DashboardCommon';
 import DashboardOverviewChart from './DashboardOverviewChart';
+import { Select } from './SelectComponents';
+import { TextInput } from './FormComponents';
 
 function DashboardStockDetailTable({ stockSummaryRows, limit = 16 }) {
   const visibleRows = stockSummaryRows.slice(0, limit);
@@ -33,6 +36,139 @@ function DashboardStockDetailTable({ stockSummaryRows, limit = 16 }) {
   );
 }
 
+function DashboardDrilldownModal({ stockSummaryRows, onClose }) {
+  const [filterType, setFilterType] = useState('ทั้งหมด');
+  const [filterGender, setFilterGender] = useState('ทั้งหมด');
+  const [filterMode, setFilterMode] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const typeOptions = useMemo(
+    () => ['ทั้งหมด', ...Array.from(new Set(stockSummaryRows.map((row) => row.type)))],
+    [stockSummaryRows]
+  );
+  const genderOptions = useMemo(
+    () => ['ทั้งหมด', ...Array.from(new Set(stockSummaryRows.map((row) => row.gender)))],
+    [stockSummaryRows]
+  );
+  const modeOptions = [
+    { value: 'all', label: 'ทั้งหมด' },
+    { value: 'lowStock', label: 'สต๊อกต่ำ' },
+    { value: 'withdrawn', label: 'เบิกแล้ว' },
+  ];
+
+  const filteredRows = useMemo(() => {
+    return stockSummaryRows.filter((row) => {
+      if (filterType !== 'ทั้งหมด' && row.type !== filterType) return false;
+      if (filterGender !== 'ทั้งหมด' && row.gender !== filterGender) return false;
+      if (filterMode === 'lowStock' && row.remaining > 10) return false;
+      if (filterMode === 'withdrawn' && row.withdrawn <= 0) return false;
+      if (searchTerm) {
+        const text = `${row.type} ${row.gender} ${row.size}`.toLowerCase();
+        return text.includes(searchTerm.toLowerCase());
+      }
+      return true;
+    });
+  }, [stockSummaryRows, filterType, filterGender, filterMode, searchTerm]);
+
+  return (
+    <Dialog.Root>
+      <Dialog.Trigger asChild>
+        <button type="button" className="dashboard-action-btn">
+          เปิด drilldown
+        </button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dashboard-drilldown-overlay" />
+        <Dialog.Content className="dashboard-drilldown-content">
+          <div className="dashboard-drilldown-header">
+            <div>
+              <h3>รายละเอียด Drilldown</h3>
+              <p>กรองและดูข้อมูลสต๊อกเชิงลึกเมื่อข้อมูลมากและหลากหลาย</p>
+            </div>
+            <Dialog.Close asChild>
+              <button type="button" className="dashboard-drilldown-close" aria-label="ปิด">
+                <X className="size-4" />
+              </button>
+            </Dialog.Close>
+          </div>
+
+          <div className="dashboard-drilldown-summary">
+            <div>
+              <strong>{stockSummaryRows.length}</strong>
+              <span>แถวข้อมูลสต๊อกทั้งหมด</span>
+            </div>
+            <div>
+              <strong>{filteredRows.length}</strong>
+              <span>ผลลัพธ์ที่แสดง</span>
+            </div>
+          </div>
+
+          <div className="dashboard-drilldown-filters">
+            <Select
+              value={filterType}
+              onChange={setFilterType}
+              values={typeOptions}
+              title="กรองตามแบบเสื้อ"
+              size="sm"
+            />
+            <Select
+              value={filterGender}
+              onChange={setFilterGender}
+              values={genderOptions}
+              title="กรองตามเพศ"
+              size="sm"
+            />
+            <Select
+              value={filterMode}
+              onChange={setFilterMode}
+              values={modeOptions}
+              title="กรองตามสถานะ"
+              size="sm"
+            />
+            <TextInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="ค้นหาแบบเสื้อ, เพศ, ไซส์"
+            />
+          </div>
+
+          <div className="dashboard-drilldown-table-wrap">
+            <table className="dashboard-drilldown-table">
+              <thead>
+                <tr>
+                  <th>แบบเสื้อ</th>
+                  <th>เพศ</th>
+                  <th>ไซส์</th>
+                  <th>เบิกแล้ว</th>
+                  <th>คงเหลือ</th>
+                  <th>สต๊อกทั้งหมด</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.type}</td>
+                    <td>{row.gender}</td>
+                    <td>{row.size || '-'}</td>
+                    <td>{row.withdrawn}</td>
+                    <td>{row.remaining}</td>
+                    <td>{row.totalStock}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!filteredRows.length && (
+              <div className="dashboard-drilldown-empty">
+                ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา
+              </div>
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 export function DashboardOverview({
   onRefresh,
   metrics,
@@ -48,7 +184,6 @@ export function DashboardOverview({
 }) {
   const [showOverviewMetrics, setShowOverviewMetrics] = useState(false);
   const [showOverviewChartDetails, setShowOverviewChartDetails] = useState(false);
-  const [showStockDetails, setShowStockDetails] = useState(false);
   const shippedPiecePercent = metrics.totalPieces
     ? Math.round((metrics.shippedPieces / metrics.totalPieces) * 100)
     : 0;
@@ -65,6 +200,7 @@ export function DashboardOverview({
             <RefreshCw className="size-4" />
             โหลดข้อมูลใหม่
           </button>
+          <DashboardDrilldownModal stockSummaryRows={stockSummaryRows} />
         </div>
       </div>
 
@@ -170,23 +306,6 @@ export function DashboardOverview({
             <p>รอจัดส่ง {pendingPiecePercent}% ของจำนวนที่เบิกทั้งหมด ใช้คู่กับรายการสต๊อกที่ควรดูด้านล่าง</p>
           </div>
         </div>
-      </div>
-
-      <div className="dashboard-stock-detail-card">
-        <div className="dashboard-panel-head slim">
-          <div>
-            <h3>สต๊อกละเอียด</h3>
-            <p>กดดูเพื่อแยกสต๊อกตามแบบเสื้อ เพศ และไซส์</p>
-          </div>
-          <button
-            type="button"
-            className="dashboard-toggle-detail"
-            onClick={() => setShowStockDetails((value) => !value)}
-          >
-            {showStockDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
-          </button>
-        </div>
-        {showStockDetails && <DashboardStockDetailTable stockSummaryRows={stockSummaryRows} />}
       </div>
 
       <div className="dashboard-inventory-card-grid">
