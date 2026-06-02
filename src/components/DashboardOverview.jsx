@@ -1,7 +1,217 @@
 import React, { useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { Donut, LineChart } from './SimpleCharts';
 import { Select } from './SelectComponents';
 import { TextInput } from './FormComponents';
+
+function formatMonthLabel(date) {
+  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  return `${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function limitChartRows(rows, maxRows = 6) {
+  const sorted = rows.sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, 'th'));
+  if (sorted.length <= maxRows) return sorted;
+  const visible = sorted.slice(0, maxRows - 1);
+  const otherValue = sorted.slice(maxRows - 1).reduce((sum, row) => sum + row.value, 0);
+  return [...visible, { label: 'อื่นๆ', value: otherValue, color: '#CBD5E1' }];
+}
+
+function DashboardMetrics({ metrics, stockSummaryRows }) {
+  const stockTotals = useMemo(
+    () =>
+      stockSummaryRows.reduce(
+        (totals, row) => {
+          const amount = Number(row.totalStock || 0);
+          return {
+            totalStock: totals.totalStock + amount,
+            maleStock: totals.maleStock + (row.gender === 'ชาย' ? amount : 0),
+            femaleStock: totals.femaleStock + (row.gender === 'หญิง' ? amount : 0),
+          };
+        },
+        { totalStock: 0, maleStock: 0, femaleStock: 0 }
+      ),
+    [stockSummaryRows]
+  );
+
+  return (
+    <div className="dashboard-overview-stats">
+      <div className="dashboard-overview-stat-card">
+        <div>
+          <span>!</span>
+          <div>
+            <p>{metrics.pendingBatches || 0} คำสั่ง</p>
+            <small>รายการรออนุมัติ</small>
+          </div>
+        </div>
+      </div>
+      <div className="dashboard-overview-stat-card">
+        <div>
+          <span>📦</span>
+          <div>
+            <p>{stockTotals.totalStock.toLocaleString('th-TH')} ชิ้น</p>
+            <small>สต๊อกรวม (ชาย {stockTotals.maleStock.toLocaleString('th-TH')} / หญิง {stockTotals.femaleStock.toLocaleString('th-TH')})</small>
+          </div>
+        </div>
+      </div>
+      <div className="dashboard-overview-stat-card">
+        <div>
+          <span>↗️</span>
+          <div>
+            <p>{metrics.shippedPieces || 0} ชิ้น</p>
+            <small>ยอดเบิกสะสม</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StockCharts({ rows }) {
+  const sizeShareRows = useMemo(() => {
+    const map = new Map();
+    rows.forEach((row) => {
+      const gender = row.gender || 'ไม่ระบุเพศ';
+      const size = row.size || '-';
+      const key = `${gender} ${size}`;
+      map.set(key, (map.get(key) || 0) + Number(row.qty || 0));
+    });
+    return limitChartRows(
+      [...map.entries()].map(([label, value], index) => ({
+        label,
+        value,
+        color: index === 0 ? '#2563eb' : index === 1 ? '#f97316' : index === 2 ? '#8b5cf6' : index === 3 ? '#ec4899' : '#22c55e',
+      }))
+    );
+  }, [rows]);
+
+  const trendRows = useMemo(() => {
+    const map = new Map();
+    rows.forEach((row) => {
+      const submittedAt = row.submittedAt ? new Date(row.submittedAt) : null;
+      if (!submittedAt || Number.isNaN(submittedAt.getTime())) return;
+      const key = `${submittedAt.getFullYear()}-${String(submittedAt.getMonth() + 1).padStart(2, '0')}`;
+      map.set(key, (map.get(key) || 0) + Number(row.qty || 0));
+    });
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], 'th'))
+      .slice(-6)
+      .map(([key, value]) => {
+        const [year, month] = key.split('-');
+        return {
+          label: formatMonthLabel(new Date(Number(year), Number(month) - 1, 1)),
+          value,
+        };
+      });
+  }, [rows]);
+
+  return (
+    <div className="dashboard-overview-chart-grid">
+      <div className="dashboard-overview-chart-card">
+        <div className="dashboard-overview-chart-head">
+          <h3>สัดส่วนไซส์เสื้อ</h3>
+          <p>ดูไซส์ที่มีการเบิกสูงสุดตามเพศ</p>
+        </div>
+        <div className="dashboard-overview-chart-body dashboard-chart-with-legend">
+          <div className="dashboard-donut-wrapper">
+            <Donut data={sizeShareRows} size={200} stroke={18} />
+          </div>
+          <div className="dashboard-donut-legend">
+            {sizeShareRows.map((item) => (
+              <div key={item.label} className="dashboard-donut-legend-row">
+                <span style={{ background: item.color }} />
+                <strong>{item.label}</strong>
+                <small>{item.value} ชิ้น</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-overview-chart-card">
+        <div className="dashboard-overview-chart-head">
+          <h3>แนวโน้มการเบิก</h3>
+          <p>ดูการเคลื่อนไหวของยอดเบิกรายเดือน</p>
+        </div>
+        <div className="dashboard-overview-chart-body">
+          {trendRows.length ? (
+            <LineChart data={trendRows} width={320} height={170} />
+          ) : (
+            <div className="dashboard-empty-line">ยังไม่มีข้อมูลแนวโน้ม</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecentRequests({ batches }) {
+  const recentRows = useMemo(
+    () =>
+      [...batches]
+        .sort(
+          (a, b) =>
+            new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime() ||
+            String(b.batchId).localeCompare(String(a.batchId), 'th')
+        )
+        .slice(0, 5),
+    [batches]
+  );
+
+  return (
+    <div className="dashboard-overview-panel dashboard-recent-requests-card">
+      <div className="dashboard-panel-head slim">
+        <div>
+          <h3>รายการขอล่าสุด</h3>
+          <p>คำขอ 5 อันดับล่าสุด พร้อมปุ่มดูรายละเอียด</p>
+        </div>
+      </div>
+      <div className="dashboard-recent-requests-table-wrap">
+        <table className="dashboard-recent-requests-table">
+          <thead>
+            <tr>
+              <th>เลขที่</th>
+              <th>สาขา</th>
+              <th>วันที่</th>
+              <th>ชิ้น</th>
+              <th>สถานะ</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {recentRows.map((batch) => (
+              <tr key={batch.batchId}>
+                <td>{batch.batchId}</td>
+                <td>{batch.branch || '-'}</td>
+                <td>{new Date(batch.submittedAt).toLocaleDateString('th-TH')}</td>
+                <td>{batch.orders.reduce((sum, order) => sum + order.items.reduce((s, item) => s + Number(item.qty || 0), 0), 0)}</td>
+                <td>{batch.status}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.hash = '#/order';
+                    }}
+                    className="dashboard-action-btn"
+                  >
+                    ดูรายละเอียด
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {!recentRows.length && (
+              <tr>
+                <td colSpan="6">
+                  <div className="dashboard-empty-line">ยังไม่มีคำขอใหม่</div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function BranchOverview({ rows, statuses }) {
   const branchOptions = useMemo(
@@ -230,7 +440,9 @@ function StockOverview({ stockSummaryRows }) {
 
 export function DashboardOverview({
   onRefresh,
+  metrics,
   rows,
+  filteredBatches,
   stockSummaryRows,
   statuses,
 }) {
@@ -239,7 +451,7 @@ export function DashboardOverview({
       <div className="dashboard-overview-hero">
         <div>
           <h2>ภาพรวม</h2>
-          <p>เลือกสาขาและแบบเสื้อเพื่อดูสต๊อก และรายการยังไม่เสร็จ</p>
+          <p>ตัวเลขสรุป สต๊อก และคำขอใหม่ในหน้าเดียว</p>
         </div>
         <div className="dashboard-panel-actions">
           <button type="button" onClick={onRefresh} className="dashboard-action-btn dark">
@@ -248,6 +460,9 @@ export function DashboardOverview({
           </button>
         </div>
       </div>
+
+      <DashboardMetrics metrics={metrics} stockSummaryRows={stockSummaryRows} />
+      <StockCharts rows={rows} />
 
       <div className="dashboard-overview-grid">
         <section className="dashboard-overview-panel">
@@ -259,9 +474,7 @@ export function DashboardOverview({
         </section>
       </div>
 
-      <div className="dashboard-overview-note">
-        <strong>หมายเหตุ:</strong> หากยังมีรายการรอจัดส่ง ระบบจะแสดงยอดคงค้างไว้ในสรุปสาขา
-      </div>
+      <RecentRequests batches={filteredBatches} />
     </div>
   );
 }
