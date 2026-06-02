@@ -1,10 +1,5 @@
 import React, { useMemo } from 'react';
-import { AlertTriangle, PackageCheck, RefreshCw, Shirt, Truck } from 'lucide-react';
-
-function formatMonthLabel(date) {
-  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-  return `${months[date.getMonth()]} ${date.getFullYear()}`;
-}
+import { AlertTriangle, PackageCheck, RefreshCw, Shirt } from 'lucide-react';
 
 function formatDate(value) {
   const date = value ? new Date(value) : null;
@@ -19,13 +14,6 @@ function getBatchPieces(batch) {
   );
 }
 
-function limitChartRows(rows, maxRows = 6) {
-  const sorted = [...rows].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, 'th'));
-  if (sorted.length <= maxRows) return sorted;
-  const visible = sorted.slice(0, maxRows - 1);
-  const otherValue = sorted.slice(maxRows - 1).reduce((sum, row) => sum + row.value, 0);
-  return [...visible, { label: 'อื่นๆ', value: otherValue, color: '#94a3b8' }];
-}
 
 function KpiCard({ icon: Icon, label, value, detail, tone = 'default' }) {
   return (
