@@ -58,6 +58,7 @@ export function DashboardOverview({
           </button>
           <button type="button" onClick={onRefresh} className="dashboard-action-btn dashboard-secondary-action dashboard-icon-action" title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
             <RefreshCw className="size-4" />
+            <span>โหลดใหม่</span>
           </button>
         </div>
       </div>

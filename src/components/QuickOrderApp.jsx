@@ -708,9 +708,9 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
                       className={cn(
-                        "flex flex-1 items-center justify-center gap-1.5 py-2 px-3 text-xs sm:text-sm font-extrabold rounded-xl transition-all cursor-pointer border sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] shadow-xs",
+                        "quick-order-tab-button flex flex-1 items-center justify-center gap-1.5 py-2 px-3 text-xs sm:text-sm font-extrabold rounded-xl transition-all cursor-pointer border sm:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] shadow-xs",
                         activeTab === tab.id 
-                          ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10" 
+                          ? "quick-order-tab-button-active bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10" 
                           : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800"
                       )}
                       >
@@ -1123,7 +1123,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                           <button
                             type="button"
                             onClick={downloadCsvTemplate}
-                            className="mt-4 inline-flex items-center justify-center gap-2 h-10 rounded-lg border border-[#002B5B] text-[#002B5B] hover:bg-[#002B5B]/5 text-xs font-extrabold transition shadow-xs cursor-pointer"
+                            className="quick-order-action-button quick-order-action-secondary mt-4 inline-flex items-center justify-center gap-2 h-10 rounded-lg border border-[#002B5B] text-[#002B5B] hover:bg-[#002B5B]/5 text-xs font-extrabold transition shadow-xs cursor-pointer"
                           >
                             <Download className="size-4" />
                             <span>ดาวน์โหลดเทมเพลต CSV</span>
@@ -1135,7 +1135,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                             <h4 className="font-extrabold text-sm text-[#071638]">2. อัปโหลดและนำเข้าข้อมูล</h4>
                             <p className="text-xs font-semibold text-neutral-500 mt-1 leading-5">อัปโหลดไฟล์ตารางพนักงานของคุณเพื่อแสดงผลการกรองและนำเข้าตารางหลัก</p>
                           </div>
-                          <label className="mt-4 inline-flex items-center justify-center gap-2 h-10 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] text-xs font-extrabold cursor-pointer transition shadow-xs">
+                          <label className="quick-order-action-button quick-order-action-primary mt-4 inline-flex items-center justify-center gap-2 h-10 rounded-lg bg-[#002B5B] text-white hover:bg-[#001f42] text-xs font-extrabold cursor-pointer transition shadow-xs">
                             <Upload className="size-4" />
                             <span>เลือกไฟล์อัปโหลด (.csv)</span>
                             <input
@@ -1223,7 +1223,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                   <button
                     type="button"
                     onClick={() => setActiveStep(1)}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition cursor-pointer"
+                    className="quick-order-action-button quick-order-action-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition cursor-pointer"
                   >
                     <ArrowLeft className="size-4" />
                     <span>ย้อนกลับ</span>
@@ -1238,7 +1238,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                         setActiveStep(3);
                       }
                     }}
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-[#002B5B] text-white hover:bg-[#001f42] px-6 py-2.5 font-extrabold transition shadow-md active:scale-95 cursor-pointer"
+                    className="quick-order-action-button quick-order-action-primary flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-[#002B5B] text-white hover:bg-[#001f42] px-6 py-2.5 font-extrabold transition shadow-md active:scale-95 cursor-pointer"
                   >
                     <span>ถัดไป: ตรวจสอบและส่ง</span>
                     <ArrowRight className="size-4" />
@@ -1360,7 +1360,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => setActiveStep(2)}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition disabled:opacity-50 cursor-pointer"
+                    className="quick-order-action-button quick-order-action-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 px-5 py-2.5 font-bold transition disabled:opacity-50 cursor-pointer"
                   >
                     <ArrowLeft className="size-4" />
                     <span>ย้อนกลับ</span>
@@ -1372,7 +1372,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                   disabled={isSubmitting || !gasConfigured}
                   onClick={submitOrder}
                   className={cn(
-                    "w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-7 py-3 font-extrabold text-white transition shadow-md active:scale-95 text-base cursor-pointer",
+                    "quick-order-action-button quick-order-action-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-7 py-3 font-extrabold text-white transition shadow-md active:scale-95 text-base cursor-pointer",
                     (gasConfigured && !isSubmitting)
                       ? "bg-green-600 hover:bg-green-700"
                       : "bg-neutral-300 cursor-not-allowed"

@@ -93,6 +93,7 @@ export function InventoryManager({
   const [stockAdjustments, setStockAdjustments] = useState({});
   const [deleteClothingId, setDeleteClothingId] = useState('');
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [detailsDialogTab, setDetailsDialogTab] = useState('details');
   const syncTimerRef = useRef(null);
 
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
@@ -372,6 +373,8 @@ export function InventoryManager({
     ]);
     setSelectedId(id);
     setEditing(true);
+    setDetailsDialogTab('details');
+    setDetailsDialogOpen(true);
   }
 
   async function uploadImage(id, file) {
@@ -405,6 +408,13 @@ export function InventoryManager({
 
   if (!selectedItem) return null;
 
+  const openClothingDialog = (itemId, tab = 'details') => {
+    setSelectedId(itemId);
+    setEditing(true);
+    setDetailsDialogTab(tab);
+    setDetailsDialogOpen(true);
+  };
+
   return (
     <>
       <section className={cn('inventory-workbench', modeLocked && mode === 'stock' && 'stock-focus', detailsInDialog && 'details-dialog-mode')}>
@@ -418,27 +428,35 @@ export function InventoryManager({
               <Plus className="size-4" /> เพิ่ม
             </button>
           </div>
-          <div className="inventory-catalog-list">
+          <div className={cn('inventory-catalog-list', detailsInDialog && 'inventory-card-catalog')}>
             {config.map((item) => {
               const itemStats = allItemStats.find((entry) => entry.id === item.id)?.stats || {
+                totalStock: 0,
+                withdrawn: 0,
                 remaining: 0,
               };
               const canDelete = config.length > 1;
               return (
-                <div
+                <article
                   role="button"
                   tabIndex={0}
                   key={item.id}
                   className={cn('inventory-catalog-card', item.id === selectedItem.id && 'active')}
                   onClick={() => {
-                    setSelectedId(item.id);
-                    setEditing(false);
+                    if (detailsInDialog) openClothingDialog(item.id, 'stock');
+                    else {
+                      setSelectedId(item.id);
+                      setEditing(false);
+                    }
                   }}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return;
                     event.preventDefault();
-                    setSelectedId(item.id);
-                    setEditing(false);
+                    if (detailsInDialog) openClothingDialog(item.id, 'stock');
+                    else {
+                      setSelectedId(item.id);
+                      setEditing(false);
+                    }
                   }}
                 >
                   <span className="inventory-item-thumb">
@@ -448,6 +466,27 @@ export function InventoryManager({
                     <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
                     <small>คงเหลือ {itemStats.remaining.toLocaleString('th-TH')} ชิ้น</small>
                   </span>
+                  {detailsInDialog && (
+                    <span className="inventory-card-metrics" aria-hidden="true">
+                      <span><b>{itemStats.totalStock.toLocaleString('th-TH')}</b> ทั้งหมด</span>
+                      <span><b>{itemStats.withdrawn.toLocaleString('th-TH')}</b> เบิกไป</span>
+                      <span><b>{itemStats.remaining.toLocaleString('th-TH')}</b> คงเหลือ</span>
+                    </span>
+                  )}
+                  {detailsInDialog && (
+                    <span className="inventory-card-actions">
+                      <button
+                        type="button"
+                        className="inventory-card-manage-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openClothingDialog(item.id, 'stock');
+                        }}
+                      >
+                        จัดการ
+                      </button>
+                    </span>
+                  )}
                   <button
                     type="button"
                     className="inventory-item-delete"
@@ -460,13 +499,13 @@ export function InventoryManager({
                   >
                     <Trash2 className="size-4" />
                   </button>
-                </div>
+                </article>
               );
             })}
           </div>
         </aside>
 
-        <div className="inventory-editor-panel">
+        {!detailsInDialog && <div className="inventory-editor-panel">
           <div className="inventory-hero-card">
             {detailsInDialog ? (
               <div className="inventory-stock-action-copy">
@@ -697,7 +736,7 @@ export function InventoryManager({
               })}
             </div>
           </section>
-        </div>
+        </div>}
       </section>
 
       <Dialog.Root open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
@@ -706,9 +745,9 @@ export function InventoryManager({
           <Dialog.Content className="inventory-details-dialog">
             <div className="inventory-details-dialog-head">
               <div>
-                <Dialog.Title>รายละเอียดเสื้อ</Dialog.Title>
+                <Dialog.Title>จัดการแบบเสื้อ</Dialog.Title>
                 <Dialog.Description>
-                  แก้ชื่อ รูปภาพ และรายละเอียดไซส์ของ {selectedItem.type || 'แบบเสื้อที่เลือก'}
+                  {selectedItem.type || 'แบบเสื้อที่เลือก'} · {selectedGender} / {stockRows.length} ไซส์
                 </Dialog.Description>
               </div>
               <Dialog.Close className="dashboard-dialog-close" aria-label="ปิด">
@@ -716,7 +755,40 @@ export function InventoryManager({
               </Dialog.Close>
             </div>
 
-            <div className="inventory-detail-grid">
+            <div className="inventory-dialog-summary-strip">
+              <div>
+                <span>สต๊อกทั้งหมด</span>
+                <strong>{stockStats.totalStock.toLocaleString('th-TH')} ชิ้น</strong>
+              </div>
+              <div>
+                <span>เบิกไป</span>
+                <strong>{stockStats.withdrawn.toLocaleString('th-TH')} ชิ้น</strong>
+              </div>
+              <div>
+                <span>คงเหลือ</span>
+                <strong>{stockStats.remaining.toLocaleString('th-TH')} ชิ้น</strong>
+              </div>
+            </div>
+
+            <div className="inventory-dialog-tabs" role="tablist" aria-label="เลือกหน้าจัดการแบบเสื้อ">
+              <button
+                type="button"
+                className={detailsDialogTab === 'details' ? 'active' : ''}
+                onClick={() => setDetailsDialogTab('details')}
+              >
+                รายละเอียดเสื้อ
+              </button>
+              <button
+                type="button"
+                className={detailsDialogTab === 'stock' ? 'active' : ''}
+                onClick={() => setDetailsDialogTab('stock')}
+              >
+                สต๊อก
+              </button>
+            </div>
+
+            <div className={cn('inventory-dialog-tab-panel', detailsDialogTab !== 'details' && 'hidden')}>
+              <div className="inventory-detail-grid">
               <div className="inventory-image-box">
                 <ClothingImage
                   src={selectedItem.imageUrl}
@@ -752,7 +824,7 @@ export function InventoryManager({
               </div>
             </div>
 
-            <div className="inventory-size-fields inventory-size-fields-dialog">
+              <div className="inventory-size-fields inventory-size-fields-dialog">
               <div className="inventory-size-fields-top">
                 <div>
                   <strong>รายละเอียดไซส์</strong>
@@ -811,6 +883,58 @@ export function InventoryManager({
               <button type="button" className="btn-secondary btn-sm inventory-add-stock" onClick={() => addStockRow(selectedItem.id)}>
                 <Plus className="size-4" /> เพิ่มไซส์
               </button>
+              </div>
+            </div>
+
+            <div className={cn('inventory-dialog-tab-panel', detailsDialogTab !== 'stock' && 'hidden')}>
+              <div className="inventory-size-fields-top inventory-stock-dialog-head">
+                <div>
+                  <strong>สต๊อกตามไซส์</strong>
+                  <span>รับเข้าใช้เลขบวก เช่น +10 / ปรับลดใช้เลขลบ เช่น -2</span>
+                </div>
+                <div className="inventory-gender-toggle">
+                  {GENDERS.map((gender) => (
+                    <button key={gender} type="button" className={selectedGender === gender ? 'active' : ''} onClick={() => setSelectedGender(gender)}>
+                      {gender}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="inventory-stock-table inventory-dialog-stock-table is-editing">
+                <div className="inventory-stock-header">
+                  <span>ไซส์</span>
+                  <span>สต๊อกทั้งหมด</span>
+                  <span>เบิกไป</span>
+                  <span>คงเหลือ</span>
+                  <span>รับเข้า / ปรับลด</span>
+                </div>
+                {stockRows.map((row, index) => {
+                  const summary = getStockLedgerSummary(row);
+                  return (
+                    <div className="inventory-stock-row" key={`${selectedItem.id}-${selectedGender}-dialog-stock-${index}`}>
+                      <strong>{row.size || '-'}</strong>
+                      <span>{summary.totalStock.toLocaleString('th-TH')} ชิ้น</span>
+                      <span>{summary.withdrawn.toLocaleString('th-TH')} ชิ้น</span>
+                      <span>{summary.remaining.toLocaleString('th-TH')} ชิ้น</span>
+                      <div className="inventory-stock-adjust">
+                        <TextInput
+                          type="number"
+                          inputMode="numeric"
+                          value={stockAdjustments[getStockAdjustmentKey(index)] || ''}
+                          onChange={(value) =>
+                            setStockAdjustments((current) => ({ ...current, [getStockAdjustmentKey(index)]: value }))
+                          }
+                          placeholder="+10 หรือ -2"
+                        />
+                        <button type="button" className="btn-primary btn-sm" onClick={() => adjustStockQuantity(selectedItem.id, index)}>
+                          บันทึก
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </Dialog.Content>
         </Dialog.Portal>

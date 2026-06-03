@@ -74,30 +74,31 @@ export function DashboardHeader({
     <header className="gi-dashboard-header relative z-10 border-b px-3 py-2 shadow-xs">
       <div className="gi-container flex items-center gap-3">
         <Logo surface="dashboard" showMark={false} />
-        <nav className="gi-dashboard-nav flex items-center gap-2" aria-label="เมนูแอดมิน">
-          {navItems.map((item) => (
+        <div className="gi-dashboard-nav-shell">
+          <nav className="gi-dashboard-nav flex items-center gap-2" aria-label="เมนูแอดมิน">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                className={activeView === item.id ? 'active' : ''}
+                onClick={() => onViewChange?.(item.id)}
+                type="button"
+                aria-current={activeView === item.id ? 'page' : undefined}
+              >
+                {item.icon ? <item.icon className="size-4" /> : null}
+                {item.label}
+              </button>
+            ))}
             <button
-              key={item.id}
-              className={activeView === item.id ? 'active' : ''}
-              onClick={() => onViewChange?.(item.id)}
+              onClick={onLogout}
+              className="dashboard-nav-logout"
+              title="ออกจากระบบแอดมิน"
               type="button"
-              aria-current={activeView === item.id ? 'page' : undefined}
             >
-              {item.icon ? <item.icon className="size-4" /> : null}
-              {item.label}
+              <LogOut className="size-4" />
+              ออกจากระบบ
             </button>
-          ))}
-        </nav>
-        <div className="dashboard-header-actions flex items-center gap-2 md:ml-auto">
-          <button
-            onClick={onLogout}
-            aria-label="ออกจากระบบ"
-            className="dashboard-logout-button grid place-items-center rounded-full"
-            title="ออกจากระบบแอดมิน"
-            type="button"
-          >
-            <LogOut size={16} />
-          </button>
+          </nav>
+          <span className="gi-dashboard-nav-scroll-cue" aria-hidden="true">เลื่อนดูเมนู</span>
         </div>
       </div>
     </header>
