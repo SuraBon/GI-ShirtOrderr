@@ -66,6 +66,8 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
   const [successData, setSuccessData] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
   const [, setCsvErrors] = useState([]);
+  const csvValidCount = csvPreview.filter((row) => row.isValid).length;
+  const csvInvalidCount = Math.max(0, csvPreview.length - csvValidCount);
 
   function handleEdit(id, mode = 'full') {
     setEditMode(mode);
@@ -1152,7 +1154,9 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                       {csvPreview.length > 0 && (
                         <div className="mt-4 border border-[#CBD5E1] rounded-xl overflow-hidden shadow-xs">
                           <div className="bg-[#EEF4FF] px-4 py-3 border-b border-[#CBD5E1] flex justify-between items-center">
-                            <span className="text-xs sm:text-sm font-extrabold text-[#44536A]">ตัวอย่างข้อมูลนำเข้า ({csvPreview.length} รายการ)</span>
+                            <span className="text-xs sm:text-sm font-extrabold text-[#44536A]">
+                              ตัวอย่างข้อมูลนำเข้า 5 แถวแรก · ถูกต้อง {csvValidCount} · ต้องแก้ {csvInvalidCount}
+                            </span>
                             <div className="flex gap-2">
                               <button
                                 type="button"
@@ -1186,7 +1190,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                                 </tr>
                               </thead>
                               <tbody>
-                                {csvPreview.map((row) => (
+                                {csvPreview.slice(0, 5).map((row) => (
                                   <tr key={row.rowNum} className={cn("hover:bg-neutral-50", row.isValid ? "bg-white" : "bg-red-50/40")}>
                                     <td className="px-3 py-2 border-b border-[#E2E8F0] text-center font-bold text-[#64748B]">{row.rowNum}</td>
                                     <td className="px-3 py-2 border-b border-[#E2E8F0] font-bold text-neutral-800">{row.name}</td>
@@ -1210,6 +1214,11 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                               </tbody>
                             </table>
                           </div>
+                          {csvPreview.length > 5 && (
+                            <p className="bg-white px-4 py-2 text-xs font-bold text-[#64748B]">
+                              แสดงตัวอย่าง 5 จาก {csvPreview.length} รายการ ระบบจะนำเข้าเฉพาะแถวที่ถูกต้องเมื่อกดยืนยัน
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

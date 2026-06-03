@@ -4,8 +4,45 @@ export default {
   theme: {
     extend: {
       colors: {
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        destructive: {
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-foreground)"
+        },
+        muted: {
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)"
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+          foreground: "var(--accent-foreground)",
+          50: "#fef9f5",
+          100: "#fde9d9",
+          200: "#fad4b3",
+          300: "#f5b48d",
+          400: "#ee8e61",
+          500: "#e86d3f",
+          600: "#da5a2a",
+          700: "#c04620",
+          800: "#a2381b",
+          900: "#7a2816"
+        },
+        popover: {
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)"
+        },
+        card: {
+          DEFAULT: "var(--card)",
+          foreground: "var(--card-foreground)"
+        },
         // Professional Corporate Palette
         primary: {
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)",
           50: "#f5f7fa",
           100: "#eaeff5",
           200: "#d5dfeb",
@@ -17,17 +54,9 @@ export default {
           800: "#2f407a",
           900: "#1a2847"
         },
-        accent: {
-          50: "#fef9f5",
-          100: "#fde9d9",
-          200: "#fad4b3",
-          300: "#f5b48d",
-          400: "#ee8e61",
-          500: "#e86d3f",
-          600: "#da5a2a",
-          700: "#c04620",
-          800: "#a2381b",
-          900: "#7a2816"
+        secondary: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)"
         },
         neutral: {
           50: "#f9fafb",

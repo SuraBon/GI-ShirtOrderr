@@ -1442,12 +1442,12 @@
 
 /* Wider, less tiny admin workspace. */
 :root {
-  --gi-container-max: 1680px;
+  --gi-container-max: 1480px;
 }
 
 .gi-container {
-  width: min(calc(100vw - 2.5rem), 1680px) !important;
-  max-width: min(1680px, calc(100vw - 2.5rem)) !important;
+  width: min(calc(100vw - 2.5rem), var(--gi-container-max)) !important;
+  max-width: min(var(--gi-container-max), calc(100vw - 2.5rem)) !important;
 }
 
 .app-shadcn-theme main.gi-container {

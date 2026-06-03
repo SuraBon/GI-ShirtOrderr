@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import path from "node:path";
 import orderSubmitHandler from "./api/order/submit.js";
 
 const SERVER_ENV_KEYS = ["VITE_GAS_URL", "GAS_URL", "GAS_ADMIN_TOKEN", "ADMIN_SHARED_SECRET"];
@@ -47,6 +48,11 @@ export default defineConfig(({ mode }) => {
   return {
     base: "./",
     plugins: [react(), localApiRoutes()],
+    resolve: {
+      alias: {
+        "@": path.resolve(process.cwd(), "src"),
+      },
+    },
     build: {
       rollupOptions: {
         output: {

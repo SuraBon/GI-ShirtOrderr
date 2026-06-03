@@ -61,6 +61,7 @@ export function DashboardHeader({
   activeView = 'orders',
   onViewChange,
   onLogout,
+  syncState,
 }) {
   const navItems = [
     { id: 'dashboard', label: 'ภาพรวม', icon: Gauge },
@@ -72,7 +73,7 @@ export function DashboardHeader({
 
   return (
     <header className="gi-dashboard-header relative z-10 border-b px-3 py-2 shadow-xs">
-      <div className="gi-container flex items-center gap-3">
+      <div className="gi-container grid items-center gap-3 lg:grid-cols-[minmax(12rem,auto)_minmax(0,1fr)_auto]">
         <Logo surface="dashboard" showMark={false} />
         <div className="gi-dashboard-nav-shell">
           <nav className="gi-dashboard-nav flex items-center gap-2" aria-label="เมนูแอดมิน">
@@ -99,6 +100,20 @@ export function DashboardHeader({
             </button>
           </nav>
           <span className="gi-dashboard-nav-scroll-cue" aria-hidden="true">เลื่อนดูเมนู</span>
+        </div>
+        <div className="gi-dashboard-header-right">
+          <span className={`dashboard-sync-indicator ${syncState?.status || 'idle'}`}>
+            <span aria-hidden="true" />
+            <strong>{syncState?.label || 'พร้อมใช้งาน'}</strong>
+            {syncState?.updatedAt ? (
+              <small>
+                {new Date(syncState.updatedAt).toLocaleTimeString('th-TH', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </small>
+            ) : null}
+          </span>
         </div>
       </div>
     </header>

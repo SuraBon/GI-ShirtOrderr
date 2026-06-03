@@ -3,6 +3,8 @@ import { AlertTriangle, Check, Loader2, Pencil, Plus, RefreshCw, Trash2, X } fro
 import { toast } from 'sonner';
 import { BRANCHES } from '../constants/branches';
 import { ConfirmDialog } from './SharedDialogs';
+import { Button } from './ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 export function BranchManager({ onSaved }) {
   const [branches, setBranches] = useState([]);
@@ -14,6 +16,7 @@ export function BranchManager({ onSaved }) {
   const [deleteBranchName, setDeleteBranchName] = useState('');
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [viewMode, setViewMode] = useState('card');
 
   useEffect(() => {
     loadBranches();
@@ -210,9 +213,19 @@ export function BranchManager({ onSaved }) {
               <h3>สาขาที่ใช้งาน</h3>
               <p>{branches.length} สาขาในระบบ</p>
             </div>
-            <button type="button" className="dashboard-secondary-action dashboard-icon-action" onClick={loadBranches} disabled={saving} title="โหลดสาขาใหม่" aria-label="โหลดสาขาใหม่">
-              <RefreshCw className="size-4" />
-            </button>
+            <div className="branch-manager-list-tools">
+              <div className="dashboard-view-toggle" aria-label="เลือกรูปแบบการแสดงผล">
+                <button type="button" className={viewMode === 'card' ? 'active' : ''} onClick={() => setViewMode('card')}>
+                  Card
+                </button>
+                <button type="button" className={viewMode === 'table' ? 'active' : ''} onClick={() => setViewMode('table')}>
+                  Table
+                </button>
+              </div>
+              <button type="button" className="dashboard-secondary-action dashboard-icon-action" onClick={loadBranches} disabled={saving} title="โหลดสาขาใหม่" aria-label="โหลดสาขาใหม่">
+                <RefreshCw className="size-4" />
+              </button>
+            </div>
           </div>
 
           {branches.length === 0 ? (
@@ -221,7 +234,73 @@ export function BranchManager({ onSaved }) {
               <p>เพิ่มสาขาแรกเพื่อให้หน้าเบิกเสื้อและรายงานเลือกสาขาได้</p>
             </div>
           ) : (
-            <div className="branch-manager-list">
+            viewMode === 'table' ? (
+              <div className="branch-manager-table-wrap">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16 text-right">ลำดับ</TableHead>
+                      <TableHead>ชื่อสาขา</TableHead>
+                      <TableHead className="w-32 text-center">จัดการ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {branches.map((branch, index) => {
+                      const isEditing = editingBranchName === branch;
+                      return (
+                        <TableRow key={branch}>
+                          <TableCell className="text-right font-bold text-[#64748B]">{index + 1}</TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={editingValue}
+                                onChange={(event) => {
+                                  setEditingValue(event.target.value);
+                                  setError('');
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter') renameBranch(branch);
+                                  if (event.key === 'Escape') cancelEditing();
+                                }}
+                                disabled={saving}
+                                autoFocus
+                              />
+                            ) : (
+                              <strong>{branch}</strong>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="branch-manager-row-actions">
+                              {isEditing ? (
+                                <>
+                                  <Button type="button" variant="outline" size="icon-sm" onClick={() => renameBranch(branch)} disabled={saving} title="บันทึก">
+                                    {saving ? <Loader2 /> : <Check />}
+                                  </Button>
+                                  <Button type="button" variant="outline" size="icon-sm" onClick={cancelEditing} disabled={saving} title="ยกเลิก">
+                                    <X />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button type="button" variant="outline" size="icon-sm" onClick={() => startEditing(branch)} disabled={saving} title="แก้ไข">
+                                    <Pencil />
+                                  </Button>
+                                  <Button type="button" variant="destructive" size="icon-sm" onClick={() => setDeleteBranchName(branch)} disabled={saving} title="ลบ">
+                                    <Trash2 />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="branch-manager-list">
               {branches.map((branch, index) => {
                 const isEditing = editingBranchName === branch;
 
@@ -270,7 +349,8 @@ export function BranchManager({ onSaved }) {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            )
           )}
         </section>
 

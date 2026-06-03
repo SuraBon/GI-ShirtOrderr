@@ -31,7 +31,7 @@ function ConfirmDialog({
         >
           <Dialog.Title className="text-lg font-extrabold text-[#071638]">{title}</Dialog.Title>
           {description ? (
-            <p className="mt-2 break-words text-sm font-semibold leading-6 text-[#44536A]">
+            <p className="mt-2 whitespace-pre-line break-words text-sm font-semibold leading-6 text-[#44536A]">
               {description}
             </p>
           ) : null}
@@ -54,7 +54,7 @@ function ConfirmDialog({
               )}
             >
               {loading ? <Loader2 className="size-4 animate-spin" /> : null}
-              {loading ? 'กำลังลบ...' : confirmLabel}
+              {loading ? 'กำลังดำเนินการ...' : confirmLabel}
             </button>
           </div>
         </Dialog.Content>

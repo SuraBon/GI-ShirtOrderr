@@ -16,6 +16,7 @@ import {
 import { applyStockMovement, getStockLedgerSummary } from '../lib/stockHelpers';
 import { Field, TextInput } from './FormComponents';
 import { ClothingImage } from './ClothingImage';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 function validateImageFile(file) {
   if (!file) return '';
@@ -107,6 +108,7 @@ export function InventoryManager({
   const [detailsDialogTab, setDetailsDialogTab] = useState('details');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createDraft, setCreateDraft] = useState(() => createBlankClothingDraft());
+  const [catalogViewMode, setCatalogViewMode] = useState('card');
   const syncTimerRef = useRef(null);
 
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
@@ -559,72 +561,134 @@ export function InventoryManager({
               <h3>{title}</h3>
               <p>{detailsInDialog ? 'เลือกแบบเสื้อเพื่อปรับสต๊อก หรือเปิดหน้าต่างรายละเอียดเสื้อ' : 'เลือกแบบเสื้อเพื่อแก้ข้อมูลและสต๊อก'}</p>
             </div>
-            <button type="button" className="btn-primary btn-sm" onClick={addClothing}>
-              <Plus className="size-4" /> เพิ่ม
-            </button>
+            <div className="inventory-list-tools">
+              <div className="dashboard-view-toggle" aria-label="เลือกรูปแบบการแสดงผลแบบเสื้อ">
+                <button type="button" className={catalogViewMode === 'card' ? 'active' : ''} onClick={() => setCatalogViewMode('card')}>
+                  Card
+                </button>
+                <button type="button" className={catalogViewMode === 'table' ? 'active' : ''} onClick={() => setCatalogViewMode('table')}>
+                  Table
+                </button>
+              </div>
+              <button type="button" className="btn-primary btn-sm" onClick={addClothing}>
+                <Plus className="size-4" /> เพิ่ม
+              </button>
+            </div>
           </div>
-          <div className={cn('inventory-catalog-list', detailsInDialog && 'inventory-card-catalog')}>
-            {config.map((item) => {
-              const itemStats = allItemStats.find((entry) => entry.id === item.id)?.stats || {
-                totalStock: 0,
-                withdrawn: 0,
-                remaining: 0,
-              };
-              return (
-                <article
-                  role="button"
-                  tabIndex={0}
-                  key={item.id}
-                  className={cn('inventory-catalog-card', item.id === selectedItem.id && 'active')}
-                  onClick={() => {
-                    if (detailsInDialog) openClothingDialog(item.id, 'stock');
-                    else {
-                      setSelectedId(item.id);
-                      setEditing(false);
-                    }
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') return;
-                    event.preventDefault();
-                    if (detailsInDialog) openClothingDialog(item.id, 'stock');
-                    else {
-                      setSelectedId(item.id);
-                      setEditing(false);
-                    }
-                  }}
-                >
-                  <span className="inventory-item-thumb">
-                    <ClothingImage src={item.imageUrl} alt={item.type} iconClassName="size-5" />
-                  </span>
-                  <span className="inventory-catalog-copy">
-                    <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
-                    <small>คงเหลือ {itemStats.remaining.toLocaleString('th-TH')} ชิ้น</small>
-                  </span>
-                  {detailsInDialog && (
-                    <span className="inventory-card-metrics" aria-hidden="true">
-                      <span><b>{itemStats.totalStock.toLocaleString('th-TH')}</b> ทั้งหมด</span>
-                      <span><b>{itemStats.withdrawn.toLocaleString('th-TH')}</b> เบิกไป</span>
-                      <span><b>{itemStats.remaining.toLocaleString('th-TH')}</b> คงเหลือ</span>
+          {catalogViewMode === 'table' ? (
+            <div className="inventory-catalog-table-wrap">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>แบบเสื้อ</TableHead>
+                    <TableHead className="text-right">ทั้งหมด</TableHead>
+                    <TableHead className="text-right">เบิกไป</TableHead>
+                    <TableHead className="text-right">คงเหลือ</TableHead>
+                    <TableHead className="w-28 text-center">จัดการ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {config.map((item) => {
+                    const itemStats = allItemStats.find((entry) => entry.id === item.id)?.stats || {
+                      totalStock: 0,
+                      withdrawn: 0,
+                      remaining: 0,
+                    };
+                    const openItem = () => {
+                      if (detailsInDialog) openClothingDialog(item.id, 'stock');
+                      else {
+                        setSelectedId(item.id);
+                        setEditing(false);
+                      }
+                    };
+                    return (
+                      <TableRow key={item.id} className={cn(item.id === selectedItem.id && 'bg-[#EFF6FF]')}>
+                        <TableCell>
+                          <button type="button" className="inventory-catalog-table-item" onClick={openItem}>
+                            <span className="inventory-item-thumb">
+                              <ClothingImage src={item.imageUrl} alt={item.type} iconClassName="size-5" />
+                            </span>
+                            <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
+                          </button>
+                        </TableCell>
+                        <TableCell className="text-right font-bold">{itemStats.totalStock.toLocaleString('th-TH')}</TableCell>
+                        <TableCell className="text-right">{itemStats.withdrawn.toLocaleString('th-TH')}</TableCell>
+                        <TableCell className="text-right font-bold text-[#0F766E]">{itemStats.remaining.toLocaleString('th-TH')}</TableCell>
+                        <TableCell className="text-center">
+                          <button type="button" className="inventory-card-manage-button" onClick={openItem}>
+                            จัดการ
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className={cn('inventory-catalog-list', detailsInDialog && 'inventory-card-catalog')}>
+              {config.map((item) => {
+                const itemStats = allItemStats.find((entry) => entry.id === item.id)?.stats || {
+                  totalStock: 0,
+                  withdrawn: 0,
+                  remaining: 0,
+                };
+                return (
+                  <article
+                    role="button"
+                    tabIndex={0}
+                    key={item.id}
+                    className={cn('inventory-catalog-card', item.id === selectedItem.id && 'active')}
+                    onClick={() => {
+                      if (detailsInDialog) openClothingDialog(item.id, 'stock');
+                      else {
+                        setSelectedId(item.id);
+                        setEditing(false);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      if (detailsInDialog) openClothingDialog(item.id, 'stock');
+                      else {
+                        setSelectedId(item.id);
+                        setEditing(false);
+                      }
+                    }}
+                  >
+                    <span className="inventory-item-thumb">
+                      <ClothingImage src={item.imageUrl} alt={item.type} iconClassName="size-5" />
                     </span>
-                  )}
-                  {detailsInDialog && (
-                    <span className="inventory-card-actions">
-                      <button
-                        type="button"
-                        className="inventory-card-manage-button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openClothingDialog(item.id, 'stock');
-                        }}
-                      >
-                        จัดการ
-                      </button>
+                    <span className="inventory-catalog-copy">
+                      <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
+                      <small>คงเหลือ {itemStats.remaining.toLocaleString('th-TH')} ชิ้น</small>
                     </span>
-                  )}
-                </article>
-              );
-            })}
-          </div>
+                    {detailsInDialog && (
+                      <span className="inventory-card-metrics" aria-hidden="true">
+                        <span><b>{itemStats.totalStock.toLocaleString('th-TH')}</b> ทั้งหมด</span>
+                        <span><b>{itemStats.withdrawn.toLocaleString('th-TH')}</b> เบิกไป</span>
+                        <span><b>{itemStats.remaining.toLocaleString('th-TH')}</b> คงเหลือ</span>
+                      </span>
+                    )}
+                    {detailsInDialog && (
+                      <span className="inventory-card-actions">
+                        <button
+                          type="button"
+                          className="inventory-card-manage-button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openClothingDialog(item.id, 'stock');
+                          }}
+                        >
+                          จัดการ
+                        </button>
+                      </span>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </aside>
 
         {!detailsInDialog && <div className="inventory-editor-panel">

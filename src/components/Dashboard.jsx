@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Download,
   Loader2,
+  MoreHorizontal,
   RefreshCw,
   Settings2,
   Truck,
@@ -48,6 +49,14 @@ import { BRANCHES } from '../constants/branches';
 import { DashboardOverview, Field, Select, TextInput, GridInput, CustomSelect, BranchManager, InventoryManager } from '.';
 import { ConfirmDialog, ColumnSettingsDialog } from './SharedDialogs';
 import { DashboardInlineEmptyState } from './DashboardWorkflowPanels';
+import { Button } from './ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 function getDashboardLoadErrorDescription(error) {
   const message = String(error?.message || '');
@@ -66,7 +75,40 @@ function getDashboardLoadErrorDescription(error) {
   return 'ระบบอ่านข้อมูลจาก Google Sheets ไม่สำเร็จ กรุณาลองใหม่หรือติดต่อผู้ดูแลระบบ';
 }
 
-function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches, onAuthExpired, onViewChange, onOpenOrder }) {
+const DASHBOARD_FILTER_KEYS = {
+  orders: 'gi-dashboard-orders-filters',
+  employees: 'gi-dashboard-employees-filters',
+};
+
+function readDashboardFilters(view = 'orders') {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_FILTER_KEYS[view]);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDashboardFilters(view, filters) {
+  if (!DASHBOARD_FILTER_KEYS[view]) return;
+  localStorage.setItem(DASHBOARD_FILTER_KEYS[view], JSON.stringify(filters));
+}
+
+function clearDashboardFilters(view) {
+  if (!DASHBOARD_FILTER_KEYS[view]) return;
+  localStorage.removeItem(DASHBOARD_FILTER_KEYS[view]);
+}
+
+function Dashboard({
+  activeView = 'orders',
+  branches = BRANCHES,
+  refreshBranches,
+  onAuthExpired,
+  onViewChange,
+  onOpenOrder,
+  onSyncStateChange,
+}) {
   const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,15 +119,17 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
   const [clothingConfig, setClothingConfig] = useState(readClothingConfig);
   const [isWideScreen, setIsWideScreen] = useState(() => window.innerWidth >= 1200);
   const [expandedBatchIds, setExpandedBatchIds] = useState(new Set());
-  const [branchFilter, setBranchFilter] = useState('ทุกสาขา');
-  const [statusFilter, setStatusFilter] = useState('ทุกสถานะ');
-  const [query, setQuery] = useState('');
-  const [monthFilter, setMonthFilter] = useState(() => formatMonthLabel(new Date()));
+  const initialFilters = readDashboardFilters('orders');
+  const [branchFilter, setBranchFilter] = useState(initialFilters.branchFilter || 'ทุกสาขา');
+  const [statusFilter, setStatusFilter] = useState(initialFilters.statusFilter || 'ทุกสถานะ');
+  const [query, setQuery] = useState(initialFilters.query || '');
+  const [monthFilter, setMonthFilter] = useState(() => initialFilters.monthFilter || formatMonthLabel(new Date()));
   const [exportBranchFilter, setExportBranchFilter] = useState('ทุกสาขา');
   const [exportStartMonth, setExportStartMonth] = useState(() => formatMonthInputValue(new Date()));
   const [exportEndMonth, setExportEndMonth] = useState(() => formatMonthInputValue(new Date()));
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false);
+  const [statusConfirm, setStatusConfirm] = useState(null);
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState('');
   const [exportExpanded, setExportExpanded] = useState(false);
   const [columnSettingsTable, setColumnSettingsTable] = useState('');
@@ -102,6 +146,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
 
   async function loadData({ silent = false } = {}) {
     if (refreshing) return;
+    onSyncStateChange?.({ status: 'loading', updatedAt: null, label: 'กำลังโหลด' });
     const showSkeleton = !silent && !batches.length;
     if (showSkeleton) setLoading(true);
     setRefreshing(true);
@@ -118,6 +163,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       const remoteBatches = data.map(normalizeBatch).filter((batch) => batch.orders.length);
       setBatches(remoteBatches);
       setDataError('');
+      onSyncStateChange?.({ status: 'success', updatedAt: new Date().toISOString(), label: 'ซิงก์แล้ว' });
       if (loadingToastId) toast.success('โหลดข้อมูลหน้าจัดการแล้ว', { id: loadingToastId });
     } catch (error) {
       if (isAuthFailure(error)) {
@@ -131,6 +177,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       }
       if (!batches.length) setBatches([]);
       setDataError(error?.message || 'ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้');
+      onSyncStateChange?.({ status: 'error', updatedAt: new Date().toISOString(), label: 'ซิงก์ไม่สำเร็จ' });
       toast.error('โหลดข้อมูลหน้าจัดการไม่สำเร็จ', {
         id: loadingToastId || undefined,
         description: getDashboardLoadErrorDescription(error),
@@ -257,6 +304,37 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
   }, [monthFilter, monthFilterOptions]);
 
   useEffect(() => {
+    if (activeView !== 'orders' && activeView !== 'employees') return;
+    const saved = readDashboardFilters(activeView);
+    const savedBranch =
+      saved.branchFilter && (saved.branchFilter === 'ทุกสาขา' || effectiveBranches.includes(saved.branchFilter))
+        ? saved.branchFilter
+        : 'ทุกสาขา';
+    const savedStatus =
+      saved.statusFilter && (saved.statusFilter === 'ทุกสถานะ' || ORDER_STATUSES.includes(saved.statusFilter))
+        ? saved.statusFilter
+        : 'ทุกสถานะ';
+    const savedMonth =
+      saved.monthFilter && monthFilterOptions.includes(saved.monthFilter)
+        ? saved.monthFilter
+        : monthFilterOptions[0] || 'ทุกเดือน';
+    setBranchFilter(savedBranch);
+    setStatusFilter(savedStatus);
+    setMonthFilter(savedMonth);
+    setQuery(saved.query || '');
+  }, [activeView, effectiveBranches, monthFilterOptions]);
+
+  useEffect(() => {
+    if (activeView !== 'orders' && activeView !== 'employees') return;
+    writeDashboardFilters(activeView, {
+      branchFilter,
+      statusFilter,
+      monthFilter,
+      query,
+    });
+  }, [activeView, branchFilter, statusFilter, monthFilter, query]);
+
+  useEffect(() => {
     if (branchFilter !== 'ทุกสาขา' && !effectiveBranches.includes(branchFilter)) {
       setBranchFilter('ทุกสาขา');
     }
@@ -268,20 +346,37 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
     }
   }, [effectiveBranches, exportBranchFilter]);
 
+  function resetDashboardFilters() {
+    clearDashboardFilters(activeView);
+    setBranchFilter('ทุกสาขา');
+    setStatusFilter('ทุกสถานะ');
+    setMonthFilter(monthFilterOptions[0] || 'ทุกเดือน');
+    setQuery('');
+    setOrderPage(1);
+    setEmployeePage(1);
+  }
+
   async function syncDashboardAction(payload) {
+    onSyncStateChange?.({ status: 'saving', updatedAt: null, label: 'กำลังบันทึก' });
     const expectedUpdatedAt = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
     const body = { ...payload, expectedUpdatedAt };
-    const response = await authFetch('/api/dashboard/action', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok || result?.success === false)
-      throw new Error(result?.error || 'บันทึกข้อมูลไปยัง Google Sheets ไม่สำเร็จ');
-    // If GAS returned an updated clothing config, persist its version
-    if (result?.updatedConfig && result?.updatedConfig.updatedAt) {
-      localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedConfig.updatedAt));
+    try {
+      const response = await authFetch('/api/dashboard/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.success === false)
+        throw new Error(result?.error || 'บันทึกข้อมูลไปยัง Google Sheets ไม่สำเร็จ');
+      // If GAS returned an updated clothing config, persist its version
+      if (result?.updatedConfig && result?.updatedConfig.updatedAt) {
+        localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedConfig.updatedAt));
+      }
+      onSyncStateChange?.({ status: 'success', updatedAt: new Date().toISOString(), label: 'บันทึกแล้ว' });
+    } catch (error) {
+      onSyncStateChange?.({ status: 'error', updatedAt: new Date().toISOString(), label: 'บันทึกไม่สำเร็จ' });
+      throw error;
     }
   }
 
@@ -551,6 +646,18 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
     toast.success('อัปเดตสถานะรายการเบิกแล้ว', { id: loadingToastId });
   }
 
+  function requestBatchStatusChange(batch, status) {
+    if (!batch) return;
+    setStatusConfirm({ batch, status });
+  }
+
+  async function confirmBatchStatusChange() {
+    if (!statusConfirm) return;
+    const { batch, status } = statusConfirm;
+    setStatusConfirm(null);
+    await updateBatchStatus(batch.batchId, status);
+  }
+
   async function shipBatchItems(batchId, shipmentOverrides) {
     const statusUpdatedAt = new Date().toISOString();
     setStatusLoadingId(batchId);
@@ -810,10 +917,70 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       toggleBatchExpanded(batchId);
     }
   };
-  const openBatchDetails = (event, batch) => {
-    event.stopPropagation();
+  const openQuickShipment = (batch) => {
     setSelectedBatch(batch);
+    setShipmentDialogOpen(true);
   };
+  const renderOrderActions = (batch) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="dashboard-table-menu-trigger"
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`จัดการ ${batch.batchId}`}
+        >
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              setSelectedBatch(batch);
+            }}
+          >
+            ดูรายละเอียด
+          </DropdownMenuItem>
+          {batch.status === ORDER_STATUS_PENDING && (
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                openQuickShipment(batch);
+              }}
+            >
+              จัดส่งด่วน
+            </DropdownMenuItem>
+          )}
+          {ORDER_STATUSES.map((status) => (
+            <DropdownMenuItem
+              key={status}
+              disabled={batch.status === status || statusLoadingId === batch.batchId}
+              onSelect={(event) => {
+                event.preventDefault();
+                requestBatchStatusChange(batch, status);
+              }}
+            >
+              เปลี่ยนเป็น {status}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={deleteLoadingId === batch.batchId}
+            onSelect={(event) => {
+              event.preventDefault();
+              requestDeleteBatch(batch.batchId);
+            }}
+          >
+            ลบรายการ
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <>
@@ -832,6 +999,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             onRefresh={() => loadData({ silent: true })}
             metrics={metrics}
             filteredBatches={filteredBatches}
+            itemRows={rows}
             stockSummaryRows={stockSummaryRows}
             statuses={{
               pending: ORDER_STATUS_PENDING,
@@ -840,6 +1008,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             }}
             onViewChange={onViewChange}
             onOpenOrder={onOpenOrder}
+            onQuickShip={openQuickShipment}
           />
         </section>
       )}
@@ -854,6 +1023,9 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
         <aside className="dashboard-filter-rail">
           <div className="dashboard-panel-title">
             <h2>ตัวกรอง</h2>
+            <button type="button" className="dashboard-filter-reset" onClick={resetDashboardFilters}>
+              ล้างตัวกรอง
+            </button>
           </div>
           <div className="dashboard-filter-body">
             <div className="dashboard-filter-grid">
@@ -1005,28 +1177,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                             </td>
                             )}
                             {isOrderColumnVisible('updated') && <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>}
-                            <td className="dashboard-row-actions">
-                              <div className="dashboard-row-actions-group">
-                                <button
-                                  type="button"
-                                  className="dashboard-action-btn dashboard-secondary-row-action"
-                                  onClick={(event) => openBatchDetails(event, batch)}
-                                >
-                                  ดูรายละเอียด
-                                </button>
-                                {batch.status === ORDER_STATUS_PENDING && (
-                                  <button
-                                    className="dashboard-action-btn dashboard-primary-row-action"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED);
-                                    }}
-                                  >
-                                    จัดส่ง
-                                  </button>
-                                )}
-                              </div>
-                            </td>
+                            <td className="dashboard-row-actions">{renderOrderActions(batch)}</td>
                           </tr>
                           {expandedBatchIds.has(batch.batchId) && (
                           <tr className="batch-detail-row" key={`${batch.batchId}-details`}>
@@ -1206,28 +1357,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                     </td>
                     )}
                     {isOrderColumnVisible('updated') && <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>}
-                            <td className="dashboard-row-actions">
-                      <div className="dashboard-row-actions-group">
-                        <button
-                          type="button"
-                          className="dashboard-action-btn dashboard-secondary-row-action"
-                          onClick={(event) => openBatchDetails(event, batch)}
-                        >
-                          ดูรายละเอียด
-                        </button>
-                        {batch.status === ORDER_STATUS_PENDING && (
-                          <button
-                            className="dashboard-action-btn dashboard-primary-row-action"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED);
-                            }}
-                          >
-                            จัดส่ง
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                    <td className="dashboard-row-actions">{renderOrderActions(batch)}</td>
                   </tr>
                           {/* Expanded detail rows for this batch */}
                           {expandedBatchIds.has(batch.batchId) && (
@@ -1630,7 +1760,10 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       <BatchDetailDialog
         batch={selectedBatch}
         onClose={() => setSelectedBatch(null)}
-        onStatusChange={updateBatchStatus}
+        onStatusChange={(batchId, status) => {
+          const batch = batches.find((item) => item.batchId === batchId) || selectedBatch;
+          requestBatchStatusChange(batch, status);
+        }}
         onItemStatusChange={updateSingleItemStatus}
         onDelete={requestDeleteBatch}
         statusLoadingId={statusLoadingId}
@@ -1646,9 +1779,24 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
         onShipConfirm={shipBatchItems}
       />
       <ConfirmDialog
+        open={Boolean(statusConfirm)}
+        title="ยืนยันเปลี่ยนสถานะ"
+        description={
+          statusConfirm
+            ? buildStatusConfirmationDescription(statusConfirm.batch, statusConfirm.status)
+            : ''
+        }
+        confirmLabel={statusConfirm?.status || 'ยืนยัน'}
+        cancelLabel="ยกเลิก"
+        loading={Boolean(statusConfirm && statusLoadingId === statusConfirm.batch.batchId)}
+        destructive={statusConfirm?.status === ORDER_STATUS_CANCELED}
+        onCancel={() => !statusLoadingId && setStatusConfirm(null)}
+        onConfirm={confirmBatchStatusChange}
+      />
+      <ConfirmDialog
         open={Boolean(deleteConfirmBatch)}
         title="ยืนยันลบรายการเบิก"
-        description={deleteConfirmBatch ? `ลบรายการเบิก ${deleteConfirmBatch.batchId}?` : ''}
+        description={deleteConfirmBatch ? buildDeleteConfirmationDescription(deleteConfirmBatch) : ''}
         confirmLabel="ลบรายการ"
         cancelLabel="ยกเลิก"
         loading={Boolean(deleteConfirmBatch && deleteLoadingId === deleteConfirmBatch.batchId)}
@@ -1799,6 +1947,12 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
   }
 
   const activeItems = items.filter((item) => !item.isInactive && item.requestedQty > 0);
+  const totalRequested = activeItems.reduce((sum, item) => sum + Number(item.requestedQty || 0), 0);
+  const totalShipped = activeItems.reduce((sum, item) => sum + Number(item.shippedQty || 0), 0);
+  const shipmentSummary = items
+    .filter((item) => !item.isInactive && Number(item.shippedQty || 0) > 0)
+    .slice(0, 4)
+    .map((item) => `${item.type} ${item.gender} ไซส์ ${item.size}: ${item.shippedQty} ชิ้น`);
 
   return (
     <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
@@ -1826,6 +1980,22 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
           </div>
 
           <div className="employee-scroll-region flex-1 overflow-auto p-4 bg-[#F8FAFC]">
+            {batch && (
+              <div className="mb-3 rounded-xl border border-[#DCE5F4] bg-white p-3 text-sm font-bold text-[#334155]">
+                <div className="grid gap-2 sm:grid-cols-4">
+                  <span>รายการ <strong>{batch.batchId}</strong></span>
+                  <span>สาขา <strong>{batch.branch || '-'}</strong></span>
+                  <span>พนักงาน <strong>{batch.orders.length} คน</strong></span>
+                  <span>จะตัดสต๊อก <strong>{totalShipped}/{totalRequested} ชิ้น</strong></span>
+                </div>
+                {shipmentSummary.length ? (
+                  <p className="mt-2 text-xs font-semibold text-[#64748B]">
+                    สรุปตัดสต๊อก: {shipmentSummary.join('; ')}
+                    {shipmentSummary.length >= 4 ? '; ...' : ''}
+                  </p>
+                ) : null}
+              </div>
+            )}
             {activeItems.length === 0 ? (
               <div className="py-8 text-center text-sm font-semibold text-[#64748B]">
                 ไม่มีรายการเสื้อที่รอจัดส่ง
@@ -2224,6 +2394,33 @@ function BatchDetailDialog({
 
 function getBatchPieces(batch) {
   return flattenBatches([batch]).reduce((sum, row) => sum + Number(row.qty || 0), 0);
+}
+
+function buildStatusConfirmationDescription(batch, status) {
+  if (!batch) return '';
+  const pieces = getBatchPieces(batch);
+  const employees = batch.orders.length;
+  const lines = [
+    `${batch.batchId} · ${batch.companyName || '-'} · ${batch.branch || '-'}`,
+    `พนักงาน ${employees} คน · จำนวนรวม ${pieces} ชิ้น`,
+    `สถานะใหม่: ${status}`,
+  ];
+  if (status === ORDER_STATUS_DELIVERED) {
+    const summary = buildBatchItemSummary(batch)
+      .slice(0, 4)
+      .map((row) => `${row.type} ${row.gender} ไซส์ ${row.size}: ${row.qty} ชิ้น`);
+    lines.push(`จะตัดสต๊อก: ${summary.join('; ')}${summary.length >= 4 ? '; ...' : ''}`);
+  }
+  return lines.join('\n');
+}
+
+function buildDeleteConfirmationDescription(batch) {
+  if (!batch) return '';
+  return [
+    `${batch.batchId} · ${batch.companyName || '-'} · ${batch.branch || '-'}`,
+    `พนักงาน ${batch.orders.length} คน · จำนวนรวม ${getBatchPieces(batch)} ชิ้น`,
+    'การลบจะนำรายการนี้ออกจาก Google Sheets หลังยืนยัน',
+  ].join('\n');
 }
 
 function buildBatchItemSummary(batch) {

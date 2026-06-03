@@ -14,6 +14,7 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
   const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [adminToken, setDashboardToken] = useState(getAdminToken);
   const [dashboardView, setDashboardView] = useState('orders');
+  const [syncState, setSyncState] = useState({ status: 'idle', updatedAt: null, label: 'ยังไม่ซิงก์' });
 
   function handleUnlock(token) {
     setAdminToken(token);
@@ -44,6 +45,7 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
         onViewChange={setDashboardView}
         onOpenOrder={onOpenOrder}
         onLogout={handleLogout}
+        syncState={syncState}
       />
       <main className="relative z-10 mx-auto flex w-full gi-container flex-col gap-3 pb-10 pt-3 lg:gap-4">
         <Dashboard
@@ -53,6 +55,7 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
           onAuthExpired={handleAuthExpired}
           onViewChange={setDashboardView}
           onOpenOrder={onOpenOrder}
+          onSyncStateChange={setSyncState}
         />
       </main>
     </>
@@ -86,8 +89,8 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
   }
 
   return (
-    <main className="relative z-10 mx-auto grid min-h-[100dvh] w-full place-items-center px-4 py-10">
-      <Card className="w-full max-w-[34rem] p-6 sm:p-8">
+    <main className="relative z-10 mx-auto grid min-h-[100dvh] w-full place-items-center bg-[#0F172A]/10 px-4 py-10 backdrop-blur-sm">
+      <Card className="w-full max-w-[34rem] border-white/70 bg-white/95 p-6 shadow-2xl backdrop-blur sm:p-8">
         <div className="mb-7 flex items-center justify-between gap-4">
           <Logo />
           <span className="grid size-12 place-items-center rounded-2xl bg-[#E8F0FF] text-[#002B5B]">

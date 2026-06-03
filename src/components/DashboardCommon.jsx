@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { Card } from './CardComponents';
 import { cn } from '../lib/utils';
+import { Badge } from './ui/badge';
 import {
   ORDER_STATUS_CANCELED,
   ORDER_STATUS_DELIVERED,
@@ -27,25 +28,25 @@ export function MobileInfo({ label, value, compact = false, strong = false }) {
 
 export function StatusBadge({ status, small = false }) {
   const displayStatus = normalizeOrderStatus(status);
-  let classes = 'bg-[#CBD5E1] text-[#334155]';
+  let classes = 'bg-[var(--gi-status-canceled-bg)] text-[var(--gi-status-canceled-fg)]';
   if (displayStatus === ORDER_STATUS_DELIVERED) {
-    classes = 'bg-[#DCFCE7] text-[#166534]';
+    classes = 'bg-[var(--gi-status-delivered-bg)] text-[var(--gi-status-delivered-fg)]';
   } else if (displayStatus === ORDER_STATUS_PENDING) {
-    classes = 'bg-[#FEE2E2] text-[#991B1B]';
+    classes = 'bg-[var(--gi-status-pending-bg)] text-[var(--gi-status-pending-fg)]';
   } else if (displayStatus === ORDER_STATUS_CANCELED) {
-    classes = 'bg-[#E2E8F0] text-[#475569]';
+    classes = 'bg-[var(--gi-status-canceled-bg)] text-[var(--gi-status-canceled-fg)]';
   }
   return (
-    <span
+    <Badge
       data-status={displayStatus}
       className={cn(
-        'status-badge inline-flex shrink-0 whitespace-nowrap rounded-full font-bold',
+        'status-badge inline-flex shrink-0 whitespace-nowrap rounded-full border-transparent font-bold shadow-none hover:bg-current/0',
         small ? 'px-2.5 py-0.5 text-[11px]' : 'px-3 py-1 text-xs',
         classes
       )}
     >
       {displayStatus}
-    </span>
+    </Badge>
   );
 }
 

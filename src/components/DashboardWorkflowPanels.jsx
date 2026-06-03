@@ -84,7 +84,7 @@ export function DashboardInlineEmptyState({ title = 'ยังไม่มีร
   );
 }
 
-export function DashboardTaskPanel({ batches, statuses, onOpenOrders }) {
+export function DashboardTaskPanel({ batches, statuses, onOpenOrders, onViewAll, onQuickShip }) {
   const pendingStatus = statuses?.pending || 'รอจัดส่ง';
   const rows = useMemo(
     () =>
@@ -100,14 +100,22 @@ export function DashboardTaskPanel({ batches, statuses, onOpenOrders }) {
       title="งานที่ต้องทำ"
       description="รายการรอจัดส่ง เรียงจากเก่าสุด"
       tone="priority"
+      action={rows.length ? <button type="button" className="dashboard-panel-link-action" onClick={onViewAll}>ดูทั้งหมด</button> : null}
     >
       <div className="dashboard-workflow-list">
         {rows.map((batch) => (
-          <button
+          <div
             key={batch.batchId}
-            type="button"
+            role="button"
+            tabIndex={0}
             className="dashboard-workflow-row is-pending"
             onClick={onOpenOrders}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onOpenOrders?.();
+              }
+            }}
           >
             <span className="dashboard-workflow-row-icon warning" aria-hidden="true">
               <AlertTriangle className="size-4" />
@@ -116,8 +124,23 @@ export function DashboardTaskPanel({ batches, statuses, onOpenOrders }) {
               <strong>{batch.batchId}</strong>
               <p>{batch.branch || '-'} · {formatDate(batch.submittedAt)} · {getBatchPieces(batch)} ชิ้น</p>
             </div>
-            <StatusPill tone="warning">{batch.status}</StatusPill>
-          </button>
+            <div className="dashboard-workflow-row-actions">
+              <StatusPill tone="warning">{batch.status}</StatusPill>
+              <button
+                type="button"
+                className="dashboard-workflow-quick-action"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onQuickShip?.(batch);
+                }}
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                จัดส่งด่วน
+              </button>
+            </div>
+          </div>
         ))}
         {!rows.length && <div className="dashboard-empty-line">ไม่มีงานรอจัดส่งตอนนี้</div>}
       </div>
@@ -125,7 +148,7 @@ export function DashboardTaskPanel({ batches, statuses, onOpenOrders }) {
   );
 }
 
-export function DashboardStockPanel({ stockRows, onOpenStock }) {
+export function DashboardStockPanel({ stockRows, onOpenStock, onViewAll }) {
   const lowRows = useMemo(
     () =>
       stockRows
@@ -139,6 +162,7 @@ export function DashboardStockPanel({ stockRows, onOpenStock }) {
     <PanelShell
       title="รายการที่ควรเติม"
       description="เพศและไซส์ที่ควรตรวจจำนวนคงเหลือ"
+      action={lowRows.length ? <button type="button" className="dashboard-panel-link-action" onClick={onViewAll || onOpenStock}>ดูทั้งหมด</button> : null}
     >
       <div className="dashboard-workflow-list">
         {lowRows.map((row) => (
