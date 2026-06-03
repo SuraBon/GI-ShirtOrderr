@@ -1628,31 +1628,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
         </aside>
       </section>
 
-      {activeView === 'inventory' && (
-        <section className="dashboard-inventory-manager">
-          <div className="dashboard-panel-head">
-            <div>
-              <h2>แบบเสื้อและสต๊อก</h2>
-              <p>จัดการชื่อแบบเสื้อ รูปภาพ รายละเอียดไซส์ และสต๊อกคงเหลือตามเพศ/ไซส์</p>
-            </div>
-            <div className="dashboard-panel-actions">
-              <button onClick={() => onViewChange?.('orders')}>
-                <ClipboardList className="size-4" />
-                <span>กลับไปรายการเบิก</span>
-              </button>
-            </div>
-          </div>
-          <InventoryManager
-            initialMode="details"
-            modeLocked
-            title="แบบเสื้อ"
-            config={clothingConfig}
-            setConfig={setClothingConfig}
-            onAuthExpired={onAuthExpired}
-          />
-        </section>
-      )}
-
       {activeView === 'stock' && (
         <section className="dashboard-inventory-manager">
           <div className="dashboard-panel-head">

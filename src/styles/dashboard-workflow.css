@@ -725,3 +725,146 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Admin scale normalization: keep text, buttons, and icons visually balanced. */
+.gi-dashboard-header {
+  --admin-nav-font: 0.76rem;
+  --admin-nav-icon: 0.95rem;
+  --admin-nav-height: 2.1rem;
+  --admin-action-font: 0.78rem;
+  --admin-action-icon: 1rem;
+}
+
+.gi-dashboard-header > .gi-container {
+  align-items: center !important;
+}
+
+.gi-dashboard-header .gi-brand-mark {
+  width: 2.15rem !important;
+  height: 2.15rem !important;
+  min-width: 2.15rem !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+}
+
+.gi-dashboard-header .gi-brand h1 {
+  font-size: 0.9rem !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0 !important;
+}
+
+.gi-dashboard-header .gi-brand p {
+  font-size: 0.66rem !important;
+  line-height: 1.1 !important;
+}
+
+.gi-dashboard-nav {
+  align-items: center !important;
+}
+
+.gi-dashboard-nav button {
+  display: inline-flex !important;
+  min-height: var(--admin-nav-height) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.34rem !important;
+  border-radius: 8px !important;
+  padding: 0 0.68rem !important;
+  font-size: var(--admin-nav-font) !important;
+  font-weight: 850 !important;
+  line-height: 1.1 !important;
+}
+
+.gi-dashboard-nav button svg,
+.dashboard-header-actions button svg,
+.dashboard-panel-actions button svg,
+.dashboard-action-btn svg,
+.dashboard-primary-action svg,
+.inventory-manage-details-button svg,
+.inventory-edit-toggle svg {
+  width: var(--admin-action-icon) !important;
+  height: var(--admin-action-icon) !important;
+  min-width: var(--admin-action-icon) !important;
+  stroke-width: 2.15 !important;
+}
+
+.gi-dashboard-nav button svg {
+  width: var(--admin-nav-icon) !important;
+  height: var(--admin-nav-icon) !important;
+  min-width: var(--admin-nav-icon) !important;
+}
+
+.dashboard-header-actions button,
+.dashboard-panel-actions button,
+.dashboard-action-btn,
+.dashboard-primary-action,
+.inventory-manage-details-button,
+.inventory-edit-toggle {
+  min-height: 2.15rem !important;
+  border-radius: 8px !important;
+  font-size: var(--admin-action-font) !important;
+  font-weight: 850 !important;
+  line-height: 1.1 !important;
+}
+
+.dashboard-header-actions button {
+  width: 2.15rem !important;
+  height: 2.15rem !important;
+  padding: 0 !important;
+}
+
+.dashboard-panel-head h2,
+.dashboard-panel-title h2,
+.inventory-list-head h3,
+.inventory-hero-copy h3,
+.inventory-section-head h4 {
+  letter-spacing: 0 !important;
+}
+
+@media (min-width: 761px) {
+  .gi-dashboard-header {
+    padding-block: 0.45rem !important;
+  }
+
+  .gi-dashboard-header > .gi-container {
+    flex-wrap: nowrap !important;
+  }
+
+  .gi-dashboard-nav {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .gi-dashboard-header {
+    --admin-nav-font: 0.71rem;
+    --admin-nav-icon: 0.88rem;
+    --admin-nav-height: 1.95rem;
+    --admin-action-font: 0.75rem;
+    --admin-action-icon: 0.92rem;
+  }
+
+  .gi-dashboard-header .gi-brand-mark {
+    width: 1.9rem !important;
+    height: 1.9rem !important;
+    min-width: 1.9rem !important;
+    font-size: 0.68rem !important;
+  }
+
+  .gi-dashboard-header .gi-brand h1 {
+    font-size: 0.78rem !important;
+  }
+
+  .gi-dashboard-header .dashboard-logout-button {
+    width: 1.95rem !important;
+    height: 1.95rem !important;
+    min-height: 1.95rem !important;
+  }
+
+  .gi-dashboard-nav button {
+    min-height: var(--admin-nav-height) !important;
+    padding: 0 0.34rem !important;
+  }
+}
