@@ -166,7 +166,6 @@ export function DashboardOverview({ onRefresh, metrics, rows, filteredBatches, s
     <div className="dashboard-overview-section">
       <div className="dashboard-overview-hero">
         <div>
-          <span className="overview-section-label">ภาพรวมแดชบอร์ด</span>
           <h2>ติดตามคำสั่งเบิกและสรุปตามสาขา</h2>
           <p>ดูงานรอจัดส่งและสรุปคำสั่งเบิกตามสาขาในหน้าเดียว</p>
         </div>

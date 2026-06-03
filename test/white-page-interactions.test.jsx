@@ -48,10 +48,9 @@ describe('order page mobile interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ปิด' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'คู่มือการใช้งาน' }));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'ปิด' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const header = document.querySelector('.gi-order-header');
+    expect(within(header).getByRole('button', { name: 'ข้อมูลเสื้อ' })).toBeInTheDocument();
+    expect(within(header).getByRole('button', { name: 'แดชบอร์ด' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'แดชบอร์ด' }));
     await waitFor(() => expect(window.location.hash).toBe('#/dashboard'));

@@ -8,14 +8,12 @@ import {
 import { getAdminToken, setAdminToken } from '../lib/api';
 import { BRANCHES } from '../constants/branches';
 import { Field, TextInput, Card, DashboardHeader, Logo } from '.';
-import { AdminManualDialog } from './SharedDialogs';
 import Dashboard from './Dashboard';
 
 function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
   const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [adminToken, setDashboardToken] = useState(getAdminToken);
   const [dashboardView, setDashboardView] = useState('dashboard');
-  const [manualOpen, setManualOpen] = useState(false);
 
   function handleUnlock(token) {
     setAdminToken(token);
@@ -42,7 +40,6 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
         activeView={dashboardView}
         onViewChange={setDashboardView}
         onOpenOrder={onOpenOrder}
-        onManualOpen={() => setManualOpen(true)}
         onLogout={handleLogout}
       />
       <main className="relative z-10 mx-auto flex w-full gi-container flex-col gap-3 pb-10 pt-3 lg:gap-4">
@@ -54,7 +51,6 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
           onViewChange={setDashboardView}
         />
       </main>
-      <AdminManualDialog open={manualOpen} setOpen={setManualOpen} />
     </>
   );
 }

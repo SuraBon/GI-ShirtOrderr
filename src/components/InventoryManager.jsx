@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { upload } from '@vercel/blob/client';
-import { ImagePlus, Pencil, Plus, Shirt, Trash2, X } from 'lucide-react';
+import { ImagePlus, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { getAdminToken, isAuthFailure, setAdminToken } from '../lib/api';
@@ -15,6 +15,7 @@ import {
 } from '../lib/config';
 import { applyStockMovement, getStockLedgerSummary } from '../lib/stockHelpers';
 import { Field, TextInput } from './FormComponents';
+import { ClothingImage } from './ClothingImage';
 
 function validateImageFile(file) {
   if (!file) return '';
@@ -76,9 +77,17 @@ function DeleteClothingDialog({ item, onCancel, onConfirm }) {
   );
 }
 
-export function InventoryManager({ config, setConfig, onAuthExpired }) {
+export function InventoryManager({
+  config,
+  setConfig,
+  onAuthExpired,
+  initialMode = 'details',
+  modeLocked = false,
+  title = 'แบบเสื้อและสต๊อก',
+}) {
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
   const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
+  const [mode, setMode] = useState(initialMode);
   const [editing, setEditing] = useState(false);
   const [uploadingId, setUploadingId] = useState('');
   const [stockAdjustments, setStockAdjustments] = useState({});
@@ -116,6 +125,10 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
   }, [config, selectedId]);
 
   useEffect(() => () => window.clearTimeout(syncTimerRef.current), []);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   function scheduleSync(normalizedConfig) {
     window.clearTimeout(syncTimerRef.current);
@@ -398,7 +411,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
         <aside className="inventory-catalog-top-panel">
           <div className="inventory-list-head">
             <div>
-              <h3>แบบเสื้อ</h3>
+              <h3>{title}</h3>
               <p>เลือกแบบเสื้อเพื่อแก้ข้อมูลและสต๊อก</p>
             </div>
             <button type="button" className="btn-primary btn-sm" onClick={addClothing}>
@@ -430,7 +443,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
                   }}
                 >
                   <span className="inventory-item-thumb">
-                    {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <Shirt className="size-5" />}
+                    <ClothingImage src={item.imageUrl} alt={item.type} iconClassName="size-5" />
                   </span>
                   <span className="inventory-catalog-copy">
                     <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
@@ -460,7 +473,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
         <div className="inventory-editor-panel">
           <div className="inventory-hero-card">
             <div className="inventory-hero-media">
-              {selectedItem.imageUrl ? <img src={selectedItem.imageUrl} alt={selectedItem.type} /> : <Shirt className="size-7" />}
+              <ClothingImage src={selectedItem.imageUrl} alt={selectedItem.type} iconClassName="size-7" />
             </div>
             <div className="inventory-hero-copy">
               <span>กำลังจัดการ</span>
@@ -472,6 +485,17 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
               {editing ? 'เสร็จสิ้น' : 'แก้ไข'}
             </button>
           </div>
+
+          {!modeLocked && (
+            <div className="inventory-mode-switch" role="tablist" aria-label="เลือกหน้าจัดการ">
+              <button type="button" className={mode === 'details' ? 'active' : ''} onClick={() => setMode('details')}>
+                แบบเสื้อ
+              </button>
+              <button type="button" className={mode === 'stock' ? 'active' : ''} onClick={() => setMode('stock')}>
+                สต๊อก
+              </button>
+            </div>
+          )}
 
           <div className="inventory-stock-summary-strip">
             <div>
@@ -493,15 +517,20 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
           </div>
 
           <section className="inventory-detail-stock-card">
-            <div className="inventory-section-head">
+            <div className={cn('inventory-section-head', mode === 'stock' && 'hidden')}>
               <div>
                 <h4>ข้อมูลเสื้อ</h4>
                 <p>ชื่อ รูป และรายละเอียดไซส์ที่ผู้เบิกจะเห็น</p>
               </div>
             </div>
-            <div className="inventory-detail-grid">
+            <div className={cn('inventory-detail-grid', mode === 'stock' && 'hidden')}>
               <div className="inventory-image-box">
-                {selectedItem.imageUrl ? <img src={selectedItem.imageUrl} alt={selectedItem.type} /> : <span>ไม่มีรูป</span>}
+                <ClothingImage
+                  src={selectedItem.imageUrl}
+                  alt={selectedItem.type}
+                  fallbackClassName="inventory-image-fallback"
+                  iconClassName="size-8"
+                />
                 {editing && (
                   <label>
                     <ImagePlus className="size-4" />
@@ -533,7 +562,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
               </div>
             </div>
 
-            <div className="inventory-size-fields">
+            <div className={cn('inventory-size-fields', mode === 'stock' && 'hidden')}>
               <div className="inventory-size-fields-top">
                 <div>
                   <strong>รายละเอียดไซส์</strong>
@@ -603,8 +632,8 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
                 </button>
               )}
             </div>
-            <div className="inventory-section-divider" />
-            <div className="inventory-section-head">
+            <div className={cn('inventory-section-divider', mode === 'details' && 'hidden')} />
+            <div className={cn('inventory-section-head', mode === 'details' && 'hidden')}>
               <div>
                 <h4>สต๊อกตามไซส์</h4>
                 <p>รับเข้าใช้เลขบวก เช่น +10 / ปรับลดใช้เลขลบ เช่น -2</p>
@@ -617,7 +646,7 @@ export function InventoryManager({ config, setConfig, onAuthExpired }) {
                 ))}
               </div>
             </div>
-            <div className="inventory-stock-table">
+            <div className={cn('inventory-stock-table', mode === 'details' && 'hidden')}>
               <div className="inventory-stock-header">
                 <span>ไซส์</span>
                 <span>คงเหลือ</span>

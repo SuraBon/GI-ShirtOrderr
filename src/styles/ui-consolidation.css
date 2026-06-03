@@ -1,0 +1,359 @@
+/* Final UI consolidation: one compact visual system across order, dashboard, and inventory. */
+:root {
+  --gi-bg: #f5f7fb;
+  --gi-panel: #f8fafc;
+  --gi-surface: #ffffff;
+  --gi-border: #dbe3ee;
+  --gi-border-strong: #b9c7d8;
+  --gi-text: #111827;
+  --gi-muted: #5f6f86;
+  --gi-navy: #12305c;
+  --gi-blue: #2563eb;
+  --gi-blue-soft: #eef5ff;
+  --gi-warning: #b45309;
+  --gi-warning-soft: #fff7ed;
+  --gi-success: #047857;
+  --gi-success-soft: #ecfdf5;
+  --gi-error: #b91c1c;
+  --gi-error-soft: #fef2f2;
+  --gi-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+  --gi-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 18px rgba(15, 23, 42, 0.04);
+  --gi-radius: 8px;
+  --gi-radius-lg: 12px;
+}
+
+html,
+body,
+.app-shadcn-theme {
+  background: var(--gi-bg) !important;
+  color: var(--gi-text) !important;
+}
+
+.app-shadcn-theme {
+  background-image: none !important;
+}
+
+.app-shadcn-theme .gi-order-header {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: var(--gi-border) !important;
+  box-shadow: 0 1px 10px rgba(15, 23, 42, 0.05) !important;
+}
+
+.app-shadcn-theme .gi-dashboard-header {
+  background: #12305c !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 22px rgba(18, 48, 92, 0.18) !important;
+}
+
+.gi-dashboard-nav {
+  gap: 0.3rem !important;
+}
+
+.gi-dashboard-nav button {
+  min-height: 2.25rem !important;
+  border-radius: 8px !important;
+  padding-inline: 0.8rem !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+  font-size: 0.78rem !important;
+  font-weight: 800 !important;
+}
+
+.gi-dashboard-nav button.active {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+
+.app-shadcn-theme .gi-order-header h1,
+.app-shadcn-theme .gi-order-header :where(button, button span, button svg) {
+  color: var(--gi-text) !important;
+}
+
+.app-shadcn-theme .gi-order-header button {
+  min-height: 2.35rem !important;
+  border-color: var(--gi-border) !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.gi-container {
+  width: min(100% - 2rem, 1380px) !important;
+}
+
+.app-shadcn-theme main.gi-container {
+  padding-top: 1rem !important;
+}
+
+.app-shadcn-theme :where(input, textarea, select, button[aria-haspopup='listbox']) {
+  min-height: 2.45rem !important;
+  border-radius: 8px !important;
+  border-color: var(--gi-border-strong) !important;
+  background: #ffffff !important;
+  color: var(--gi-text) !important;
+  font-size: 0.84rem !important;
+  box-shadow: none !important;
+}
+
+.app-shadcn-theme :where(.form-label, label) {
+  color: #344256 !important;
+  font-size: 0.78rem !important;
+  font-weight: 750 !important;
+}
+
+.dashboard-overview-page,
+.dashboard-console,
+.dashboard-inventory-manager,
+.dashboard-branches-panel {
+  padding: 1rem !important;
+  background: transparent !important;
+}
+
+.dashboard-overview-section {
+  gap: 0.9rem !important;
+  width: min(100%, 1320px) !important;
+}
+
+.dashboard-overview-hero {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  min-height: 0 !important;
+  border: 1px solid var(--gi-border) !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  padding: 1rem !important;
+  box-shadow: var(--gi-shadow-soft) !important;
+}
+
+.dashboard-overview-hero h2 {
+  color: var(--gi-text) !important;
+  font-size: 1.25rem !important;
+  line-height: 1.25 !important;
+}
+
+.dashboard-overview-hero p {
+  margin-top: 0.25rem !important;
+  color: var(--gi-muted) !important;
+  font-size: 0.84rem !important;
+}
+
+.dashboard-action-btn.dark,
+.dashboard-primary-action,
+.inventory-edit-toggle,
+.inventory-add-stock {
+  border-radius: 8px !important;
+  background: var(--gi-navy) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.dashboard-action-btn.dark:hover,
+.dashboard-primary-action:hover,
+.inventory-edit-toggle:hover,
+.inventory-add-stock:hover {
+  background: #0d2447 !important;
+  transform: none !important;
+}
+
+.dashboard-overview-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 0.85rem !important;
+}
+
+.dashboard-overview-stat-card {
+  min-height: 5.4rem !important;
+  border: 1px solid var(--gi-border) !important;
+  border-radius: 12px !important;
+  padding: 0.85rem !important;
+  box-shadow: var(--gi-shadow-soft) !important;
+}
+
+.dashboard-overview-stat-icon {
+  width: 2.7rem !important;
+  height: 2.7rem !important;
+  min-width: 2.7rem !important;
+  border-radius: 8px !important;
+}
+
+.dashboard-overview-stat-card p {
+  color: var(--gi-text) !important;
+  font-size: 1.15rem !important;
+  line-height: 1.2 !important;
+}
+
+.dashboard-overview-stat-card small,
+.dashboard-overview-stat-card em {
+  color: var(--gi-muted) !important;
+  font-size: 0.75rem !important;
+  line-height: 1.35 !important;
+}
+
+.dashboard-overview-workspace {
+  gap: 0.85rem !important;
+}
+
+.dashboard-overview-panel,
+.dashboard-overview-chart-card,
+.dashboard-branch-summary-panel,
+.dashboard-filter-rail,
+.dashboard-orders-panel,
+.dashboard-employees-panel,
+.dashboard-insight-panel,
+.dashboard-inventory-manager,
+.dashboard-branches-panel,
+.inventory-catalog-top-panel,
+.inventory-hero-card,
+.inventory-detail-stock-card {
+  border: 1px solid var(--gi-border) !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: var(--gi-shadow-soft) !important;
+}
+
+.dashboard-overview-chart-head {
+  border-radius: 8px !important;
+  background: var(--gi-panel) !important;
+  padding: 0.75rem !important;
+}
+
+.dashboard-overview-chart-head h3,
+.inventory-list-head h3,
+.inventory-section-head h4,
+.dashboard-panel-head h2,
+.dashboard-panel-title h2 {
+  color: var(--gi-text) !important;
+  font-size: 0.98rem !important;
+  line-height: 1.3 !important;
+}
+
+.dashboard-overview-chart-head p,
+.inventory-list-head p,
+.inventory-section-head p,
+.dashboard-panel-head p {
+  color: var(--gi-muted) !important;
+  font-size: 0.76rem !important;
+}
+
+.overview-task-card,
+.overview-branch-card,
+.overview-stock-row,
+.dashboard-panel-summary > *,
+.dashboard-mobile-order-card {
+  border: 1px solid var(--gi-border) !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.overview-task-card {
+  padding: 0.85rem !important;
+}
+
+.overview-task-card > span:last-child,
+.overview-count-chip {
+  border-radius: 999px !important;
+  background: var(--gi-warning-soft) !important;
+  color: var(--gi-warning) !important;
+  font-size: 0.72rem !important;
+}
+
+.dashboard-filter-rail {
+  padding: 0.8rem !important;
+}
+
+.dashboard-filter-grid {
+  grid-template-columns: repeat(4, minmax(8.5rem, 1fr)) !important;
+  gap: 0.65rem !important;
+}
+
+.dashboard-filter-clear {
+  width: auto !important;
+  justify-self: start !important;
+  padding-inline: 1rem !important;
+}
+
+.dashboard-panel-head,
+.dashboard-panel-title,
+.dashboard-section-title {
+  padding: 0.8rem 0.9rem !important;
+}
+
+.dashboard-panel-actions button,
+.dashboard-panel-title button,
+.dashboard-panel-foot button,
+.dashboard-action-btn,
+.btn-primary,
+.btn-secondary,
+.btn-outline {
+  border-radius: 8px !important;
+  font-size: 0.78rem !important;
+  font-weight: 800 !important;
+}
+
+.dashboard-table-wrap table th,
+.dashboard-table-wrap table td {
+  padding: 0.6rem 0.7rem !important;
+}
+
+.inventory-workbench {
+  gap: 0.85rem !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.inventory-catalog-list {
+  padding: 0.7rem !important;
+}
+
+.inventory-catalog-card {
+  min-width: 210px !important;
+  border: 1px solid var(--gi-border) !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.inventory-catalog-card.active {
+  border-color: #93b4e8 !important;
+  background: var(--gi-blue-soft) !important;
+  box-shadow: inset 3px 0 0 var(--gi-blue) !important;
+}
+
+.inventory-hero-card {
+  grid-template-columns: 4rem minmax(0, 1fr) auto !important;
+  padding: 0.8rem !important;
+}
+
+.inventory-hero-media,
+.inventory-image-box {
+  border-radius: 10px !important;
+  background: #f8fafc !important;
+}
+
+.inventory-stock-summary-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0.65rem !important;
+}
+
+.inventory-stock-summary-strip > div,
+.inventory-info-note,
+.inventory-size-fields {
+  border-radius: 10px !important;
+}
+
+.status-badge {
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+}
+
+@media (max-width: 900px) {
+  .dashboard-overview-hero,
+  .inventory-hero-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-overview-stats,
+  .dashboard-filter-grid,
+  .inventory-stock-summary-strip {
+    grid-template-columns: 1fr !important;
+  }
+}

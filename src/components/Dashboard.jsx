@@ -12,6 +12,7 @@ import {
   Loader2,
   RefreshCw,
   Settings2,
+  Shirt,
   Truck,
   X,
 } from 'lucide-react';
@@ -46,7 +47,7 @@ import {
 import { DashboardDataNotice, DashboardPageSkeleton, MiniMetric, MobileInfo, SkeletonDashboard, StatusBadge } from './DashboardCommon';
 import { ORDER_STATUS_CANCELED, ORDER_STATUS_DELIVERED, ORDER_STATUS_PENDING, ORDER_STATUSES, flattenBatches, normalizeBatch, normalizeOrderStatus } from '../lib/orderState';
 import { BRANCHES } from '../constants/branches';
-import { DashboardOverview, EmployeeMasterPanel, getEmployeeMasterKey, normalizeEmployeeMaster, Field, Select, TextInput, GridInput, CustomSelect, BranchManager, InventoryManager } from '.';
+import { DashboardOverview, Field, Select, TextInput, GridInput, CustomSelect, BranchManager, InventoryManager } from '.';
 import { ConfirmDialog, ColumnSettingsDialog } from './SharedDialogs';
 
 function getDashboardLoadErrorDescription(error) {
@@ -80,10 +81,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
   const [branchFilter, setBranchFilter] = useState('ทุกสาขา');
   const [statusFilter, setStatusFilter] = useState('ทุกสถานะ');
   const [query, setQuery] = useState('');
-  const [employeeMasterRows, setEmployeeMasterRows] = useState([]);
-  const [employeeMasterLoading, setEmployeeMasterLoading] = useState(false);
-  const [employeeMasterSaving, setEmployeeMasterSaving] = useState(false);
-  const [employeeMasterSearch, setEmployeeMasterSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState(() => formatMonthLabel(new Date()));
   const [exportBranchFilter, setExportBranchFilter] = useState('ทุกสาขา');
   const [exportStartMonth, setExportStartMonth] = useState(() => formatMonthInputValue(new Date()));
@@ -145,120 +142,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       setRefreshing(false);
     }
   }
-
-  async function loadEmployeeMaster({ silent = false } = {}) {
-    setEmployeeMasterLoading(true);
-    try {
-      const response = await authFetch('/api/dashboard/employees', { cache: 'no-store' });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.success === false) {
-        throw new Error(result?.error || 'โหลดข้อมูลพนักงานไม่สำเร็จ');
-      }
-      const data = Array.isArray(result) ? result : result?.data || result?.employees;
-      setEmployeeMasterRows((Array.isArray(data) ? data : []).map(normalizeEmployeeMaster));
-      if (silent) toast.success('โหลดข้อมูลพนักงานแล้ว');
-    } catch (error) {
-      if (isAuthFailure(error)) {
-        setAdminToken('');
-        onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
-          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
-        });
-        return;
-      }
-      toast.error('โหลดข้อมูลพนักงานไม่สำเร็จ', {
-        description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
-      });
-    } finally {
-      setEmployeeMasterLoading(false);
-    }
-  }
-
-  async function saveEmployeeMaster(employee, previousEmployeeKey = '') {
-    if (!employee.name || !employee.gender || !employee.branch) {
-      toast.error('กรุณากรอกข้อมูลพนักงานให้ครบ', {
-        description: 'ต้องมีชื่อ เพศ และสาขา',
-      });
-      return false;
-    }
-    setEmployeeMasterSaving(true);
-    try {
-      const response = await authFetch('/api/dashboard/employees', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'upsertEmployee', employee, previousEmployeeKey }),
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.success === false) {
-        throw new Error(result?.error || 'บันทึกข้อมูลพนักงานไม่สำเร็จ');
-      }
-      const savedEmployee = normalizeEmployeeMaster(result.employee || result.data || employee);
-      setEmployeeMasterRows((current) => {
-        const targetKey = previousEmployeeKey || savedEmployee.employeeKey;
-        const exists = current.some((item) => item.employeeKey === targetKey);
-        const nextRows = exists
-          ? current.map((item) => (item.employeeKey === targetKey ? savedEmployee : item))
-          : [...current, savedEmployee];
-        return nextRows.sort(
-          (a, b) =>
-            a.branch.localeCompare(b.branch, 'th', { numeric: true }) ||
-            a.name.localeCompare(b.name, 'th', { numeric: true })
-        );
-      });
-      toast.success('บันทึกข้อมูลพนักงานแล้ว');
-      return true;
-    } catch (error) {
-      if (isAuthFailure(error)) {
-        setAdminToken('');
-        onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ');
-        return false;
-      }
-      toast.error('บันทึกข้อมูลพนักงานไม่สำเร็จ', {
-        description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
-      });
-      return false;
-    } finally {
-      setEmployeeMasterSaving(false);
-    }
-  }
-
-  async function deactivateEmployeeMaster(employee) {
-    const target = normalizeEmployeeMaster(employee);
-    const employeeKey = target.employeeKey || getEmployeeMasterKey(target);
-    if (!window.confirm(`ปิดใช้งานพนักงาน ${target.name} (${target.branch}) หรือไม่?`)) return;
-    setEmployeeMasterSaving(true);
-    try {
-      const response = await authFetch('/api/dashboard/employees', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deleteEmployee', employeeKey }),
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.success === false) {
-        throw new Error(result?.error || 'ปิดใช้งานพนักงานไม่สำเร็จ');
-      }
-      const savedEmployee = normalizeEmployeeMaster(result.employee || result.data || { ...target, active: false });
-      setEmployeeMasterRows((current) =>
-        current.map((item) =>
-          item.employeeKey === employeeKey ? { ...item, ...savedEmployee, active: false } : item
-        )
-      );
-      toast.success('ปิดใช้งานพนักงานแล้ว');
-    } catch (error) {
-      toast.error('ปิดใช้งานพนักงานไม่สำเร็จ', {
-        description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
-      });
-    } finally {
-      setEmployeeMasterSaving(false);
-    }
-  }
-
-  useEffect(() => {
-    setLoading(true);
-    loadData();
-    loadEmployeeMaster();
-  }, []);
 
   useEffect(
     () => () => {
@@ -403,6 +286,11 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       localStorage.setItem(CLOTHING_CONFIG_UPDATED_AT_KEY, String(result.updatedConfig.updatedAt));
     }
   }
+
+  useEffect(() => {
+    setLoading(true);
+    loadData();
+  }, []);
 
   function deriveBatchStatusFromOrders(orders, fallback = ORDER_STATUS_PENDING) {
     const statuses = orders.flatMap((order) =>
@@ -986,25 +874,27 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             </div>
           </div>
           <div className="dashboard-filter-body">
-          <Field label="สาขา">
-            <Select value={branchFilter} onChange={setBranchFilter} values={['ทุกสาขา', ...effectiveBranches]} />
-          </Field>
-          <Field label="เดือน">
-            <Select value={monthFilter} onChange={setMonthFilter} values={monthFilterOptions} />
-          </Field>
-          <Field label="สถานะ">
-            <Select value={statusFilter} onChange={setStatusFilter} values={['ทุกสถานะ', ...ORDER_STATUSES]} />
-          </Field>
-          <Field label="ค้นหา">
-            <TextInput
-              value={query}
-              onChange={setQuery}
-              placeholder="เลขที่คำสั่งเบิก, ผู้ขอ, เบอร์โทร"
-            />
-          </Field>
-          <button className="dashboard-primary-action" onClick={clearFilters}>
-            ล้างตัวกรอง
-          </button>
+            <div className="dashboard-filter-grid">
+              <Field label="สาขา">
+                <Select value={branchFilter} onChange={setBranchFilter} values={['ทุกสาขา', ...effectiveBranches]} compact />
+              </Field>
+              <Field label="เดือน">
+                <Select value={monthFilter} onChange={setMonthFilter} values={monthFilterOptions} compact />
+              </Field>
+              <Field label="สถานะ">
+                <Select value={statusFilter} onChange={setStatusFilter} values={['ทุกสถานะ', ...ORDER_STATUSES]} compact />
+              </Field>
+              <Field label="ค้นหา">
+                <TextInput
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="เลขที่คำสั่งเบิก, ผู้ขอ, เบอร์โทร"
+                />
+              </Field>
+            </div>
+            <button className="dashboard-primary-action dashboard-filter-clear" onClick={clearFilters}>
+              ล้างตัวกรอง
+            </button>
           </div>
         </aside>
 
@@ -1532,8 +1422,8 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
         <section className="dashboard-employees-panel">
           <div className="dashboard-panel-head">
             <div>
-              <h2>ข้อมูลพนักงาน</h2>
-              <p>จัดการฐานพนักงานจริง และดูประวัติรายการเบิกจากคำสั่งเบิก</p>
+              <h2>ประวัติรายการเบิกของพนักงาน</h2>
+              <p>แสดงจากคำสั่งเบิกเท่านั้น ไม่มีการเก็บฐานข้อมูลพนักงานแยก</p>
             </div>
             <div className="dashboard-panel-actions">
               <button type="button" onClick={() => setColumnSettingsTable('employees')} title="ตั้งค่าคอลัมน์ตาราง">
@@ -1544,26 +1434,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 <span>โหลดใหม่</span>
               </button>
-            </div>
-          </div>
-
-          <EmployeeMasterPanel
-            employees={employeeMasterRows}
-            branches={effectiveBranches}
-            genders={GENDERS}
-            loading={employeeMasterLoading}
-            saving={employeeMasterSaving}
-            search={employeeMasterSearch}
-            onSearchChange={setEmployeeMasterSearch}
-            onReload={() => loadEmployeeMaster({ silent: true })}
-            onSave={saveEmployeeMaster}
-            onDeactivate={deactivateEmployeeMaster}
-          />
-
-          <div className="dashboard-panel-head slim employee-history-head">
-            <div>
-              <h2>ประวัติรายการเบิกของพนักงาน</h2>
-              <p>แสดงจากคำสั่งเบิกตามตัวกรองปัจจุบัน {employeeRows.length} รายการ</p>
             </div>
           </div>
 
@@ -1738,6 +1608,34 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             </div>
           </div>
           <InventoryManager
+            initialMode="details"
+            modeLocked
+            title="แบบเสื้อ"
+            config={clothingConfig}
+            setConfig={setClothingConfig}
+            onAuthExpired={onAuthExpired}
+          />
+        </section>
+      )}
+
+      {activeView === 'stock' && (
+        <section className="dashboard-inventory-manager">
+          <div className="dashboard-panel-head">
+            <div>
+              <h2>สต๊อก</h2>
+              <p>รับเข้า ปรับลด และตรวจจำนวนคงเหลือตามเพศ/ไซส์</p>
+            </div>
+            <div className="dashboard-panel-actions">
+              <button onClick={() => onViewChange?.('inventory')}>
+                <Shirt className="size-4" />
+                <span>ไปหน้าแบบเสื้อ</span>
+              </button>
+            </div>
+          </div>
+          <InventoryManager
+            initialMode="stock"
+            modeLocked
+            title="สต๊อก"
             config={clothingConfig}
             setConfig={setClothingConfig}
             onAuthExpired={onAuthExpired}

@@ -1,5 +1,6 @@
 import AppRoot from './App.jsx';
 import './index.css';
+import './styles/ui-consolidation.css';
 import { createRoot } from 'react-dom/client';
 
 const rootElement = document.getElementById('root');

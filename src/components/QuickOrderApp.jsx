@@ -46,12 +46,11 @@ import {
 } from '../lib/orderState';
 import { BRANCHES } from '../constants/branches';
 import { OrderHeader, Field, TextInput, GridInput, TextArea, Select, GridSelect } from '.';
-import { ConfirmDialog, SizeReference, UserManualDialog } from './SharedDialogs';
+import { ConfirmDialog, SizeReference } from './SharedDialogs';
 
 function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, branchesLoading = false }) {
   const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [sizeOpen, setSizeOpen] = useState(false);
-  const [manualOpen, setManualOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalidEmployeeId, setInvalidEmployeeId] = useState('');
@@ -514,7 +513,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
         branch={state.branch}
         onSizeOpen={() => setSizeOpen(true)}
         onOpenDashboard={onOpenDashboard}
-        onManualOpen={() => setManualOpen(true)}
       />
 
       {successData ? (
@@ -1406,7 +1404,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
       />
       <QuickOrderDialog open={quickOpen} setOpen={setQuickOpen} state={state} dispatch={dispatch} />
       <SizeReference open={sizeOpen} setOpen={setSizeOpen} />
-      <UserManualDialog open={manualOpen} setOpen={setManualOpen} />
     </>
   );
 }

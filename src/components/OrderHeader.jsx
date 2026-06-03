@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, ClipboardList, HelpCircle, LayoutDashboard, LogOut, Ruler, Shirt, Users, Building2 } from 'lucide-react';
+import { Building2, ClipboardList, LayoutDashboard, LogOut, Ruler, Shirt } from 'lucide-react';
 
 export function Logo({ surface = 'order' }) {
   const isDashboard = surface === 'dashboard';
@@ -27,20 +27,12 @@ export function Logo({ surface = 'order' }) {
   );
 }
 
-export function OrderHeader({ onSizeOpen, onOpenDashboard, onManualOpen }) {
+export function OrderHeader({ onSizeOpen, onOpenDashboard }) {
   return (
     <header className="gi-order-header relative z-10 border-b border-neutral-200 bg-white px-2 py-2.5 shadow-xs sm:px-3">
       <div className="gi-container flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <Logo />
         <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
-          <button
-            onClick={onManualOpen}
-            className="btn-secondary flex min-h-10 shrink-0 items-center gap-1.5 px-3 text-xs transition sm:text-sm"
-            title="คู่มือการใช้งานระบบ"
-          >
-            <HelpCircle className="size-4" />
-            <span>คู่มือการใช้งาน</span>
-          </button>
           <button
             onClick={onSizeOpen}
             className="btn-secondary flex min-h-10 shrink-0 items-center gap-1.5 px-3 text-xs transition sm:text-sm"
@@ -66,14 +58,14 @@ export function OrderHeader({ onSizeOpen, onOpenDashboard, onManualOpen }) {
 export function DashboardHeader({
   activeView = 'orders',
   onViewChange,
-  onManualOpen,
   onLogout,
 }) {
   const navItems = [
     { id: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
     { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
-    { id: 'employees', label: 'ข้อมูลพนักงาน', icon: Users },
-    { id: 'inventory', label: 'แบบเสื้อและสต๊อก', icon: Shirt },
+    { id: 'employees', label: 'ประวัติพนักงาน', icon: ClipboardList },
+    { id: 'inventory', label: 'แบบเสื้อ', icon: Shirt },
+    { id: 'stock', label: 'สต๊อก', icon: Shirt },
     { id: 'branches', label: 'จัดการสาขา', icon: Building2 },
   ];
 
@@ -96,15 +88,6 @@ export function DashboardHeader({
           ))}
         </nav>
         <div className="dashboard-header-actions flex items-center gap-2 md:ml-auto">
-          <button
-            onClick={onManualOpen}
-            className="dashboard-header-icon hidden min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-black text-white/90 hover:bg-white/10 lg:flex"
-            title="คู่มือแอดมิน"
-            type="button"
-          >
-            <BookOpen size={18} />
-            <span>คู่มือ</span>
-          </button>
           <button
             onClick={onLogout}
             aria-label="ออกจากระบบ"
