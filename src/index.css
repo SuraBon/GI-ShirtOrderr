@@ -5206,6 +5206,7 @@ textarea:focus-visible {
 
 .dashboard-overview-stat-card {
   display: flex;
+  min-width: 0;
   min-height: 108px;
   align-items: center;
   gap: 1rem;
@@ -5218,6 +5219,7 @@ textarea:focus-visible {
 
 .dashboard-overview-stat-card > div {
   display: block;
+  min-width: 0;
 }
 
 .dashboard-overview-stat-icon {
