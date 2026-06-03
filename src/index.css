@@ -2260,20 +2260,6 @@ textarea:focus-visible {
   align-items: end;
 }
 
-.dashboard-filter-clear {
-  min-height: 2.35rem !important;
-}
-
-.dashboard-filter-title-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.dashboard-filter-toggle {
-  display: none !important;
-}
-
 .dashboard-panel-title,
 .dashboard-panel-head,
 .dashboard-section-title {
@@ -4039,25 +4025,6 @@ textarea:focus-visible {
   }
 }
 
-.inventory-item-delete {
-  display: inline-flex;
-  min-height: 2.35rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.7rem;
-  border-radius: 8px;
-  border: 1px solid #f1f5f9;
-  background: #fef2f2;
-  color: #b91c1c;
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-
-.inventory-item-delete:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .dashboard-stock-summary-totals {
   display: flex;
   flex-wrap: wrap;
@@ -4237,23 +4204,6 @@ textarea:focus-visible {
   color: var(--gi-text);
   font-size: 1rem;
   font-weight: 950;
-}
-
-.inventory-item-delete {
-  display: inline-flex;
-  width: 2.3rem;
-  height: 2.3rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-.inventory-item-delete:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .inventory-size-detail-header,
@@ -5081,23 +5031,6 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-filter-toggle {
-    display: inline-grid !important;
-  }
-
-  .dashboard-filter-rail.collapsed {
-    gap: 0;
-    padding-block: 0.65rem;
-  }
-
-  .dashboard-filter-rail.collapsed .dashboard-filter-body {
-    display: none;
-  }
-
-  .dashboard-filter-rail.collapsed .dashboard-panel-title {
-    margin: 0;
-  }
-
   .dashboard-panel-head {
     align-items: flex-start;
     flex-direction: column;
@@ -5814,11 +5747,6 @@ textarea:focus-visible {
   gap: 0.4rem;
 }
 
-.inventory-item-delete[aria-disabled='true'] {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
 .dashboard-dialog-overlay {
   position: fixed;
   inset: 0;
@@ -6228,14 +6156,6 @@ body,
   .overview-task-card p,
   .overview-stock-row p {
     text-align: left;
-  }
-
-  .inventory-catalog-card {
-    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
-  }
-
-  .inventory-catalog-card .inventory-item-delete {
-    grid-column: 3;
   }
 
   .inventory-hero-card {

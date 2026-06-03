@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
 import {
   AlertTriangle,
+  CheckCircle2,
   ClipboardList,
   PackageSearch,
   Shirt,
+  XCircle,
 } from 'lucide-react';
 
 function formatDate(value) {
@@ -159,37 +161,61 @@ export function DashboardStockPanel({ stockRows, onOpenStock }) {
   );
 }
 
-export function DashboardRecentOrdersPanel({ batches, statuses, onOpenOrders }) {
+export function DashboardStatusPanel({ batches, statuses, onOpenOrders }) {
+  const pendingStatus = statuses?.pending || 'รอจัดส่ง';
   const deliveredStatus = statuses?.delivered || 'จัดส่งแล้ว';
   const canceledStatus = statuses?.canceled || 'ยกเลิก';
   const rows = useMemo(
-    () => batches.slice().sort(sortBySubmittedAt('desc')).slice(0, 6),
-    [batches]
+    () => [
+      {
+        id: 'pending',
+        icon: AlertTriangle,
+        tone: 'warning',
+        label: pendingStatus,
+        description: 'รายการที่ยังต้องดำเนินการ',
+        value: batches.filter((batch) => batch.status === pendingStatus).length,
+      },
+      {
+        id: 'delivered',
+        icon: CheckCircle2,
+        tone: 'success',
+        label: deliveredStatus,
+        description: 'รายการที่จัดส่งครบแล้ว',
+        value: batches.filter((batch) => batch.status === deliveredStatus).length,
+      },
+      {
+        id: 'canceled',
+        icon: XCircle,
+        tone: 'danger',
+        label: canceledStatus,
+        description: 'รายการที่ถูกยกเลิก',
+        value: batches.filter((batch) => batch.status === canceledStatus).length,
+      },
+    ],
+    [batches, pendingStatus, deliveredStatus, canceledStatus]
   );
 
   return (
     <PanelShell
-      title="รายการล่าสุด"
-      description="ดูสถานะรายการเบิกล่าสุดอย่างรวดเร็ว"
+      title="สรุปสถานะ"
+      description="ภาพรวมจำนวนรายการตามสถานะ"
     >
       <div className="dashboard-workflow-list">
-        {rows.map((batch) => {
-          const tone =
-            batch.status === deliveredStatus ? 'success' : batch.status === canceledStatus ? 'danger' : 'warning';
+        {rows.map((row) => {
+          const Icon = row.icon;
           return (
-            <button key={batch.batchId} type="button" className="dashboard-workflow-row" onClick={onOpenOrders}>
-              <span className="dashboard-workflow-row-icon neutral" aria-hidden="true">
-                <ClipboardList className="size-4" />
+            <button key={row.id} type="button" className="dashboard-workflow-row" onClick={onOpenOrders}>
+              <span className={`dashboard-workflow-row-icon ${row.tone}`} aria-hidden="true">
+                <Icon className="size-4" />
               </span>
               <div>
-                <strong>{batch.batchId}</strong>
-                <p>{batch.branch || '-'} · {formatDate(batch.submittedAt)} · {getBatchPieces(batch)} ชิ้น</p>
+                <strong>{row.label}</strong>
+                <p>{row.description}</p>
               </div>
-              <StatusPill tone={tone}>{batch.status}</StatusPill>
+              <StatusPill tone={row.tone}>{row.value.toLocaleString('th-TH')} รายการ</StatusPill>
             </button>
           );
         })}
-        {!rows.length && <div className="dashboard-empty-line">ยังไม่มีรายการล่าสุด</div>}
       </div>
     </PanelShell>
   );

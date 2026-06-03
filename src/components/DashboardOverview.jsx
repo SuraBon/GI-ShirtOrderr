@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { AlertTriangle, PackageCheck, RefreshCw, Shirt } from 'lucide-react';
 import {
   DashboardEmptyState,
-  DashboardRecentOrdersPanel,
+  DashboardStatusPanel,
   DashboardStockPanel,
   DashboardTaskPanel,
 } from './DashboardWorkflowPanels';
@@ -50,7 +50,7 @@ export function DashboardOverview({
       <div className="dashboard-workflow-head">
         <div>
           <h2>ภาพรวมงานเบิกเสื้อ</h2>
-          <p>ดูรายการที่ต้องจัดส่ง สต๊อกที่ต้องเติม และรายการล่าสุด</p>
+          <p>ดูงานที่ต้องจัดส่ง สต๊อกที่ต้องเติม และสรุปสถานะรายการ</p>
         </div>
         <div className="dashboard-workflow-head-actions">
           <button type="button" onClick={onRefresh} className="dashboard-action-btn dashboard-secondary-action dashboard-icon-action" title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
@@ -92,7 +92,7 @@ export function DashboardOverview({
           onOpenOrders={() => onViewChange?.('orders')}
         />
         <DashboardStockPanel stockRows={stockSummaryRows} onOpenStock={() => onViewChange?.('stock')} />
-        <DashboardRecentOrdersPanel
+        <DashboardStatusPanel
           batches={filteredBatches}
           statuses={statuses}
           onOpenOrders={() => onViewChange?.('orders')}

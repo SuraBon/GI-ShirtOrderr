@@ -8,7 +8,6 @@ import {
   ChevronUp,
   ClipboardList,
   Download,
-  Eraser,
   Loader2,
   RefreshCw,
   Settings2,
@@ -89,7 +88,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false);
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState('');
   const [exportExpanded, setExportExpanded] = useState(false);
-  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [columnSettingsTable, setColumnSettingsTable] = useState('');
   const [visibleOrderColumns, setVisibleOrderColumns] = useState(() =>
     readDashboardTableColumns('orders', ORDER_TABLE_COLUMNS)
@@ -679,13 +677,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
     setDeleteConfirmBatchId('');
   }
 
-  function clearFilters() {
-    setBranchFilter('ทุกสาขา');
-    setStatusFilter('ทุกสถานะ');
-    setQuery('');
-    setMonthFilter(formatMonthLabel(new Date()));
-  }
-
   function exportCsv() {
     const startKey = getMonthKeyFromInput(exportStartMonth);
     const endKey = getMonthKeyFromInput(exportEndMonth);
@@ -860,23 +851,9 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
           activeView !== 'orders' && activeView !== 'employees' && 'hidden'
         )}
       >
-        <aside className={cn('dashboard-filter-rail', filtersCollapsed && 'collapsed')}>
+        <aside className="dashboard-filter-rail">
           <div className="dashboard-panel-title">
             <h2>ตัวกรอง</h2>
-            <div className="dashboard-filter-title-actions">
-              <button
-                type="button"
-                className="dashboard-filter-toggle"
-                onClick={() => setFiltersCollapsed((value) => !value)}
-                title={filtersCollapsed ? 'เปิดตัวกรอง' : 'ย่อตัวกรอง'}
-                aria-expanded={!filtersCollapsed}
-              >
-                {filtersCollapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
-              </button>
-              <button type="button" onClick={clearFilters} title="ล้างตัวกรอง">
-                <Eraser className="size-4" />
-              </button>
-            </div>
           </div>
           <div className="dashboard-filter-body">
             <div className="dashboard-filter-grid">
@@ -897,10 +874,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                 />
               </Field>
             </div>
-            <button className="dashboard-primary-action dashboard-filter-clear" onClick={clearFilters}>
-              <Eraser className="size-4" />
-              <span>ล้างตัวกรอง</span>
-            </button>
           </div>
         </aside>
 

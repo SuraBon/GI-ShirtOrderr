@@ -49,6 +49,17 @@ function getItemStockStats(item, gender) {
   );
 }
 
+function createBlankClothingDraft() {
+  return {
+    type: '',
+    detailFields: ['อก'],
+    genderSizeRows: GENDERS.reduce(
+      (rows, gender) => ({ ...rows, [gender]: [{ size: 'M', details: { อก: '' }, qty: 0 }] }),
+      {}
+    ),
+  };
+}
+
 function DeleteClothingDialog({ item, onCancel, onConfirm }) {
   return (
     <Dialog.Root open={Boolean(item)} onOpenChange={(open) => !open && onCancel()}>
@@ -94,6 +105,8 @@ export function InventoryManager({
   const [deleteClothingId, setDeleteClothingId] = useState('');
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [detailsDialogTab, setDetailsDialogTab] = useState('details');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createDraft, setCreateDraft] = useState(() => createBlankClothingDraft());
   const syncTimerRef = useRef(null);
 
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
@@ -117,6 +130,10 @@ export function InventoryManager({
   }));
   const sizeDetailGridStyle = {
     '--inventory-size-detail-columns': `minmax(6rem, 0.75fr) repeat(${detailFields.length}, minmax(6rem, 1fr)) 2.5rem`,
+  };
+  const createRows = createDraft.genderSizeRows?.[selectedGender] || [];
+  const createSizeDetailGridStyle = {
+    '--inventory-size-detail-columns': `minmax(6rem, 0.75fr) repeat(${createDraft.detailFields.length}, minmax(6rem, 1fr)) 2.5rem`,
   };
 
   useEffect(() => {
@@ -356,21 +373,139 @@ export function InventoryManager({
   }
 
   function addClothing() {
+    setCreateDraft(createBlankClothingDraft());
+    setSelectedGender(GENDERS[0]);
+    setCreateDialogOpen(true);
+  }
+
+  function patchCreateDraft(patch) {
+    setCreateDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function patchCreateDetailField(fieldIndex, value) {
+    const nextField = value.trim() || 'รายละเอียด';
+    setCreateDraft((current) => {
+      const oldField = current.detailFields[fieldIndex];
+      const nextFields = current.detailFields.map((field, index) => (index === fieldIndex ? nextField : field));
+      return {
+        ...current,
+        detailFields: nextFields,
+        genderSizeRows: GENDERS.reduce((rows, gender) => {
+          const sizeRows = current.genderSizeRows?.[gender] || [];
+          return {
+            ...rows,
+            [gender]: sizeRows.map((row) => {
+              const details = { ...(row.details || {}) };
+              if (oldField && oldField !== nextField) {
+                details[nextField] = details[oldField] || '';
+                delete details[oldField];
+              } else if (!details[nextField]) {
+                details[nextField] = '';
+              }
+              return { ...row, details };
+            }),
+          };
+        }, {}),
+      };
+    });
+  }
+
+  function patchCreateStock(rowIndex, patch) {
+    setCreateDraft((current) => {
+      const rows = current.genderSizeRows?.[selectedGender] || [];
+      return {
+        ...current,
+        genderSizeRows: {
+          ...(current.genderSizeRows || {}),
+          [selectedGender]: rows.map((row, index) => (index === rowIndex ? { ...row, ...patch } : row)),
+        },
+      };
+    });
+  }
+
+  function patchCreateStockDetail(rowIndex, field, value) {
+    setCreateDraft((current) => {
+      const rows = current.genderSizeRows?.[selectedGender] || [];
+      return {
+        ...current,
+        genderSizeRows: {
+          ...(current.genderSizeRows || {}),
+          [selectedGender]: rows.map((row, index) =>
+            index === rowIndex ? { ...row, details: { ...(row.details || {}), [field]: value } } : row
+          ),
+        },
+      };
+    });
+  }
+
+  function addCreateStockRow() {
+    setCreateDraft((current) => {
+      const rows = current.genderSizeRows?.[selectedGender] || [];
+      return {
+        ...current,
+        genderSizeRows: {
+          ...(current.genderSizeRows || {}),
+          [selectedGender]: [
+            ...rows,
+            {
+              size: '',
+              qty: 0,
+              details: current.detailFields.reduce((details, field) => ({ ...details, [field]: '' }), {}),
+            },
+          ],
+        },
+      };
+    });
+  }
+
+  function removeCreateStockRow(rowIndex) {
+    setCreateDraft((current) => {
+      const rows = current.genderSizeRows?.[selectedGender] || [];
+      return {
+        ...current,
+        genderSizeRows: {
+          ...(current.genderSizeRows || {}),
+          [selectedGender]: rows.length > 1 ? rows.filter((_, index) => index !== rowIndex) : rows,
+        },
+      };
+    });
+  }
+
+  function confirmCreateClothing() {
+    const type = createDraft.type.trim();
+    const detailFieldsNext = createDraft.detailFields.map((field) => field.trim()).filter(Boolean);
+    const genderSizeRows = GENDERS.reduce((rows, gender) => {
+      const sizeRows = createDraft.genderSizeRows?.[gender] || [];
+      return {
+        ...rows,
+        [gender]: sizeRows.map((row) => ({
+          ...row,
+          size: String(row.size || '').trim(),
+          qty: 0,
+          details: detailFieldsNext.reduce(
+            (details, field) => ({ ...details, [field]: row.details?.[field] || '' }),
+            {}
+          ),
+        })),
+      };
+    }, {});
+
+    if (!type) {
+      toast.error('กรุณาระบุชื่อเสื้อก่อนสร้าง');
+      return;
+    }
+    if (!detailFieldsNext.length) {
+      toast.error('กรุณาระบุรายละเอียดไซส์อย่างน้อย 1 ช่อง');
+      return;
+    }
+    if (GENDERS.some((gender) => genderSizeRows[gender].some((row) => !row.size))) {
+      toast.error('กรุณาระบุไซส์ให้ครบก่อนสร้าง');
+      return;
+    }
+
     const id = crypto.randomUUID();
-    commit([
-      ...config,
-      {
-        id,
-        type: 'เสื้อใหม่',
-        imageUrl: '',
-        detailFields: ['อก'],
-        sizeRows: [{ size: 'M', details: { อก: '' }, qty: 0 }],
-        genderSizeRows: GENDERS.reduce(
-          (rows, gender) => ({ ...rows, [gender]: [{ size: 'M', details: { อก: '' }, qty: 0 }] }),
-          {}
-        ),
-      },
-    ]);
+    commit([...config, { id, type, imageUrl: '', detailFields: detailFieldsNext, sizeRows: genderSizeRows[GENDERS[0]], genderSizeRows }]);
+    setCreateDialogOpen(false);
     setSelectedId(id);
     setEditing(true);
     setDetailsDialogTab('details');
@@ -435,7 +570,6 @@ export function InventoryManager({
                 withdrawn: 0,
                 remaining: 0,
               };
-              const canDelete = config.length > 1;
               return (
                 <article
                   role="button"
@@ -487,18 +621,6 @@ export function InventoryManager({
                       </button>
                     </span>
                   )}
-                  <button
-                    type="button"
-                    className="inventory-item-delete"
-                    aria-label="ลบแบบเสื้อ"
-                    disabled={!canDelete}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (canDelete) setDeleteClothingId(item.id);
-                    }}
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
                 </article>
               );
             })}
@@ -750,6 +872,17 @@ export function InventoryManager({
                   {selectedItem.type || 'แบบเสื้อที่เลือก'} · {selectedGender} / {stockRows.length} ไซส์
                 </Dialog.Description>
               </div>
+              <div className="inventory-dialog-head-actions">
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm inventory-dialog-delete-button"
+                  disabled={config.length <= 1}
+                  onClick={() => setDeleteClothingId(selectedItem.id)}
+                >
+                  <Trash2 className="size-4" />
+                  ลบแบบเสื้อ
+                </button>
+              </div>
               <Dialog.Close className="dashboard-dialog-close" aria-label="ปิด">
                 <X className="size-4" />
               </Dialog.Close>
@@ -935,6 +1068,110 @@ export function InventoryManager({
                   );
                 })}
               </div>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="dashboard-dialog-overlay" />
+          <Dialog.Content className="inventory-details-dialog inventory-create-dialog">
+            <div className="inventory-details-dialog-head">
+              <div>
+                <Dialog.Title>เพิ่มแบบเสื้อ</Dialog.Title>
+                <Dialog.Description>กรอกข้อมูลให้ครบก่อนยืนยันสร้างแบบเสื้อใหม่</Dialog.Description>
+              </div>
+              <Dialog.Close className="dashboard-dialog-close" aria-label="ปิด">
+                <X className="size-4" />
+              </Dialog.Close>
+            </div>
+
+            <div className="inventory-dialog-tab-panel">
+              <div className="inventory-detail-grid">
+                <div className="inventory-image-box">
+                  <ClothingImage
+                    src=""
+                    alt={createDraft.type || 'แบบเสื้อใหม่'}
+                    fallbackClassName="inventory-image-fallback"
+                    iconClassName="size-8"
+                  />
+                  <div className="inventory-create-image-note">แนบรูปได้หลังสร้างแบบเสื้อ</div>
+                </div>
+                <div className="inventory-detail-fields">
+                  <Field label="ชื่อเสื้อ">
+                    <TextInput
+                      value={createDraft.type}
+                      onChange={(value) => patchCreateDraft({ type: value })}
+                      placeholder="เช่น เสื้อโปโล"
+                    />
+                  </Field>
+                  <div className="inventory-info-note">
+                    ระบบจะยังไม่สร้างแบบเสื้อจนกดปุ่มยืนยันด้านล่าง
+                  </div>
+                </div>
+              </div>
+
+              <div className="inventory-size-fields inventory-size-fields-dialog">
+                <div className="inventory-size-fields-top">
+                  <div>
+                    <strong>รายละเอียดไซส์เริ่มต้น</strong>
+                    <span>ระบุข้อมูลเริ่มต้นทั้งชายและหญิงก่อนสร้าง</span>
+                  </div>
+                  <div className="inventory-gender-toggle">
+                    {GENDERS.map((gender) => (
+                      <button key={gender} type="button" className={selectedGender === gender ? 'active' : ''} onClick={() => setSelectedGender(gender)}>
+                        {gender}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="inventory-size-field-list">
+                  {createDraft.detailFields.map((field, index) => (
+                    <div key={`create-detail-field-${index}`} className="inventory-size-field-row">
+                      <TextInput value={field} onChange={(value) => patchCreateDetailField(index, value)} placeholder="อก" />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="inventory-size-detail-table">
+                  <div className="inventory-size-detail-header" style={createSizeDetailGridStyle}>
+                    <span>ไซส์</span>
+                    {createDraft.detailFields.map((field) => <span key={`create-size-head-${field}`}>{field}</span>)}
+                    <span />
+                  </div>
+                  {createRows.map((row, index) => (
+                    <div className="inventory-size-detail-row" key={`${selectedGender}-create-detail-${index}`} style={createSizeDetailGridStyle}>
+                      <TextInput value={row.size} onChange={(value) => patchCreateStock(index, { size: value })} placeholder="ไซส์" />
+                      {createDraft.detailFields.map((field) => (
+                        <TextInput
+                          key={`${selectedGender}-${index}-create-${field}`}
+                          value={row.details?.[field] || ''}
+                          onChange={(value) => patchCreateStockDetail(index, field, value)}
+                          placeholder={field}
+                        />
+                      ))}
+                      <button type="button" onClick={() => removeCreateStockRow(index)} title="ลบไซส์">
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button type="button" className="btn-secondary btn-sm inventory-add-stock" onClick={addCreateStockRow}>
+                  <Plus className="size-4" /> เพิ่มไซส์
+                </button>
+              </div>
+            </div>
+
+            <div className="inventory-create-actions">
+              <Dialog.Close type="button" className="btn-secondary">
+                ยกเลิก
+              </Dialog.Close>
+              <button type="button" className="btn-primary" onClick={confirmCreateClothing}>
+                ยืนยันสร้าง
+              </button>
             </div>
           </Dialog.Content>
         </Dialog.Portal>

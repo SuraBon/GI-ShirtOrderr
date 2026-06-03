@@ -265,12 +265,6 @@ body,
   gap: 0.65rem !important;
 }
 
-.dashboard-filter-clear {
-  width: auto !important;
-  justify-self: start !important;
-  padding-inline: 1rem !important;
-}
-
 .dashboard-panel-head,
 .dashboard-panel-title,
 .dashboard-section-title {
