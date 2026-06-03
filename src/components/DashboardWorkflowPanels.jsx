@@ -141,8 +141,8 @@ export function DashboardStockPanel({ stockRows, onOpenStock }) {
 
   return (
     <PanelShell
-      title="สต๊อกต้องดู"
-      description="เพศ/ไซส์ที่คงเหลือต่ำหรือใกล้หมด"
+      title="รายการที่ควรเติม"
+      description="เพศและไซส์ที่ควรตรวจจำนวนคงเหลือ"
       action={<PanelAction onClick={onOpenStock}>สต๊อก</PanelAction>}
     >
       <div className="dashboard-workflow-list">
@@ -160,7 +160,7 @@ export function DashboardStockPanel({ stockRows, onOpenStock }) {
             </StatusPill>
           </article>
         ))}
-        {!lowRows.length && <div className="dashboard-empty-line">ยังไม่มีสต๊อกต่ำ</div>}
+        {!lowRows.length && <div className="dashboard-empty-line">จำนวนคงเหลืออยู่ในระดับปกติ</div>}
       </div>
     </PanelShell>
   );

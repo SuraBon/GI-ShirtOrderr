@@ -781,7 +781,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       };
     })
     .slice(0, 6);
-  const lowStockRows = inventoryRows
+  const refillRows = inventoryRows
     .filter((item) => item.total <= 320)
     .sort((a, b) => a.total - b.total)
     .slice(0, 3);
@@ -1612,16 +1612,16 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
           </div>
           <div className="dashboard-alert-card">
             <div className="dashboard-section-title">
-              <h3>แจ้งเตือนสต๊อกต่ำ</h3>
+              <h3>รายการที่ควรเติม</h3>
             </div>
-            {lowStockRows.length ? (
-              lowStockRows.map((item) => (
+            {refillRows.length ? (
+              refillRows.map((item) => (
                 <p key={item.id}>
                   {item.type} <strong>คงเหลือ {item.total} ชิ้น</strong>
                 </p>
               ))
             ) : (
-              <p>สต๊อกอยู่ในระดับปกติ <strong>{inventoryRows.length} รายการ</strong></p>
+              <p>จำนวนคงเหลืออยู่ในระดับปกติ <strong>{inventoryRows.length} รายการ</strong></p>
             )}
           </div>
         </aside>

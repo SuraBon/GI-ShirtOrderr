@@ -342,8 +342,8 @@
 }
 
 .dashboard-icon-action {
-  width: 2.25rem !important;
-  min-width: 2.25rem !important;
+  width: 2.45rem !important;
+  min-width: 2.45rem !important;
   padding-inline: 0 !important;
 }
 
@@ -762,11 +762,6 @@
   height: 2.35rem !important;
 }
 
-.inventory-workbench.stock-focus .inventory-catalog-status {
-  padding: 0.2rem 0.42rem !important;
-  font-size: 0.66rem !important;
-}
-
 .inventory-workbench.stock-focus .inventory-editor-panel {
   gap: 0.6rem !important;
 }
@@ -837,7 +832,7 @@
 }
 
 .inventory-workbench.stock-focus .inventory-stock-summary-strip {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 0.5rem !important;
 }
 
@@ -907,15 +902,16 @@
   top: 50%;
   z-index: 60;
   display: grid;
-  width: min(calc(100vw - 2rem), 860px);
-  max-height: min(88dvh, 820px);
+  width: min(calc(100vw - 3rem), 1040px);
+  max-height: min(90dvh, 820px);
+  grid-template-rows: auto auto minmax(0, 1fr);
   transform: translate(-50%, -50%);
-  gap: 0.75rem;
-  overflow: auto;
+  gap: 0.9rem;
+  overflow: hidden;
   border: 1px solid var(--gi-border);
   border-radius: 14px;
   background: #ffffff;
-  padding: 1rem;
+  padding: 1.05rem;
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
 }
 
@@ -944,21 +940,42 @@
 }
 
 .inventory-details-dialog .inventory-detail-grid {
-  grid-template-columns: minmax(8rem, 0.45fr) minmax(0, 1fr) !important;
-  gap: 0.75rem !important;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 0.9rem !important;
 }
 
 .inventory-details-dialog .inventory-image-box {
-  min-height: 10rem !important;
+  height: 9.5rem !important;
+  min-height: 0 !important;
   aspect-ratio: auto !important;
 }
 
+.inventory-details-dialog .inventory-detail-fields {
+  display: grid !important;
+  gap: 0.65rem !important;
+}
+
+.inventory-details-dialog .inventory-info-note {
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--gi-muted) !important;
+  font-size: 0.8rem !important;
+  line-height: 1.45 !important;
+  font-weight: 750 !important;
+}
+
 .inventory-size-fields-dialog {
+  min-height: 0 !important;
+  overflow: hidden !important;
   padding: 0.75rem !important;
 }
 
 .inventory-size-fields-dialog .inventory-size-detail-table {
-  max-height: 42dvh;
+  max-height: 34dvh;
   overflow: auto;
 }
 
@@ -1212,10 +1229,10 @@
 .dashboard-icon-action,
 .dashboard-filter-toggle,
 .dashboard-filter-title-actions > button:not(.dashboard-filter-clear) {
-  width: 2.25rem !important;
-  height: 2.25rem !important;
-  min-width: 2.25rem !important;
-  min-height: 2.25rem !important;
+  width: 2.45rem !important;
+  height: 2.45rem !important;
+  min-width: 2.45rem !important;
+  min-height: 2.45rem !important;
   padding: 0 !important;
 }
 
@@ -1335,53 +1352,6 @@
 
 .inventory-workbench.stock-focus .inventory-stock-row {
   min-height: 2.9rem !important;
-}
-
-/* Clothing details dialog: avoid the oversized blue note block and make editing flow clearer. */
-.inventory-details-dialog {
-  width: min(calc(100vw - 3rem), 1040px) !important;
-  max-height: min(90dvh, 820px) !important;
-  grid-template-rows: auto auto minmax(0, 1fr) !important;
-  gap: 0.9rem !important;
-  padding: 1.05rem !important;
-  overflow: hidden !important;
-}
-
-.inventory-details-dialog .inventory-detail-grid {
-  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) !important;
-  align-items: start !important;
-  gap: 0.9rem !important;
-}
-
-.inventory-details-dialog .inventory-image-box {
-  height: 9.5rem !important;
-  min-height: 0 !important;
-}
-
-.inventory-details-dialog .inventory-detail-fields {
-  display: grid !important;
-  gap: 0.65rem !important;
-}
-
-.inventory-details-dialog .inventory-info-note {
-  min-height: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: 0 !important;
-  color: var(--gi-muted) !important;
-  font-size: 0.8rem !important;
-  line-height: 1.45 !important;
-  font-weight: 750 !important;
-}
-
-.inventory-size-fields-dialog {
-  min-height: 0 !important;
-  overflow: hidden !important;
-}
-
-.inventory-size-fields-dialog .inventory-size-detail-table {
-  max-height: 34dvh !important;
 }
 
 @media (min-width: 761px) {

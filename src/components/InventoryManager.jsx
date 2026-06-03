@@ -43,10 +43,9 @@ function getItemStockStats(item, gender) {
         totalStock: totals.totalStock + summary.totalStock,
         remaining: totals.remaining + summary.remaining,
         withdrawn: totals.withdrawn + summary.withdrawn,
-        lowStock: totals.lowStock + (summary.remaining <= 10 ? 1 : 0),
       };
     },
-    { totalStock: 0, remaining: 0, withdrawn: 0, lowStock: 0 }
+    { totalStock: 0, remaining: 0, withdrawn: 0 }
   );
 }
 
@@ -110,10 +109,9 @@ export function InventoryManager({
           totalStock: totals.totalStock + stats.totalStock,
           remaining: totals.remaining + stats.remaining,
           withdrawn: totals.withdrawn + stats.withdrawn,
-          lowStock: totals.lowStock + stats.lowStock,
         };
       },
-      { totalStock: 0, remaining: 0, withdrawn: 0, lowStock: 0 }
+      { totalStock: 0, remaining: 0, withdrawn: 0 }
     ),
   }));
   const sizeDetailGridStyle = {
@@ -424,7 +422,6 @@ export function InventoryManager({
             {config.map((item) => {
               const itemStats = allItemStats.find((entry) => entry.id === item.id)?.stats || {
                 remaining: 0,
-                lowStock: 0,
               };
               const canDelete = config.length > 1;
               return (
@@ -450,9 +447,6 @@ export function InventoryManager({
                   <span className="inventory-catalog-copy">
                     <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
                     <small>คงเหลือ {itemStats.remaining.toLocaleString('th-TH')} ชิ้น</small>
-                  </span>
-                  <span className={cn('inventory-catalog-status', itemStats.lowStock && 'warning')}>
-                    {itemStats.lowStock ? `ต่ำ ${itemStats.lowStock}` : 'ปกติ'}
                   </span>
                   <button
                     type="button"
@@ -533,10 +527,6 @@ export function InventoryManager({
             <div>
               <span>เบิกแล้ว</span>
               <strong>{stockStats.withdrawn.toLocaleString('th-TH')} ชิ้น</strong>
-            </div>
-            <div className={stockStats.lowStock ? 'warning' : ''}>
-              <span>สต๊อกต่ำ</span>
-              <strong>{stockStats.lowStock} ไซส์</strong>
             </div>
           </div>
 
