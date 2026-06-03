@@ -635,8 +635,16 @@
     min-height: 0 !important;
   }
 
-  .inventory-size-fields-dialog .inventory-size-detail-header,
+  .inventory-size-fields-dialog .inventory-size-detail-header {
+    display: none !important;
+  }
+
   .inventory-size-fields-dialog .inventory-size-detail-row {
-    min-width: 34rem;
+    grid-template-columns: 1fr !important;
+    min-width: 0;
+  }
+
+  .inventory-size-fields-dialog .inventory-size-detail-row button {
+    width: 100%;
   }
 }
