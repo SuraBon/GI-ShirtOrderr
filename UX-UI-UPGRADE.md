@@ -1,497 +1,187 @@
-# UX/UI Upgrade Guide
+# UX/UI Upgrade Checklist
 
-## 📋 Overview
+เอกสารนี้ใช้เป็น checklist สำหรับการปรับ UI ของ GI Shirt Order โดยเน้น dashboard, responsive layout, form ergonomics และการป้องกัน overflow
 
-This comprehensive UX/UI upgrade includes:
-- **Professional Corporate Design System** - Modern, clean aesthetic
-- **Improved Components** - Better buttons, forms, cards, and layouts
-- **Enhanced Accessibility** - WCAG compliance, keyboard navigation
-- **Better Mobile Experience** - Responsive design for all devices
-- **Smooth Animations** - Subtle, professional transitions
-- **Consistent Spacing & Typography** - Better visual hierarchy
+## Current UI Direction
 
----
+- ใช้หน้าจอจริงเป็น first screen ไม่ทำ landing page
+- Order page เน้นกรอกเร็ว ตรวจรายการง่าย และส่งคำขอชัดเจน
+- Dashboard เน้นข้อมูลหนาแน่น อ่านเร็ว และจัดการซ้ำได้ทุกวัน
+- Inventory page เน้นข้อมูลแบบเสื้อ ไซส์ รูปภาพ และสต๊อกโดยไม่ปนกัน
+- Branch page เน้นเพิ่ม/แก้/ลบสาขาแบบตรงไปตรงมา
 
-## 🎨 Color System
+## Design Tokens
 
-### Primary Colors
-- `primary-600`: `#4f68a8` (Main brand color - professional blue)
-- `primary-700`: `#3d5399` (Darker shade for hover states)
-- `primary-800`: `#2f407a` (Even darker for active states)
+### Color Roles
 
-### Accent Colors
-- `accent-500`: `#e86d3f` (Warm orange for highlights)
-- `accent-600`: `#da5a2a` (Darker accent)
+- Navy primary: ใช้กับ header admin และ primary action
+- White surface: ใช้กับ card, table wrapper, dialog
+- Light gray background: ใช้กับ page background
+- Border gray: ใช้แยก section และ control
+- Warning warm: ใช้กับ `รอจัดส่ง` และงานที่ต้องทำ
+- Success green: ใช้กับ `จัดส่งแล้ว`
+- Danger red: ใช้กับ delete, error และสต๊อกไม่พอ
+- Muted gray: ใช้กับ secondary text และ `ยกเลิก`
 
-### Neutral Colors
-- `neutral-900`: `#1f2937` (Dark text)
-- `neutral-700`: `#374151` (Regular text)
-- `neutral-600`: `#4b5563` (Secondary text)
-- `neutral-100`: `#f3f4f6` (Light backgrounds)
+### Typography
 
-### Semantic Colors
-- `success`: `#10b981` (Green for success)
-- `error`: `#ef4444` (Red for errors)
-- `warning`: `#f59e0b` (Amber for warnings)
-- `info`: `#3b82f6` (Blue for info)
+- ใช้ Noto Sans Thai เป็นหลัก
+- หัวข้อใน dashboard ต้องกระชับ ไม่ใช้ hero-scale type
+- ข้อความใน card/table ใช้ขนาดที่อ่านง่ายและไม่ทำให้ row สูงเกินจำเป็น
+- หลีกเลี่ยง letter spacing ติดลบ
 
----
+### Shape and Spacing
 
-## 🧩 Component Library
+- Radius หลัก 8-14px
+- Card ไม่ควรซ้อน card ภายใน card โดยไม่จำเป็น
+- ใช้ gap สม่ำเสมอระหว่าง control
+- ปุ่ม icon-only ต้องมีพื้นที่กดชัดเจนและมี label สำหรับ accessibility
 
-### Button Components
-
-```jsx
-import { Button } from './lib/components';
+## Component Rules
 
-// Primary Button
-<Button variant="primary">Primary Action</Button>
+### Buttons
 
-// Secondary Button
-<Button variant="secondary">Secondary Action</Button>
+- Primary: navy background, white text
+- Secondary: white background, border, navy text
+- Danger: red soft background, red text
+- Loading action ต้อง disabled หรือแสดง loading state
+- ปุ่มบนมือถือเต็มแถวได้เมื่อข้อความเริ่มแน่น
+- Icon-only button ต้องมี `aria-label` หรือ `title`
 
-// Outline Button
-<Button variant="outline">Outline Action</Button>
+### Forms
 
-// Ghost Button (minimal style)
-<Button variant="ghost">Ghost Action</Button>
-
-// Danger Button
-<Button variant="danger">Delete</Button>
+- ทุก input/select ต้องมี label
+- Error ต้องบอกวิธีแก้ ไม่ใช่แค่บอกว่าผิด
+- เบอร์โทรต้องรับเฉพาะตัวเลขตาม `PHONE_LENGTH`
+- CSV import ต้อง preview/validate ก่อนนำเข้า
 
-// Success Button
-<Button variant="success">Confirm</Button>
+### Tables
 
-// Sizes
-<Button size="sm">Small</Button>
-<Button size="md">Medium</Button>
-<Button size="lg">Large</Button>
+- Desktop ใช้ table เมื่อข้อมูลต้องเปรียบเทียบหลายคอลัมน์
+- Mobile ใช้ card หรือ table wrapper ที่ scroll ภายในกรอบ
+- Header และ cell ต้อง align อ่านง่าย
+- Column settings ใช้กับตารางที่มีข้อมูลมาก
 
-// With Icon
-<Button icon={PlusIcon}>Add New</Button>
+### Cards and Panels
 
-// Full Width
-<Button className="w-full">Full Width</Button>
-
-// Disabled
-<Button disabled>Disabled</Button>
-```
-
-### Form Components
+- KPI card ต้องมี icon, value, label และ detail ถ้าจำเป็น
+- Workflow row ต้องมี icon, text, status pill
+- Text container ใน flex/grid ต้องมี `min-width: 0`
+- Status pill ต้องไม่ดัน parent ออกนอก viewport
 
-```jsx
-import { FormGroup, Input, Select, Textarea } from './lib/components';
-
-// Text Input
-<FormGroup label="Name" required>
-  <Input type="text" placeholder="Enter name" />
-</FormGroup>
+### Dialogs
 
-// With Error
-<FormGroup label="Email" error="Invalid email format">
-  <Input type="email" />
-</FormGroup>
-
-// With Hint
-<FormGroup label="Password" hint="Minimum 8 characters">
-  <Input type="password" />
-</FormGroup>
-
-// Select/Dropdown
-<FormGroup label="Category">
-  <Select>
-    <option value="">Select option</option>
-    <option value="1">Option 1</option>
-    <option value="2">Option 2</option>
-  </Select>
-</FormGroup>
-
-// Textarea
-<FormGroup label="Description">
-  <Textarea rows={4} placeholder="Enter description" />
-</FormGroup>
-```
-
-### Card Components
-
-```jsx
-import { Card, Section } from './lib/components';
-
-// Basic Card
-<Card>
-  <h3>Card Title</h3>
-  <p>Card content goes here</p>
-</Card>
-
-// Elevated Card
-<Card elevated>
-  <h3>Elevated Card</h3>
-  <p>Has more shadow for prominence</p>
-</Card>
-
-// Interactive Card
-<Card interactive onClick={() => {}}>
-  <h3>Clickable Card</h3>
-  <p>Card that responds to clicks</p>
-</Card>
-
-// Section with Title
-<Section title="Section Title" description="Optional description">
-  <p>Section content here</p>
-</Section>
-```
-
-### Badge & Pill Components
-
-```jsx
-import { Badge, Pill } from './lib/components';
-
-// Badges
-<Badge variant="primary">Primary</Badge>
-<Badge variant="success">Success</Badge>
-<Badge variant="error">Error</Badge>
-<Badge variant="warning">Warning</Badge>
-
-// Pills
-<Pill variant="primary">Pill Label</Pill>
-<Pill icon={UserIcon}>User</Pill>
-```
-
-### Alert Components
-
-```jsx
-import { Alert } from './lib/components';
-import { Info, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
-
-// Info Alert
-<Alert variant="info" icon={Info}>
-  This is an informational message
-</Alert>
-
-// Success Alert
-<Alert variant="success" icon={CheckCircle}>
-  Operation completed successfully
-</Alert>
-
-// Warning Alert
-<Alert variant="warning" icon={AlertTriangle}>
-  Please review this warning
-</Alert>
-
-// Error Alert
-<Alert variant="error" icon={XCircle}>
-  An error occurred
-</Alert>
-```
-
-### Layout Components
-
-```jsx
-import { Container, Flex, Grid, Heading, Text } from './lib/components';
-
-// Container - Max width container
-<Container>
-  <h1>Page Title</h1>
-</Container>
-
-// Small Container
-<Container size="sm">
-  <p>Smaller centered content</p>
-</Container>
-
-// Flex Layout
-<Flex justify="between" align="center" gap={4}>
-  <h2>Title</h2>
-  <Button>Action</Button>
-</Flex>
-
-// Grid Layout
-<Grid cols={3} gap={6}>
-  <Card>Item 1</Card>
-  <Card>Item 2</Card>
-  <Card>Item 3</Card>
-</Grid>
-
-// Responsive Grid
-<Grid cols={2}>
-  {/* 1 column on mobile, 2 on tablet, 3 on desktop */}
-</Grid>
-
-// Headings
-<Heading level={1}>Heading Level 1</Heading>
-<Heading level={2}>Heading Level 2</Heading>
-<Heading level={3}>Heading Level 3</Heading>
-
-// Text Variants
-<Text variant="body">Body text</Text>
-<Text variant="body-sm">Small body text</Text>
-<Text variant="caption">Caption text</Text>
-<Text variant="muted">Muted text</Text>
-<Text variant="emphasis">Emphasized text</Text>
-```
-
-### Loading & Empty States
-
-```jsx
-import { Skeleton, LoadingSpinner, EmptyState } from './lib/components';
-import { Package } from 'lucide-react';
-
-// Skeleton Loader
-<Skeleton />
-<Skeleton width="w-32" height="h-3" />
-<Skeleton width="w-full" height="h-12" />
-
-// Loading Spinner
-<LoadingSpinner size="sm" />
-<LoadingSpinner size="md" />
-<LoadingSpinner size="lg" />
-
-// Empty State
-<EmptyState
-  icon={Package}
-  title="No Items Found"
-  description="There are no items to display. Try creating a new one."
-  action={<Button>Create New Item</Button>}
-/>
-```
-
----
-
-## 🎯 Typography Scale
-
-### Heading Sizes
-- `text-h1`: 32px, bold (Page titles)
-- `text-h2`: 24px, bold (Section titles)
-- `text-h3`: 20px, bold (Subsection titles)
-- `text-h4`: 18px, bold (Card titles)
-- `text-h5`: 16px, semibold (Small titles)
-
-### Body Text
-- `text-body`: 14px, regular (Default body text)
-- `text-body-sm`: 13px, regular (Smaller body text)
-- `text-caption`: 12px, regular (Captions, labels)
-
----
-
-## 📏 Spacing Scale
-
-Consistent 4px based spacing:
-- `xs`: 4px
-- `sm`: 8px
-- `md`: 12px
-- `lg`: 16px
-- `xl`: 24px
-- `2xl`: 32px
-
-```jsx
-// Examples
-<div className="px-lg py-md">Padded box</div>
-<div className="gap-lg flex">Items with gap</div>
-<div className="mb-xl">Content with bottom margin</div>
-```
-
----
-
-## 🌐 Responsive Design
-
-Mobile-first approach using Tailwind breakpoints:
-
-```jsx
-// Examples
-<div className="text-sm md:text-base lg:text-lg">
-  Text that scales across devices
-</div>
-
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-  Responsive grid
-</div>
-
-<div className="px-sm md:px-lg lg:px-xl">
-  Responsive padding
-</div>
-```
-
----
-
-## ♿ Accessibility Features
-
-### Semantic HTML
-- Use proper heading hierarchy (h1 → h5)
-- Use `<section>`, `<article>`, `<nav>` tags
-- Use `<button>` for clickable elements, not `<div>`
-
-### ARIA Attributes
-```jsx
-<div role="alert" aria-live="polite">
-  Message for screen readers
-</div>
-
-<button aria-label="Close dialog">
-  <X size={20} />
-</button>
-```
-
-### Focus Management
-- All interactive elements have visible focus indicators
-- Use Tab key to navigate
-- Buttons and links have proper hover/active states
-
-### Color Contrast
-- All text meets WCAG AA standards (4.5:1 for body, 3:1 for large text)
-- Color is never the only indicator
-
----
-
-## 🎬 Animations & Transitions
-
-### Available Animations
-
-```jsx
-// Fade animations
-<div className="animate-fade-in">Fades in</div>
-<div className="animate-fade-in-up">Fades and slides up</div>
-
-// Scale animation
-<div className="animate-scale-in">Scales in</div>
-
-// Pulse animation
-<div className="animate-pulse-subtle">Subtle pulse</div>
-
-// Slide animations
-<div className="animate-slide-in-left">Slides from left</div>
-```
-
-### Transition Classes
-
-```jsx
-// All transitions
-<button className="transition-all hover:shadow-lg">
-  Smooth transition on all properties
-</button>
-
-// Custom duration
-<div className="transition-all duration-500">Custom duration</div>
-```
-
----
-
-## 🔍 CSS Classes for Direct Use
-
-### Utility Classes
-
-```jsx
-// Flexbox
-<div className="flex-center">Centered flex</div>
-<div className="flex-between">Space between</div>
-
-// Text
-<p className="text-emphasis">Emphasized text</p>
-<p className="text-muted">Muted text</p>
-
-// Scrollbar
-<div className="scrollbar-thin max-h-96 overflow-auto">
-  Content with custom scrollbar
-</div>
-
-// Screen reader only
-<span className="sr-only">Screen reader text only</span>
-```
-
----
-
-## 🚀 Migration Guide
-
-### From Old Component to New
-
-```jsx
-// OLD
-<button className="min-h-10 w-full rounded-lg border...">
-  Old styled button
-</button>
-
-// NEW
-<Button className="w-full">New styled button</Button>
-```
-
-### Old CSS Classes to Tailwind
-
-```jsx
-// OLD
-<div className="reactbits-card">Content</div>
-
-// NEW
-<Card>Content</Card>
-// or
-<div className="card">Content</div>
-```
-
----
-
-## 📱 Mobile-First Guidelines
-
-1. **Default styles are for mobile**
-   - `text-sm md:text-base lg:text-lg`
-   - `grid-cols-1 md:grid-cols-2`
-
-2. **Touch targets**: Minimum 44x44px for buttons
-
-3. **Spacing**: More generous on mobile for easier interaction
-
-4. **Viewport**: Use `viewport-fit=cover` for notch support
-
----
-
-## 🧪 Testing Checklist
-
-- [ ] All buttons are accessible via keyboard (Tab key)
-- [ ] All forms have proper labels
-- [ ] Color contrast meets WCAG AA
-- [ ] Responsive design works on mobile (375px+), tablet, and desktop
-- [ ] Animations don't cause motion sickness (reduced-motion support)
-- [ ] Scrollbar is visible and accessible
-- [ ] No layout shift when loading
-- [ ] Images have alt text
-- [ ] Forms have error messages and hints
-
----
-
-## 📚 Resources
-
-- Tailwind CSS: https://tailwindcss.com
-- Radix UI: https://radix-ui.com
-- Lucide Icons: https://lucide.dev
-- WCAG Guidelines: https://www.w3.org/WAI/WCAG21/quickref/
-- Sonner Toasts: https://sonner.emilkowal.ski
-
----
-
-## 💡 Tips & Best Practices
-
-1. **Consistency**: Use component library instead of writing custom CSS
-2. **Spacing**: Always use the spacing scale (xs, sm, md, lg, xl, 2xl)
-3. **Colors**: Use the defined color system, not arbitrary colors
-4. **Animations**: Keep animations under 400ms for snappy feel
-5. **Accessibility**: Test with keyboard navigation
-6. **Mobile**: Always test on actual mobile devices
-7. **Performance**: Use Skeleton loaders while data is loading
-8. **Feedback**: Use toasts for notifications, not alerts
-
----
-
-## 🔗 File Structure
-
-```
-src/
-├── index.css              # Global styles & design system
-├── main.jsx              # Main app component
-├── lib/
-│   ├── components.jsx    # Reusable UI components
-│   └── utils.js         # Helper functions
-tailwind.config.js        # Tailwind configuration
-index.html               # HTML with accessibility features
-```
-
----
-
-Last Updated: 2026-05-31
-Version: 2.0 (Professional Corporate Design)
+- Dialog ต้องไม่เกิน viewport
+- Content ที่ยาวต้อง scroll ภายใน dialog
+- Confirm dialog ใช้กับ delete และ action เสี่ยง
+- Close button ต้องอยู่ตำแหน่งคาดเดาได้
+
+## Page-Specific Checklist
+
+### Order Page
+
+- ข้อมูลบริษัท/สาขา/ผู้รับผิดชอบอยู่ก่อนรายการพนักงาน
+- ปุ่มเพิ่มพนักงานสร้างแถวว่าง
+- quick order ไม่ทำให้ข้อมูลเดิมหายโดยไม่ตั้งใจ
+- CSV template เปิดด้วย Excel แล้วภาษาไทยถูกต้อง
+- validation scroll/focus ไปยังแถวที่ต้องแก้
+- success screen แสดง batch summary
+
+### Dashboard Overview
+
+- KPI ไม่ล้นเมื่อ viewport แคบ
+- `dashboard-workflow-grid` ยุบเป็น 1 คอลัมน์ก่อนล้น
+- row ที่มี badge เช่น `เหลือ 0` ต้องไม่ดัน card
+- empty state ใช้ข้อความสั้นและมี action ที่ชัดเจน
+
+### Orders View
+
+- filter ใช้ได้บนมือถือ
+- table desktop ไม่ทับกัน
+- mobile card แสดงข้อมูลสำคัญครบ
+- expand row ไม่ทำให้ table กว้างเกิน
+- action เปลี่ยนสถานะมี loading/error/success feedback
+- delete ต้อง confirm
+
+### Employee View
+
+- แสดง batch, branch, employee, garment, size, qty, status
+- filter และ search ใช้ร่วมกับรายการเบิกได้
+- mobile card ต้องอ่านง่ายโดยไม่ต้อง scroll แนวนอน
+
+### Inventory View
+
+- แยก `ข้อมูลเสื้อ` กับ `สต๊อกตามไซส์`
+- รูปภาพมี fallback
+- upload รูปแสดง loading/error
+- stock summary แสดง total, remaining, withdrawn
+- stock adjust รองรับรับเข้าและปรับลด
+- dialog รายละเอียดไม่ล้น viewport
+
+### Branch View
+
+- เพิ่มสาขาอยู่ด้านบน
+- รายการสาขาแสดงจำนวนรวม
+- edit inline ต้องมี save/cancel
+- delete ต้อง confirm
+- error ชื่อว่างหรือซ้ำต้องเห็นชัด
+
+## Responsive QA
+
+ตรวจอย่างน้อย viewport เหล่านี้:
+
+- 320px mobile narrow
+- 375px mobile common
+- 768px tablet
+- 1280px desktop
+- 1440px desktop wide
+
+Checklist:
+
+- Body ไม่มี horizontal scroll
+- Header/nav ไม่ดัน viewport
+- Grid ยุบตาม breakpoint
+- Table scroll อยู่ใน wrapper
+- Button text ไม่ชน icon
+- Badge/status pill ไม่ล้น
+- Dialog อยู่ใน viewport
+- Toast ไม่บัง action สำคัญ
+
+## Accessibility QA
+
+- Tab key เข้าถึง control สำคัญได้
+- Focus ring มองเห็น
+- Icon-only action มี accessible name
+- Form control มี label
+- Error ไม่อาศัยสีอย่างเดียว
+- Contrast ของ text หลักอ่านได้
+- Loading state ไม่ทำให้ผู้ใช้กดซ้ำ
+
+## Browser Verification Flow
+
+1. Start dev server.
+2. Open `/`.
+3. Verify order form renders.
+4. Open `#/dashboard`.
+5. Login with local passcode.
+6. Verify overview renders.
+7. Resize to mobile width.
+8. Check `document.documentElement.scrollWidth <= window.innerWidth`.
+9. Open orders, employees, inventory, branches.
+10. Capture screenshot for any changed layout.
+11. Run `npm run build` before final handoff.
+
+## File Map for UI Work
+
+- `src/index.css`: global design system and page styles
+- `src/styles/dashboard-workflow.css`: dashboard workflow layout and responsive rules
+- `src/components/QuickOrderApp.jsx`: order form UI
+- `src/components/Dashboard.jsx`: admin tables, filters, dialogs and actions
+- `src/components/DashboardOverview.jsx`: overview KPI and workflow panels
+- `src/components/DashboardWorkflowPanels.jsx`: dashboard task/stock/status panels
+- `src/components/InventoryManager.jsx`: inventory UI
+- `src/components/BranchManager.jsx`: branch management UI
+
+## Last Updated
+
+2026-06-04

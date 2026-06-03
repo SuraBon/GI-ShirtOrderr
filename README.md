@@ -2,6 +2,14 @@
 
 ระบบเบิกเสื้อพนักงานสำหรับ Gold Integrate ใช้รวม flow การขอเบิกเสื้อ การตรวจรายการ การจัดส่ง การตัดสต๊อก การจัดการแบบเสื้อ และการจัดการสาขาไว้ในเว็บเดียว
 
+## เอกสารในโปรเจกต์
+
+- `README.md`: คู่มือระบบหลักและ flow การทำงานครบชุด
+- `PRODUCT.md`: ขอบเขต product, บทบาทผู้ใช้, requirement และกฎธุรกิจ
+- `DESIGN.md`: แนวทาง UX/UI, responsive, สี, layout และข้อความในระบบ
+- `README_DEPLOY.md`: ขั้นตอน deploy, env, Vercel, Vercel Blob และ Google Apps Script
+- `UX-UI-UPGRADE.md`: checklist งานปรับ UI และการตรวจ responsive/overflow
+
 ## ภาพรวมระบบ
 
 - หน้าสั่งเบิกสำหรับผู้ใช้งานทั่วไปอยู่ที่ `/` หรือ `/order`
