@@ -28,7 +28,7 @@ class AppErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div className="app-shadcn-theme min-h-screen bg-[#FAFAFA] px-4 py-8 text-[#09090B]">
+        <div className="app-shadcn-theme min-h-screen bg-slate-50 px-4 py-8 text-slate-800">
           <div className="mx-auto max-w-lg rounded-2xl border border-[#FECACA] bg-white p-5 shadow-sm">
             <div className="mb-3 inline-flex size-10 items-center justify-center rounded-xl bg-[#FEF2F2] text-[#B91C1C]">
               <AlertTriangle className="size-5" />
@@ -130,7 +130,7 @@ function App() {
   const isDashboard = path === '/dashboard';
 
   return (
-    <div className="app-shadcn-theme min-h-screen w-full overflow-x-hidden bg-[#FAFAFA] text-[#09090B]">
+    <div className="app-shadcn-theme min-h-screen w-full overflow-x-hidden bg-slate-50 text-slate-800">
       {isDashboard ? (
         <DashboardApp
           key={`dashboard-${configVersion}`}

@@ -14,7 +14,6 @@ import {
 } from 'recharts';
 import {
   DashboardEmptyState,
-  DashboardStatusPanel,
   DashboardStockPanel,
   DashboardTaskPanel,
 } from './DashboardWorkflowPanels';
@@ -57,7 +56,9 @@ export function DashboardOverview({
       ),
     [stockSummaryRows]
   );
+  
   const hasOrders = filteredBatches.length > 0;
+  
   const branchChartRows = useMemo(() => {
     const totals = new Map();
     itemRows
@@ -68,6 +69,7 @@ export function DashboardOverview({
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 6);
   }, [itemRows, statuses.pending]);
+
   const statusChartRows = [
     { name: statuses.pending, value: metrics.pendingPieces || 0, color: '#f59e0b' },
     { name: statuses.delivered, value: metrics.shippedPieces || 0, color: '#10b981' },
@@ -121,77 +123,92 @@ export function DashboardOverview({
         />
       </div>
 
-      <div className="dashboard-overview-insights-grid">
-        <section className="dashboard-overview-chart-card dashboard-overview-chart-card--branch">
-          <div className="dashboard-overview-chart-head">
-            <div>
-              <h3>ยอดรอจัดส่งตามสาขา</h3>
-              <p>จำนวนชิ้นที่ยังต้องดำเนินการ</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        {/* Left Column (Charts) */}
+        <div className="col-span-1 flex flex-col gap-6 w-full items-stretch">
+          {/* Bar Chart */}
+          <section className="dashboard-overview-chart-card dashboard-overview-chart-card--branch bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+            <div className="dashboard-overview-chart-head mb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-800">ยอดรอจัดส่งตามสาขา</h3>
+                <p className="text-xs text-slate-500 mt-1">จำนวนชิ้นที่ยังต้องดำเนินการ</p>
+              </div>
             </div>
-          </div>
-          <div className="dashboard-overview-chart-canvas">
-            {branchChartRows.length ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={branchChartRows} margin={{ left: -20, right: 8, top: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="branch" tick={{ fontSize: 11 }} interval={0} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="qty" fill="#1e3a8a" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="dashboard-empty-line">ยังไม่มีงานรอจัดส่ง</div>
-            )}
-          </div>
-        </section>
-        <section className="dashboard-overview-chart-card dashboard-overview-chart-card--status">
-          <div className="dashboard-overview-chart-head">
-            <div>
-              <h3>สัดส่วนสถานะตามจำนวนชิ้น</h3>
-              <p>รวมรายการเบิกตามสถานะล่าสุด</p>
+            <div className="dashboard-overview-chart-canvas">
+              {branchChartRows.length ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={branchChartRows} margin={{ left: -20, right: 8, top: 8, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="branch"
+                      tick={{ fontSize: 10, angle: -45, textAnchor: 'end' }}
+                      height={60}
+                      interval={0}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="qty" fill="#1a2b4c" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="dashboard-empty-line text-slate-400 py-10 text-center font-semibold">ไม่มีรายการในขณะนี้</div>
+              )}
             </div>
-          </div>
-          <div className="dashboard-overview-chart-canvas compact">
-            {statusChartRows.length ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={statusChartRows} dataKey="value" nameKey="name" innerRadius={54} outerRadius={82} paddingAngle={3}>
-                    {statusChartRows.map((row) => (
-                      <Cell key={row.name} fill={row.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="dashboard-empty-line">ยังไม่มีข้อมูลสถานะ</div>
-            )}
-            <div className="dashboard-chart-legend">
-              {statusChartRows.map((row) => (
-                <span key={row.name}>
-                  <i style={{ backgroundColor: row.color }} />
-                  {row.name}: {row.value.toLocaleString('th-TH')}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-        <DashboardTaskPanel
-          batches={filteredBatches}
-          statuses={statuses}
-          onOpenOrders={() => onViewChange?.('orders')}
-          onViewAll={() => onViewChange?.('orders')}
-          onQuickShip={onQuickShip}
-        />
-        <DashboardStockPanel stockRows={stockSummaryRows} onOpenStock={() => onViewChange?.('stock')} onViewAll={() => onViewChange?.('stock')} />
-        <DashboardStatusPanel
-          batches={filteredBatches}
-          statuses={statuses}
-          onOpenOrders={() => onViewChange?.('orders')}
-        />
-      </div>
+          </section>
 
+          {/* Donut Chart */}
+          <section className="dashboard-overview-chart-card dashboard-overview-chart-card--status bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+            <div className="dashboard-overview-chart-head mb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-800">สัดส่วนสถานะตามจำนวนชิ้น</h3>
+                <p className="text-xs text-slate-500 mt-1">รวมรายการเบิกตามสถานะล่าสุด</p>
+              </div>
+            </div>
+            <div className="dashboard-overview-chart-canvas compact">
+              {statusChartRows.length ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={statusChartRows} dataKey="value" nameKey="name" innerRadius={50} outerRadius={75} paddingAngle={3}>
+                      {statusChartRows.map((row) => (
+                        <Cell key={row.name} fill={row.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="dashboard-empty-line text-slate-400 py-10 text-center font-semibold">ไม่มีรายการในขณะนี้</div>
+              )}
+              <div className="dashboard-chart-legend flex justify-center flex-wrap gap-2 text-xs font-semibold mt-4">
+                {statusChartRows.map((row) => (
+                  <span key={row.name} className="flex items-center gap-1 text-slate-600">
+                    <i className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: row.color }} />
+                    {row.name}: {row.value.toLocaleString('th-TH')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column (Actionable Lists) */}
+        <div className="col-span-1 lg:col-span-2 flex flex-col gap-6 w-full items-stretch">
+          <DashboardTaskPanel
+            batches={filteredBatches}
+            statuses={statuses}
+            onOpenOrders={() => onViewChange?.('orders')}
+            onViewAll={() => onViewChange?.('orders')}
+            onQuickShip={onQuickShip}
+          />
+          <DashboardStockPanel
+            stockRows={stockSummaryRows}
+            onOpenStock={() => onViewChange?.('stock')}
+            onViewAll={() => onViewChange?.('stock')}
+          />
+        </div>
+      </div>
     </div>
   );
 }

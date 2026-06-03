@@ -48,7 +48,7 @@ describe('dashboard workflow', () => {
 
     const heading = await screen.findByRole('heading', { name: 'รายการเบิก' });
     expect(heading).toBeInTheDocument();
-    expect(screen.getByText('ยังไม่มีรายการเบิก')).toBeInTheDocument();
+    expect(screen.getAllByText('ไม่มีรายการในขณะนี้')[0]).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'เปิดหน้าสั่งเบิกเสื้อ' })).toBeInTheDocument();
 
     const nav = screen.getByRole('navigation', { name: 'เมนูแอดมิน' });
@@ -66,7 +66,7 @@ describe('dashboard workflow', () => {
     });
 
     expect(await screen.findByRole('heading', { name: 'ภาพรวมงานเบิกเสื้อ' })).toBeInTheDocument();
-    expect(screen.getByText('ยังไม่มีรายการเบิก')).toBeInTheDocument();
+    expect(screen.getAllByText('ไม่มีรายการในขณะนี้')[0]).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'เปิดหน้าสั่งเบิกเสื้อ' })[0]).toBeInTheDocument();
   }, 20000);
 

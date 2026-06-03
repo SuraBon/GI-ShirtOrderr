@@ -27,6 +27,7 @@ export function createOrderItem(type, gender, size = '', qty = 2) {
   const options = gender ? getSizeOptions(type, gender) : [];
   const nextSize = size && options.includes(size) ? size : gender ? defaultSize(type, gender) : '';
   return {
+    id: crypto.randomUUID(),
     type,
     size: nextSize,
     customSize: '',
@@ -212,7 +213,7 @@ export function orderReducer(state, action) {
             ? {
                 ...employee,
                 items: employee.items.map((item) =>
-                  item.type === action.itemType
+                  (action.itemId ? item.id === action.itemId : item.type === action.itemType)
                     ? {
                         ...item,
                         ...action.patch,

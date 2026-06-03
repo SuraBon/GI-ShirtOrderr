@@ -1828,12 +1828,12 @@ function getFilteredEmployees(employees, query, showIncompleteOnly) {
   });
 }
 
-function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId }) {
-  const item = employee.items.find((entry) => entry.type === type);
+function QuickGarmentCellInline({ employee, item, type, dispatch, invalidEmployeeId }) {
+  const actualItem = item || employee.items.find((entry) => entry.type === type);
   const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
   const sizeOptions = getSizeOptionsWithLabels(type, employee.gender);
 
-  if (!item) {
+  if (!actualItem) {
     return (
       <div className="flex h-11 items-center">
         <button
@@ -1866,7 +1866,7 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
       className={cn(
         'flex flex-col gap-1.5 rounded-lg border bg-[#F8FAFC] p-2 shadow-sm min-w-[12rem]',
         showErrors &&
-          (!item.size || Number(item.qty || 0) <= 0)
+          (!actualItem.size || Number(actualItem.qty || 0) <= 0)
           ? 'border-[#EF4444]'
           : 'border-[#E7EAF0]'
       )}
@@ -1885,32 +1885,34 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
 
       <div className="grid grid-cols-[1fr_3.5rem] gap-1">
         <GridSelect
-          value={item.size}
+          value={actualItem.size}
           disabled={!employee.gender}
           placeholder="ไซส์"
           values={sizeOptions}
           compact
-          invalid={showErrors && !item.size}
+          invalid={showErrors && !actualItem.size}
           onChange={(value) =>
             dispatch({
               type: 'patchItem',
               id: employee.id,
+              itemId: actualItem.id,
               itemType: type,
-              patch: patchSizeWithDefaultQty(item, value),
+              patch: patchSizeWithDefaultQty(actualItem, value),
             })
           }
         />
 
         <GridInput
           type="number"
-          value={item.qty}
+          value={actualItem.qty}
           inputMode="numeric"
           placeholder="ตัว"
-          invalid={showErrors && Number(item.qty || 0) <= 0}
+          invalid={showErrors && Number(actualItem.qty || 0) <= 0}
           onChange={(value) =>
             dispatch({
               type: 'patchItem',
               id: employee.id,
+              itemId: actualItem.id,
               itemType: type,
               patch: { qty: digitsOnly(value) },
             })
@@ -1919,16 +1921,17 @@ function QuickGarmentCellInline({ employee, type, dispatch, invalidEmployeeId })
         />
       </div>
 
-      {item.size === OTHER_SIZE && (
+      {actualItem.size === OTHER_SIZE && (
         <GridInput
           type="text"
-          value={item.customSize}
+          value={actualItem.customSize}
           placeholder="ระบุไซส์เพิ่มเติม"
-          invalid={showErrors && !item.customSize.trim()}
+          invalid={showErrors && !actualItem.customSize.trim()}
           onChange={(value) =>
             dispatch({
               type: 'patchItem',
               id: employee.id,
+              itemId: actualItem.id,
               itemType: type,
               patch: { customSize: value },
             })
@@ -1949,8 +1952,9 @@ function GarmentItemsPicker({ employee, clothingTypes, dispatch, invalidEmployee
       {employee.items.length ? (
         employee.items.map((item) => (
           <QuickGarmentCellInline
-            key={item.type}
+            key={item.id || item.type}
             employee={employee}
+            item={item}
             type={item.type}
             dispatch={dispatch}
             invalidEmployeeId={invalidEmployeeId}
@@ -2072,7 +2076,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                         const sizeOptions = getSizeOptions(item.type, employee.gender);
                         return (
                           <div
-                            key={`${item.type}-${itemIdx}`}
+                            key={item.id || `${item.type}-${itemIdx}`}
                             className="grid min-w-0 grid-cols-[minmax(0,1fr)_4.75rem_4rem_1.75rem] items-center gap-1.5 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs"
                           >
                             {/* Clothing Type Select */}
@@ -2083,6 +2087,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                   dispatch({
                                     type: 'patchItem',
                                     id: employee.id,
+                                    itemId: item.id,
                                     itemType: item.type,
                                     patch: { type: val },
                                   })
@@ -2102,6 +2107,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                   dispatch({
                                     type: 'patchItem',
                                     id: employee.id,
+                                    itemId: item.id,
                                     itemType: item.type,
                                     patch: { size: val },
                                   })
@@ -2121,6 +2127,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                 dispatch({
                                   type: 'patchItem',
                                   id: employee.id,
+                                  itemId: item.id,
                                   itemType: item.type,
                                   patch: { qty: digitsOnly(e.target.value) },
                                 })
@@ -2232,7 +2239,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                 <td colSpan={6} className="px-4 py-10 text-center font-bold text-[#64748B]">
                   <div className="flex flex-col items-center gap-2">
                     <span className="text-2xl">🔍</span>
-                    <span>ไม่พบพนักงานตามเงื่อนไข</span>
+                    <span>ไม่มีรายการในขณะนี้</span>
                   </div>
                 </td>
               </tr>
@@ -2366,7 +2373,7 @@ function QuickMobileList({
         <div className="rounded-lg border border-dashed border-[#CBD5E1] bg-white p-6 text-center font-bold text-[#64748B]">
           <div className="flex flex-col items-center gap-2">
             <span className="text-3xl">🔍</span>
-            <span>ไม่พบพนักงานตามเงื่อนไข</span>
+            <span>ไม่มีรายการในขณะนี้</span>
             <p className="text-xs font-normal text-[#94A3B8]">
               ลองเปลี่ยนตัวกรองหรือเพิ่มพนักงานใหม่
             </p>

@@ -230,7 +230,7 @@ export function BranchManager({ onSaved }) {
 
           {branches.length === 0 ? (
             <div className="branch-manager-empty">
-              <span>ยังไม่มีสาขา</span>
+              <span>ไม่มีรายการในขณะนี้</span>
               <p>เพิ่มสาขาแรกเพื่อให้หน้าเบิกเสื้อและรายงานเลือกสาขาได้</p>
             </div>
           ) : (

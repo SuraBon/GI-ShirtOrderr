@@ -33,11 +33,11 @@ function sortBySubmittedAt(direction = 'asc') {
 
 function PanelShell({ title, description, action, children, tone = 'default' }) {
   return (
-    <section className={`dashboard-workflow-panel ${tone}`}>
-      <div className="dashboard-workflow-panel-head">
+    <section className={`bg-white border border-slate-200 rounded-lg p-5 shadow-sm flex flex-col gap-4 ${tone}`}>
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h3>{title}</h3>
-          <p>{description}</p>
+          <h3 className="text-base font-bold text-slate-800">{title}</h3>
+          <p className="text-xs text-slate-500 mt-1">{description}</p>
         </div>
         {action}
       </div>
@@ -57,7 +57,7 @@ export function DashboardEmptyState({ onOpenOrder }) {
         <ClipboardList className="size-6" />
       </span>
       <div>
-        <h3>ยังไม่มีรายการเบิก</h3>
+        <h3>ไม่มีรายการในขณะนี้</h3>
         <p>ข้อมูลชุดนี้ยังเป็นเดโม่หรือเพิ่งเริ่มใหม่ เปิดหน้าสั่งเบิกเสื้อเพื่อสร้างรายการแรก</p>
       </div>
       <button type="button" className="dashboard-primary-action" onClick={onOpenOrder}>
@@ -67,7 +67,7 @@ export function DashboardEmptyState({ onOpenOrder }) {
   );
 }
 
-export function DashboardInlineEmptyState({ title = 'ยังไม่มีรายการ', description, onOpenOrder }) {
+export function DashboardInlineEmptyState({ title = 'ไม่มีรายการในขณะนี้', description, onOpenOrder }) {
   return (
     <div className="dashboard-inline-empty">
       <PackageSearch className="size-5" aria-hidden="true" />
@@ -154,7 +154,7 @@ export function DashboardStockPanel({ stockRows, onOpenStock, onViewAll }) {
       stockRows
         .filter((row) => Number(row.remaining || 0) <= 10)
         .sort((a, b) => Number(a.remaining || 0) - Number(b.remaining || 0))
-        .slice(0, 6),
+        .slice(0, 5),
     [stockRows]
   );
 

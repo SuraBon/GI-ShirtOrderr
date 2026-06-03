@@ -97,7 +97,7 @@ export function InventoryManager({
   detailsInDialog = false,
   title = 'แบบเสื้อและสต๊อก',
 }) {
-  const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
+  const [selectedId, setSelectedId] = useState(() => config[0]?.id || null);
   const [selectedGender, setSelectedGender] = useState(GENDERS[0]);
   const [mode, setMode] = useState(initialMode);
   const [editing, setEditing] = useState(false);
@@ -111,7 +111,7 @@ export function InventoryManager({
   const [catalogViewMode, setCatalogViewMode] = useState('card');
   const syncTimerRef = useRef(null);
 
-  const selectedItem = config.find((item) => item.id === selectedId) || config[0];
+  const selectedItem = selectedId ? (config.find((item) => item.id === selectedId) || null) : null;
   const deleteClothingItem = config.find((item) => item.id === deleteClothingId);
   const stockRows = selectedItem?.genderSizeRows?.[selectedGender] || selectedItem?.sizeRows || [];
   const detailFields = selectedItem?.detailFields?.length ? selectedItem.detailFields : ['อก'];
@@ -139,8 +139,8 @@ export function InventoryManager({
   };
 
   useEffect(() => {
-    if (!config.some((item) => item.id === selectedId)) {
-      setSelectedId(config[0]?.id || '');
+    if (selectedId !== null && !config.some((item) => item.id === selectedId)) {
+      setSelectedId(config[0]?.id || null);
     }
   }, [config, selectedId]);
 
@@ -183,8 +183,9 @@ export function InventoryManager({
     const nextConfig = config.filter((current) => current.id !== deleteClothingItem.id);
     commit(nextConfig);
     if (deleteClothingItem.id === selectedId) {
-      setSelectedId(nextConfig[0]?.id || '');
+      setSelectedId(null);
       setEditing(false);
+      setDetailsDialogOpen(false);
     }
     setDeleteClothingId('');
   }
@@ -692,6 +693,15 @@ export function InventoryManager({
         </aside>
 
         {!detailsInDialog && <div className="inventory-editor-panel">
+          {!selectedItem ? (
+            <div className="flex h-[350px] flex-col items-center justify-center text-center p-8 border border-dashed border-slate-200 rounded-lg bg-slate-50/50 m-4">
+              <span className="text-slate-300 text-3xl mb-2">📦</span>
+              <h3 className="text-sm font-bold text-slate-500">ไม่มีรายการในขณะนี้</h3>
+              <p className="text-xs text-slate-400 mt-1 max-w-[200px]">กรุณาเลือกแบบเสื้อจากรายการด้านซ้ายเพื่อแสดงข้อมูลและปรับสต๊อก</p>
+            </div>
+          ) : (
+            <>
+
           <div className="inventory-hero-card">
             {detailsInDialog ? (
               <div className="inventory-stock-action-copy">
@@ -922,13 +932,18 @@ export function InventoryManager({
               })}
             </div>
           </section>
-        </div>}
+        
+            </>
+          )}</div>}
       </section>
 
       <Dialog.Root open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="dashboard-dialog-overlay" />
           <Dialog.Content className="inventory-details-dialog">
+            {selectedItem && (
+              <>
+
             <div className="inventory-details-dialog-head">
               <div>
                 <Dialog.Title>จัดการแบบเสื้อ</Dialog.Title>
@@ -1133,7 +1148,9 @@ export function InventoryManager({
                 })}
               </div>
             </div>
-          </Dialog.Content>
+          
+              </>
+            )}</Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
 

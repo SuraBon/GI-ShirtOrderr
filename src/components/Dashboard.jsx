@@ -1114,7 +1114,7 @@ function Dashboard({
 
           {!isOrderPageLoading && !filteredBatches.length && (
             <DashboardInlineEmptyState
-              title="ยังไม่มีรายการเบิก"
+              title="ไม่มีรายการในขณะนี้"
               description="ข้อมูลเดโม่ชุดนี้ยังไม่มีรายการเบิกตามตัวกรอง เปิดหน้าสั่งเบิกเสื้อเพื่อสร้างรายการแรก"
               onOpenOrder={onOpenOrder}
             />
@@ -1211,22 +1211,23 @@ function Dashboard({
                                             currentStatus !== ORDER_STATUS_CANCELED;
                                           return (
                                             <tr key={`${batch.batchId}-${order.name}-${idx}`} className={cn('batch-detail-item', understock && 'understock')}>
-                                              <td>{order.name}</td>
-                                              <td>{order.gender}</td>
-                                              <td>{item.type}</td>
-                                              <td>{item.size}</td>
-                                              <td>
+                                              <td className="text-left px-3 py-2.5">{order.name}</td>
+                                              <td className="text-left px-3 py-2.5">{order.gender}</td>
+                                              <td className="text-left px-3 py-2.5 font-semibold text-slate-700">{item.type}</td>
+                                              <td className="text-right px-3 py-2.5 font-bold">{item.size}</td>
+                                              <td className="text-right px-3 py-2.5 font-extrabold text-slate-800">
                                                 {requested}
                                                 {understock && (
-                                                  <div className="understock-flag">สต๊อกไม่พอ (มี {available})</div>
+                                                  <div className="text-[10px] text-red-600 font-bold mt-0.5">สต๊อกไม่พอ (มี {available})</div>
                                                 )}
                                               </td>
                                               <td>
                                                 <div className="batch-item-status-cell">
                                                   <StatusBadge status={item.status || batch.status} small />
-                                                  <div className="batch-item-status-actions">
+                                                  <div className="flex flex-row items-center gap-1.5 flex-nowrap mt-1">
                                                     <button
                                                       type="button"
+                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_DELIVERED ||
@@ -1246,6 +1247,7 @@ function Dashboard({
                                                     </button>
                                                     <button
                                                       type="button"
+                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_PENDING
@@ -1263,6 +1265,7 @@ function Dashboard({
                                                     </button>
                                                     <button
                                                       type="button"
+                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_CANCELED
@@ -1281,7 +1284,7 @@ function Dashboard({
                                                   </div>
                                                 </div>
                                               </td>
-                                              <td>{formatDashboardDate(item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt)}</td>
+                                              <td className="text-left px-3 py-2.5 text-slate-500 text-xs">{formatDashboardDate(item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt)}</td>
                                             </tr>
                                           );
                                         })
@@ -1392,77 +1395,80 @@ function Dashboard({
                                               currentStatus !== ORDER_STATUS_CANCELED;
                                             return (
                                               <tr key={`${batch.batchId}-${order.name}-${idx}`} className={cn('batch-detail-item', understock && 'understock')}>
-                                                <td>{order.name}</td>
-                                                <td>{order.gender}</td>
-                                                <td>{item.type}</td>
-                                                <td>{item.size}</td>
-                                                <td>
-                                                  {requested}
-                                                  {understock && (
-                                                    <div className="understock-flag">สต๊อกไม่พอ (มี {available})</div>
-                                                  )}
-                                                </td>
+                                                <td className="text-left px-3 py-2.5">{order.name}</td>
+                                              <td className="text-left px-3 py-2.5">{order.gender}</td>
+                                              <td className="text-left px-3 py-2.5 font-semibold text-slate-700">{item.type}</td>
+                                              <td className="text-right px-3 py-2.5 font-bold">{item.size}</td>
+                                                <td className="text-right px-3 py-2.5 font-extrabold text-slate-800">
+                                                {requested}
+                                                {understock && (
+                                                  <div className="text-[10px] text-red-600 font-bold mt-0.5">สต๊อกไม่พอ (มี {available})</div>
+                                                )}
+                                              </td>
                                                 <td>
                                                   <div className="batch-item-status-cell">
                                                     <StatusBadge status={item.status || batch.status} small />
-                                                    <div className="batch-item-status-actions">
-                                                      <button
-                                                        type="button"
-                                                        disabled={
-                                                          statusLoadingId === batch.batchId ||
-                                                          currentStatus === ORDER_STATUS_DELIVERED ||
-                                                          understock
-                                                        }
-                                                        onClick={() =>
-                                                          updateSingleItemStatus(
-                                                            batch,
-                                                            order,
-                                                            item,
-                                                            ORDER_STATUS_DELIVERED
-                                                          )
-                                                        }
-                                                        title={understock ? `สต๊อกไม่พอ (มี ${available})` : 'จัดส่งรายการนี้'}
-                                                      >
-                                                        จัดส่งแล้ว
-                                                      </button>
-                                                      <button
-                                                        type="button"
-                                                        disabled={
-                                                          statusLoadingId === batch.batchId ||
-                                                          currentStatus === ORDER_STATUS_PENDING
-                                                        }
-                                                        onClick={() =>
-                                                          updateSingleItemStatus(
-                                                            batch,
-                                                            order,
-                                                            item,
-                                                            ORDER_STATUS_PENDING
-                                                          )
-                                                        }
-                                                      >
-                                                        รอจัดส่ง
-                                                      </button>
-                                                      <button
-                                                        type="button"
-                                                        disabled={
-                                                          statusLoadingId === batch.batchId ||
-                                                          currentStatus === ORDER_STATUS_CANCELED
-                                                        }
-                                                        onClick={() =>
-                                                          updateSingleItemStatus(
-                                                            batch,
-                                                            order,
-                                                            item,
-                                                            ORDER_STATUS_CANCELED
-                                                          )
-                                                        }
-                                                      >
-                                                        ยกเลิก
-                                                      </button>
-                                                    </div>
+                                                    <div className="flex flex-row items-center gap-1.5 flex-nowrap mt-1">
+                                                    <button
+                                                      type="button"
+                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      disabled={
+                                                        statusLoadingId === batch.batchId ||
+                                                        currentStatus === ORDER_STATUS_DELIVERED ||
+                                                        understock
+                                                      }
+                                                      onClick={() =>
+                                                        updateSingleItemStatus(
+                                                          batch,
+                                                          order,
+                                                          item,
+                                                          ORDER_STATUS_DELIVERED
+                                                        )
+                                                      }
+                                                      title={understock ? `สต๊อกไม่พอ (มี ${available})` : 'จัดส่งรายการนี้'}
+                                                    >
+                                                      จัดส่งแล้ว
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      disabled={
+                                                        statusLoadingId === batch.batchId ||
+                                                        currentStatus === ORDER_STATUS_PENDING
+                                                      }
+                                                      onClick={() =>
+                                                        updateSingleItemStatus(
+                                                          batch,
+                                                          order,
+                                                          item,
+                                                          ORDER_STATUS_PENDING
+                                                        )
+                                                      }
+                                                    >
+                                                      รอจัดส่ง
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      disabled={
+                                                        statusLoadingId === batch.batchId ||
+                                                        currentStatus === ORDER_STATUS_CANCELED
+                                                      }
+                                                      onClick={() =>
+                                                        updateSingleItemStatus(
+                                                          batch,
+                                                          order,
+                                                          item,
+                                                          ORDER_STATUS_CANCELED
+                                                        )
+                                                      }
+                                                    >
+                                                      ยกเลิก
+                                                    </button>
+                                                  </div>
                                                   </div>
                                                 </td>
-                                                <td>{formatDashboardDate(item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt)}</td>
+                                                <td className="text-left px-3 py-2.5 text-slate-500 text-xs">{formatDashboardDate(item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt)}</td>
                                               </tr>
                                             );
                                           })
@@ -1556,7 +1562,7 @@ function Dashboard({
 
           {!isEmployeePageLoading && !employeeRows.length && (
             <DashboardInlineEmptyState
-              title="ยังไม่มีประวัติการเบิก"
+              title="ไม่มีรายการในขณะนี้"
               description="หน้านี้สรุปจากรายการเบิกเท่านั้น เมื่อมีรายการเบิก ระบบจะแสดงประวัติที่นี่"
               onOpenOrder={onOpenOrder}
             />
@@ -2337,9 +2343,10 @@ function BatchDetailDialog({
                               <td className="px-3 py-3 text-center sm:px-4">
                                 <div className="batch-item-status-cell">
                                   <StatusBadge status={currentStatus} />
-                                  <div className="batch-item-status-actions">
+                                  <div className="flex flex-row items-center gap-1.5 flex-nowrap mt-1">
                                     <button
                                       type="button"
+                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                       disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
                                       onClick={() =>
                                         onItemStatusChange?.(batch, order, item, ORDER_STATUS_DELIVERED)
@@ -2350,6 +2357,7 @@ function BatchDetailDialog({
                                     </button>
                                     <button
                                       type="button"
+                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                       disabled={isBusy || currentStatus === ORDER_STATUS_PENDING}
                                       onClick={() =>
                                         onItemStatusChange?.(batch, order, item, ORDER_STATUS_PENDING)
@@ -2359,6 +2367,7 @@ function BatchDetailDialog({
                                     </button>
                                     <button
                                       type="button"
+                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                       disabled={isBusy || currentStatus === ORDER_STATUS_CANCELED}
                                       onClick={() =>
                                         onItemStatusChange?.(batch, order, item, ORDER_STATUS_CANCELED)
