@@ -121,8 +121,8 @@ export function DashboardOverview({
         />
       </div>
 
-      <div className="dashboard-overview-chart-grid">
-        <section className="dashboard-overview-chart-card">
+      <div className="dashboard-overview-insights-grid">
+        <section className="dashboard-overview-chart-card dashboard-overview-chart-card--branch">
           <div className="dashboard-overview-chart-head">
             <div>
               <h3>ยอดรอจัดส่งตามสาขา</h3>
@@ -145,7 +145,7 @@ export function DashboardOverview({
             )}
           </div>
         </section>
-        <section className="dashboard-overview-chart-card">
+        <section className="dashboard-overview-chart-card dashboard-overview-chart-card--status">
           <div className="dashboard-overview-chart-head">
             <div>
               <h3>สัดส่วนสถานะตามจำนวนชิ้น</h3>
@@ -177,9 +177,6 @@ export function DashboardOverview({
             </div>
           </div>
         </section>
-      </div>
-
-      <div className="dashboard-workflow-grid">
         <DashboardTaskPanel
           batches={filteredBatches}
           statuses={statuses}

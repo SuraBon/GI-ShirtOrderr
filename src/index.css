@@ -6490,3 +6490,341 @@ body,
     justify-content: space-between;
   }
 }
+
+/* Dashboard overview layout correction */
+.dashboard-overview-section {
+  width: 100%;
+  max-width: none;
+}
+
+.dashboard-overview-section .dashboard-workflow-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  max-width: none;
+}
+
+.dashboard-overview-section .dashboard-overview-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-overview-section .dashboard-overview-stat-card {
+  min-height: 92px;
+  border-radius: 14px;
+  padding: 0.95rem !important;
+}
+
+.dashboard-overview-insights-grid {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.82fr) minmax(12rem, 0.82fr) minmax(16rem, 1.05fr) minmax(16rem, 1.05fr) minmax(16rem, 1.05fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.dashboard-overview-insights-grid > * {
+  min-width: 0;
+}
+
+.dashboard-overview-insights-grid .dashboard-overview-chart-card,
+.dashboard-overview-insights-grid .dashboard-workflow-panel {
+  min-height: 340px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 0.9rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.dashboard-overview-insights-grid .dashboard-overview-chart-head {
+  min-height: 4.1rem;
+  background: #f1f5f9;
+  padding: 0.85rem;
+}
+
+.dashboard-overview-insights-grid .dashboard-overview-chart-canvas {
+  min-height: 210px;
+  padding: 0.65rem 0.15rem 0;
+}
+
+.dashboard-overview-insights-grid .dashboard-overview-chart-canvas.compact {
+  min-height: 236px;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-list {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 4rem;
+  padding: 0.7rem;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-row-actions {
+  flex-wrap: wrap;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-quick-action,
+.dashboard-overview-insights-grid .dashboard-workflow-status {
+  white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+  .dashboard-overview-insights-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dashboard-overview-chart-card--branch,
+  .dashboard-overview-chart-card--status {
+    grid-column: span 3;
+  }
+
+  .dashboard-overview-insights-grid .dashboard-workflow-panel {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard-overview-section .dashboard-overview-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-overview-insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-overview-chart-card--branch,
+  .dashboard-overview-chart-card--status,
+  .dashboard-overview-insights-grid .dashboard-workflow-panel {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-overview-section .dashboard-workflow-head,
+  .dashboard-overview-insights-grid,
+  .dashboard-overview-section .dashboard-overview-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-overview-section .dashboard-workflow-head-actions {
+    justify-content: stretch;
+  }
+
+  .dashboard-overview-section .dashboard-workflow-head-actions button {
+    width: 100%;
+  }
+
+  .dashboard-overview-insights-grid .dashboard-overview-chart-card,
+  .dashboard-overview-insights-grid .dashboard-workflow-panel {
+    min-height: 0;
+  }
+}
+
+/* Dashboard visual alignment pass */
+.dashboard-overview-page {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.dashboard-overview-section {
+  gap: 1.05rem;
+}
+
+.dashboard-overview-section .dashboard-workflow-head {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.25rem 0 0.15rem;
+  box-shadow: none;
+}
+
+.dashboard-overview-section .dashboard-workflow-head h2 {
+  font-size: 1.18rem !important;
+}
+
+.dashboard-overview-section .dashboard-workflow-head p {
+  color: #475569;
+}
+
+.dashboard-overview-section .dashboard-overview-stat-card,
+.dashboard-overview-insights-grid .dashboard-overview-chart-card,
+.dashboard-overview-insights-grid .dashboard-workflow-panel {
+  border-color: #dbe4ee;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.dashboard-overview-section .dashboard-overview-stats {
+  gap: 0.8rem;
+}
+
+.dashboard-overview-section .dashboard-overview-stat-card {
+  min-height: 86px;
+}
+
+.dashboard-overview-insights-grid {
+  grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) minmax(20rem, 1.2fr) minmax(20rem, 1.2fr) minmax(20rem, 1.2fr);
+}
+
+.dashboard-overview-insights-grid .dashboard-overview-chart-head {
+  min-height: 0;
+  border: 0;
+  border-radius: 9px;
+  background: #f1f5f9;
+  padding: 0.75rem 0.85rem;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 320px;
+  padding: 0.85rem;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-panel-head {
+  align-items: start;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-list,
+.dashboard-workflow-list {
+  max-height: none !important;
+  overflow: visible !important;
+  padding-right: 0 !important;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-row {
+  align-items: start;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-row > .dashboard-workflow-row-actions,
+.dashboard-overview-insights-grid .dashboard-workflow-row > .dashboard-workflow-status {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 0.35rem;
+}
+
+.dashboard-workflow-row strong,
+.dashboard-workflow-row p {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.dashboard-workflow-row strong {
+  overflow-wrap: anywhere;
+}
+
+.dashboard-workflow-row p {
+  color: #475569;
+  line-height: 1.35 !important;
+}
+
+.dashboard-workflow-status,
+.dashboard-workflow-quick-action,
+.dashboard-panel-link-action,
+.dashboard-filter-reset,
+.inventory-card-manage-button {
+  min-height: 2rem !important;
+  border-radius: 999px !important;
+  padding: 0 0.78rem !important;
+  font-size: 0.73rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.dashboard-panel-link-action,
+.dashboard-filter-reset,
+.inventory-card-manage-button {
+  border: 1px solid #c8d6ea !important;
+  background: #ffffff !important;
+  color: #102a56 !important;
+  box-shadow: none !important;
+}
+
+.dashboard-panel-link-action:hover,
+.dashboard-filter-reset:hover,
+.inventory-card-manage-button:hover {
+  border-color: #9fb5d6 !important;
+  background: #eef4ff !important;
+}
+
+.dashboard-workflow-quick-action {
+  border: 1px solid #f2c37d !important;
+  background: #fff7e8 !important;
+  color: #92400e !important;
+}
+
+.dashboard-workflow-status.warning {
+  background: #fff7e8;
+  color: #92400e;
+}
+
+.dashboard-workflow-status.success {
+  background: #e7f8ef;
+  color: #047857;
+}
+
+.dashboard-workflow-status.danger {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.inventory-card-actions {
+  display: flex !important;
+  justify-content: flex-end;
+}
+
+.inventory-card-manage-button {
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: 5rem !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.branch-manager-row-actions button,
+.dashboard-table-menu-trigger {
+  border-color: #c8d6ea !important;
+  background: #ffffff !important;
+  color: #102a56 !important;
+}
+
+.dashboard-sync-indicator {
+  border-color: #c8d6ea;
+  background: #ffffff;
+  color: #102a56;
+  box-shadow: none;
+}
+
+@media (max-width: 1500px) {
+  .dashboard-overview-insights-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dashboard-overview-chart-card--branch,
+  .dashboard-overview-chart-card--status {
+    grid-column: span 3;
+  }
+
+  .dashboard-overview-insights-grid .dashboard-workflow-panel {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-overview-insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-overview-chart-card--branch,
+  .dashboard-overview-chart-card--status,
+  .dashboard-overview-insights-grid .dashboard-workflow-panel {
+    grid-column: auto;
+  }
+}

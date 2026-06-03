@@ -2148,3 +2148,136 @@
   background: #fff7f7 !important;
   color: #b91c1c !important;
 }
+
+/* Final overview theme alignment */
+.app-shadcn-theme main > section.dashboard-overview-page,
+.dashboard-overview-page {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.dashboard-overview-section .dashboard-workflow-head {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.25rem 0 0.15rem !important;
+}
+
+.dashboard-overview-section .dashboard-overview-stat-card,
+.dashboard-overview-insights-grid .dashboard-overview-chart-card,
+.dashboard-overview-insights-grid .dashboard-workflow-panel {
+  border: 1px solid #dbe4ee !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.dashboard-overview-section .dashboard-overview-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-panel {
+  display: flex !important;
+  min-height: 0 !important;
+  flex-direction: column !important;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-list {
+  align-content: start !important;
+  flex: 0 0 auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-right: 0 !important;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-row {
+  align-items: flex-start !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  min-height: 0 !important;
+}
+
+.dashboard-overview-insights-grid .dashboard-workflow-row > .dashboard-workflow-row-actions,
+.dashboard-overview-insights-grid .dashboard-workflow-row > .dashboard-workflow-status {
+  grid-column: 2 !important;
+  justify-self: start !important;
+  margin-top: 0.35rem !important;
+}
+
+.dashboard-workflow-row strong,
+.dashboard-workflow-row p {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+.dashboard-panel-link-action,
+.dashboard-filter-reset,
+.dashboard-workflow-quick-action,
+.dashboard-workflow-status,
+.inventory-card-manage-button {
+  min-height: 2rem !important;
+  border-radius: 999px !important;
+  padding: 0 0.78rem !important;
+  font-size: 0.73rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.dashboard-panel-link-action,
+.dashboard-filter-reset,
+.inventory-card-manage-button {
+  border: 1px solid #c8d6ea !important;
+  background: #ffffff !important;
+  color: #102a56 !important;
+  box-shadow: none !important;
+}
+
+.dashboard-panel-link-action:hover,
+.dashboard-filter-reset:hover,
+.inventory-card-manage-button:hover {
+  border-color: #9fb5d6 !important;
+  background: #eef4ff !important;
+}
+
+.dashboard-workflow-quick-action {
+  border: 1px solid #f2c37d !important;
+  background: #fff7e8 !important;
+  color: #92400e !important;
+}
+
+.inventory-card-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+
+.inventory-card-manage-button {
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: 5rem !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.dashboard-sync-indicator {
+  border-color: #c8d6ea !important;
+  background: #ffffff !important;
+  color: #102a56 !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-overview-section .dashboard-overview-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-overview-section .dashboard-overview-stats {
+    grid-template-columns: 1fr !important;
+  }
+}
