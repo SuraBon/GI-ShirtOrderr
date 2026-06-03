@@ -1,7 +1,7 @@
 const DASHBOARD_TABLE_COLUMNS_KEY = 'gi-dashboard-table-columns';
 
 export const ORDER_TABLE_COLUMNS = [
-  { id: 'code', label: 'รหัสคำสั่ง' },
+  { id: 'code', label: 'เลขที่รายการ' },
   { id: 'date', label: 'วันที่' },
   { id: 'company', label: 'บริษัท/หน่วยงาน' },
   { id: 'branch', label: 'สาขา' },

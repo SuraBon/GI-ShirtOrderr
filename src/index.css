@@ -1257,10 +1257,6 @@ body {
   color: #071638 !important;
 }
 
-.size-reference-dialog .size-reference-table thead tr:first-child th {
-  background: #ffffff !important;
-}
-
 .size-reference-dialog .size-reference-table th,
 .size-reference-dialog .size-reference-table td {
   border-color: #e3e8f0 !important;

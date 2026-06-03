@@ -201,16 +201,6 @@ function SizeReference({ open, setOpen }) {
                       <table className="size-reference-table w-full table-fixed text-center text-sm">
                         <thead>
                           <tr>
-                            <th
-                              colSpan={Math.max(2, tab.detailFields.length + 1)}
-                              className="border px-3 py-3 text-base font-black sm:text-lg"
-                            >
-                              {tab.type === 'เสื้อโปโล'
-                                ? `${tab.type} ${selectedGender}`
-                                : tab.type}
-                            </th>
-                          </tr>
-                          <tr>
                             <th className="border px-3 py-2.5 text-sm font-black sm:text-base">
                               {tab.type.includes('กางเกง') ? 'เอว' : 'ไซส์'}
                             </th>

@@ -65,8 +65,8 @@ describe('dashboard workflow', () => {
       fireEvent.click(await screen.findByRole('button', { name: /ภาพรวม/ }));
     });
 
-    expect(await screen.findByRole('heading', { name: 'ภาพรวมงาน' })).toBeInTheDocument();
-    expect(screen.getByText('ยังไม่มีคำสั่งเบิก')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'ภาพรวมงานเบิกเสื้อ' })).toBeInTheDocument();
+    expect(screen.getByText('ยังไม่มีรายการเบิก')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'เปิดหน้าสั่งเบิกเสื้อ' })[0]).toBeInTheDocument();
   }, 20000);
 
@@ -78,16 +78,16 @@ describe('dashboard workflow', () => {
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: /สต๊อก/ }));
     });
-    expect(await screen.findByRole('heading', { name: 'สต๊อก', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'สต๊อก' })).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'ออกจากระบบ' }));
     });
-    expect(await screen.findByRole('heading', { name: 'เข้าสู่แดชบอร์ด' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'เข้าสู่หน้าจัดการ' })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText('กรอกรหัส'), { target: { value: '1234' } });
+    fireEvent.change(screen.getByPlaceholderText('กรอกรหัสผู้ดูแล'), { target: { value: '1234' } });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'เข้าสู่แดชบอร์ด' }));
+      fireEvent.click(screen.getByRole('button', { name: 'เข้าสู่หน้าจัดการ' }));
     });
 
     expect(await screen.findByRole('heading', { name: 'รายการเบิก' })).toBeInTheDocument();

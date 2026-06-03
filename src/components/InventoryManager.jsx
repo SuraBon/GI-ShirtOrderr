@@ -26,7 +26,7 @@ function validateImageFile(file) {
 
 async function uploadImageToBlob(file) {
   const token = getAdminToken();
-  if (!token) throw new Error('สิทธิ์อัปโหลดหมดอายุ กรุณาเข้าสู่แดชบอร์ดใหม่');
+  if (!token) throw new Error('สิทธิ์อัปโหลดหมดอายุ กรุณาเข้าสู่หน้าจัดการใหม่');
   return upload(file.name, file, {
     access: 'public',
     handleUploadUrl: '/api/blob/upload',
@@ -139,7 +139,7 @@ export function InventoryManager({
         if (isAuthFailure(error)) {
           setAdminToken('');
           onAuthExpired?.();
-          toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ');
+          toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ');
           return;
         }
         toast.error('บันทึกข้อมูลเสื้อไม่สำเร็จ', {
@@ -393,7 +393,7 @@ export function InventoryManager({
       if (isAuthFailure(error)) {
         setAdminToken('');
         onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', { id: loadingToastId });
+        toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ', { id: loadingToastId });
         return;
       }
       toast.error('อัปโหลดรูปเสื้อไม่สำเร็จ', {
@@ -414,7 +414,7 @@ export function InventoryManager({
           <div className="inventory-list-head">
             <div>
               <h3>{title}</h3>
-              <p>{detailsInDialog ? 'เลือกแบบเสื้อแล้วปรับสต๊อก หรือเปิด popup เพื่อแก้รายละเอียด' : 'เลือกแบบเสื้อเพื่อแก้ข้อมูลและสต๊อก'}</p>
+              <p>{detailsInDialog ? 'เลือกแบบเสื้อเพื่อปรับสต๊อก หรือเปิดหน้าต่างรายละเอียดเสื้อ' : 'เลือกแบบเสื้อเพื่อแก้ข้อมูลและสต๊อก'}</p>
             </div>
             <button type="button" className="btn-primary btn-sm" onClick={addClothing}>
               <Plus className="size-4" /> เพิ่ม
@@ -474,14 +474,23 @@ export function InventoryManager({
 
         <div className="inventory-editor-panel">
           <div className="inventory-hero-card">
-            <div className="inventory-hero-media">
-              <ClothingImage src={selectedItem.imageUrl} alt={selectedItem.type} iconClassName="size-7" />
-            </div>
-            <div className="inventory-hero-copy">
-              <span>กำลังจัดการ</span>
-              <h3>{selectedItem.type || 'ยังไม่ระบุชื่อ'}</h3>
-              <p>{selectedGender} / {stockRows.length} ไซส์</p>
-            </div>
+            {detailsInDialog ? (
+              <div className="inventory-stock-action-copy">
+                <strong>จัดการสต๊อก</strong>
+                <span>{selectedGender} / {stockRows.length} ไซส์</span>
+              </div>
+            ) : (
+              <>
+                <div className="inventory-hero-media">
+                  <ClothingImage src={selectedItem.imageUrl} alt={selectedItem.type} iconClassName="size-7" />
+                </div>
+                <div className="inventory-hero-copy">
+                  <span>กำลังจัดการ</span>
+                  <h3>{selectedItem.type || 'ยังไม่ระบุชื่อ'}</h3>
+                  <p>{selectedGender} / {stockRows.length} ไซส์</p>
+                </div>
+              </>
+            )}
             {detailsInDialog && (
               <button
                 type="button"
@@ -492,12 +501,12 @@ export function InventoryManager({
                 }}
               >
                 <Pencil className="size-4" />
-                จัดการแบบเสื้อ
+                รายละเอียดเสื้อ
               </button>
             )}
             <button type="button" className={cn('inventory-edit-toggle', editing && 'done')} onClick={() => setEditing((value) => !value)}>
               <Pencil className="size-4" />
-              {editing ? 'เสร็จสิ้น' : detailsInDialog ? 'แก้สต๊อก' : 'แก้ไข'}
+              {editing ? 'เสร็จสิ้น' : detailsInDialog ? 'ปรับสต๊อก' : 'แก้ไข'}
             </button>
           </div>
 
@@ -563,7 +572,7 @@ export function InventoryManager({
                 )}
               </div>
               <div className="inventory-detail-fields">
-                <Field label="ชื่อแบบเสื้อ">
+                <Field label="ชื่อเสื้อ">
                   <TextInput
                     value={selectedItem.type}
                     onChange={(value) => patchItem(selectedItem.id, { type: value })}
@@ -703,7 +712,7 @@ export function InventoryManager({
           <Dialog.Content className="inventory-details-dialog">
             <div className="inventory-details-dialog-head">
               <div>
-                <Dialog.Title>จัดการแบบเสื้อ</Dialog.Title>
+                <Dialog.Title>รายละเอียดเสื้อ</Dialog.Title>
                 <Dialog.Description>
                   แก้ชื่อ รูปภาพ และรายละเอียดไซส์ของ {selectedItem.type || 'แบบเสื้อที่เลือก'}
                 </Dialog.Description>
@@ -736,7 +745,7 @@ export function InventoryManager({
                 </label>
               </div>
               <div className="inventory-detail-fields">
-                <Field label="ชื่อแบบเสื้อ">
+                <Field label="ชื่อเสื้อ">
                   <TextInput
                     value={selectedItem.type}
                     onChange={(value) => patchItem(selectedItem.id, { type: value })}

@@ -75,7 +75,7 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
         body: JSON.stringify({ passcode }),
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.token) throw new Error(data?.error || 'รหัสเข้าแดชบอร์ดไม่ถูกต้อง');
+      if (!response.ok || !data?.token) throw new Error(data?.error || 'รหัสผู้ดูแลไม่ถูกต้อง');
       setError('');
       onUnlock(data.token);
     } catch (error) {
@@ -94,17 +94,17 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
             <LayoutDashboard />
           </span>
         </div>
-        <h2 className="text-3xl font-black tracking-tight text-[#071638]">เข้าสู่แดชบอร์ด</h2>
+        <h2 className="text-3xl font-black tracking-tight text-[#071638]">เข้าสู่หน้าจัดการ</h2>
         <p className="mt-2 text-sm font-semibold leading-6 text-[#64748B]">
-          กรอกรหัสเพื่อดูข้อมูลสรุปคำสั่งเบิกเสื้อ
+          กรอกรหัสเพื่อจัดการรายการเบิกเสื้อและสต๊อก
         </p>
         <form onSubmit={submit} className="mt-6 grid gap-4">
-          <Field label="รหัสเข้าแดชบอร์ด">
+          <Field label="รหัสผู้ดูแล">
             <TextInput
               id="dashboard-passcode"
               value={passcode}
               onChange={setPasscode}
-              placeholder="กรอกรหัส"
+              placeholder="กรอกรหัสผู้ดูแล"
               inputMode="numeric"
               type="password"
               autoFocus
@@ -121,7 +121,7 @@ function DashboardLogin({ onUnlock, onOpenOrder }) {
             className="reactbits-shine flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#002B5B] font-black text-white disabled:opacity-60"
           >
             {isChecking ? <Loader2 className="animate-spin" /> : <UserCheck />}{' '}
-            {isChecking ? 'กำลังตรวจสอบ' : 'เข้าสู่แดชบอร์ด'}
+            {isChecking ? 'กำลังตรวจสอบ' : 'เข้าสู่หน้าจัดการ'}
           </button>
         </form>
         <button

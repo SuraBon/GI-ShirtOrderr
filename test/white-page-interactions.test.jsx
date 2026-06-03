@@ -50,10 +50,10 @@ describe('order page mobile interactions', () => {
 
     const header = document.querySelector('.gi-order-header');
     expect(within(header).getByRole('button', { name: 'ข้อมูลเสื้อ' })).toBeInTheDocument();
-    expect(within(header).getByRole('button', { name: 'แดชบอร์ด' })).toBeInTheDocument();
+    expect(within(header).getByRole('button', { name: 'หน้าจัดการ' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'แดชบอร์ด' }));
+    fireEvent.click(screen.getByRole('button', { name: 'หน้าจัดการ' }));
     await waitFor(() => expect(window.location.hash).toBe('#/dashboard'));
-    expect(document.body.textContent).toContain('เข้าสู่แดชบอร์ด');
+    expect(document.body.textContent).toContain('เข้าสู่หน้าจัดการ');
   });
 });

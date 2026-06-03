@@ -176,7 +176,7 @@ export function BranchManager({ onSaved }) {
         <section className="branch-manager-add">
           <div className="branch-manager-add-copy">
             <h3>เพิ่มสาขา</h3>
-            <p>ชื่อสาขาจะถูกใช้ในหน้าเบิกเสื้อ ตัวกรอง และรายงานคำสั่งเบิก</p>
+            <p>ชื่อสาขาจะถูกใช้ในหน้าเบิกเสื้อ ตัวกรอง และรายงานรายการเบิก</p>
           </div>
           <div className="branch-manager-add-form">
             <input
@@ -210,9 +210,8 @@ export function BranchManager({ onSaved }) {
               <h3>สาขาที่ใช้งาน</h3>
               <p>{branches.length} สาขาในระบบ</p>
             </div>
-            <button type="button" className="dashboard-secondary-action" onClick={loadBranches} disabled={saving}>
+            <button type="button" className="dashboard-secondary-action dashboard-icon-action" onClick={loadBranches} disabled={saving} title="โหลดสาขาใหม่" aria-label="โหลดสาขาใหม่">
               <RefreshCw className="size-4" />
-              <span>โหลดใหม่</span>
             </button>
           </div>
 

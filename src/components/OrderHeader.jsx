@@ -46,10 +46,10 @@ export function OrderHeader({ onSizeOpen, onOpenDashboard }) {
           <button
             onClick={onOpenDashboard}
             className="btn-outline flex min-h-10 shrink-0 items-center gap-1.5 px-3 text-xs font-black shadow-sm transition hover:shadow-md active:scale-95 sm:text-sm sm:hover:-translate-y-0.5"
-            title="ไปยังแดชบอร์ด"
+            title="ไปยังหน้าจัดการ"
           >
             <LayoutDashboard className="size-4" />
-            <span>แดชบอร์ด</span>
+            <span>หน้าจัดการ</span>
           </button>
         </div>
       </div>

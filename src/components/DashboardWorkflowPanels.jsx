@@ -65,7 +65,7 @@ export function DashboardEmptyState({ onOpenOrder }) {
         <ClipboardList className="size-6" />
       </span>
       <div>
-        <h3>ยังไม่มีคำสั่งเบิก</h3>
+        <h3>ยังไม่มีรายการเบิก</h3>
         <p>ข้อมูลชุดนี้ยังเป็นเดโม่หรือเพิ่งเริ่มใหม่ เปิดหน้าสั่งเบิกเสื้อเพื่อสร้างรายการแรก</p>
       </div>
       <button type="button" className="dashboard-primary-action" onClick={onOpenOrder}>
@@ -176,8 +176,8 @@ export function DashboardRecentOrdersPanel({ batches, statuses, onOpenOrders }) 
 
   return (
     <PanelShell
-      title="คำสั่งล่าสุด"
-      description="ดูสถานะคำสั่งเบิกล่าสุดอย่างรวดเร็ว"
+      title="รายการล่าสุด"
+      description="ดูสถานะรายการเบิกล่าสุดอย่างรวดเร็ว"
       action={<PanelAction onClick={onOpenOrders}>ดูทั้งหมด</PanelAction>}
     >
       <div className="dashboard-workflow-list">
@@ -197,7 +197,7 @@ export function DashboardRecentOrdersPanel({ batches, statuses, onOpenOrders }) 
             </article>
           );
         })}
-        {!rows.length && <div className="dashboard-empty-line">ยังไม่มีคำสั่งล่าสุด</div>}
+        {!rows.length && <div className="dashboard-empty-line">ยังไม่มีรายการล่าสุด</div>}
       </div>
     </PanelShell>
   );

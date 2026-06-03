@@ -55,7 +55,7 @@ function getDashboardLoadErrorDescription(error) {
   if (message.includes('not configured') || message.includes('YOUR_SCRIPT_URL')) {
     return 'ยังไม่ได้ตั้งค่า VITE_GAS_URL หรือ GAS_ADMIN_TOKEN สำหรับอ่านข้อมูลจริงจาก Google Sheets';
   }
-  if (message.includes('Invalid dashboard data') || message.includes('รูปแบบข้อมูลแดชบอร์ด')) {
+  if (message.includes('Invalid dashboard data') || message.includes('รูปแบบข้อมูลแดชบอร์ด') || message.includes('รูปแบบข้อมูลหน้าจัดการ')) {
     return 'รูปแบบข้อมูลจาก Google Sheets ไม่ตรงกับที่ระบบต้องการ กรุณาตรวจ Apps Script';
   }
   if (message.includes('Timeout')) {
@@ -116,24 +116,24 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       if (!response.ok || result?.success === false)
         throw new Error(result?.error || 'โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ');
       const data = Array.isArray(result) ? result : result?.data;
-      if (!Array.isArray(data)) throw new Error('รูปแบบข้อมูลแดชบอร์ดไม่ถูกต้อง');
+      if (!Array.isArray(data)) throw new Error('รูปแบบข้อมูลหน้าจัดการไม่ถูกต้อง');
       const remoteBatches = data.map(normalizeBatch).filter((batch) => batch.orders.length);
       setBatches(remoteBatches);
       setDataError('');
-      if (loadingToastId) toast.success('โหลดข้อมูลแดชบอร์ดแล้ว', { id: loadingToastId });
+      if (loadingToastId) toast.success('โหลดข้อมูลหน้าจัดการแล้ว', { id: loadingToastId });
     } catch (error) {
       if (isAuthFailure(error)) {
         setAdminToken('');
         onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
+        toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ', {
           id: loadingToastId || undefined,
-          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
+          description: 'กรุณาเข้าสู่หน้าจัดการใหม่อีกครั้ง',
         });
         return;
       }
       if (!batches.length) setBatches([]);
       setDataError(error?.message || 'ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้');
-      toast.error('โหลดข้อมูลแดชบอร์ดไม่สำเร็จ', {
+      toast.error('โหลดข้อมูลหน้าจัดการไม่สำเร็จ', {
         id: loadingToastId || undefined,
         description: getDashboardLoadErrorDescription(error),
       });
@@ -394,8 +394,8 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       if (isAuthFailure(error)) {
         setAdminToken('');
         onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
-          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
+        toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ', {
+          description: 'กรุณาเข้าสู่หน้าจัดการใหม่อีกครั้ง',
         });
         return;
       }
@@ -527,9 +527,9 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       if (isAuthFailure(error)) {
         setAdminToken('');
         onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
+        toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ', {
           id: loadingToastId,
-          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
+          description: 'กรุณาเข้าสู่หน้าจัดการใหม่อีกครั้ง',
         });
         setStatusLoadingId('');
         return;
@@ -550,7 +550,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
 
     applyBatchStatusLocally(batchId, status, statusUpdatedAt);
     setStatusLoadingId('');
-    toast.success('อัปเดตสถานะคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
+    toast.success('อัปเดตสถานะรายการเบิกแล้ว', { id: loadingToastId });
   }
 
   async function shipBatchItems(batchId, shipmentOverrides) {
@@ -564,7 +564,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       // Ensure we check and adjust against latest shared config
       const latestConfig = (await loadSharedClothingConfig().catch(() => null)) || clothingConfig;
       const batch = batches.find((batchItem) => batchItem.batchId === batchId);
-      if (!batch) throw new Error('ไม่พบคำสั่งเบิกที่ต้องการอัปเดต');
+      if (!batch) throw new Error('ไม่พบรายการเบิกที่ต้องการอัปเดต');
       const shipmentItems = buildShipmentPayload(batch, shipmentOverrides);
       const stockMovements = getShipmentStockMovements(batch, shipmentItems);
       const stockIssues = stockMovements
@@ -604,9 +604,9 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       if (isAuthFailure(error)) {
         setAdminToken('');
         onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
+        toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ', {
           id: loadingToastId,
-          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
+          description: 'กรุณาเข้าสู่หน้าจัดการใหม่อีกครั้ง',
         });
       } else {
         toast.error('บันทึกการจัดส่งไม่สำเร็จ', {
@@ -636,7 +636,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
 
   async function deleteBatch(batchId) {
     setDeleteLoadingId(batchId);
-    const loadingToastId = toast.loading('กำลังลบคำสั่งเบิกเสื้อ...', {
+    const loadingToastId = toast.loading('กำลังลบรายการเบิก...', {
       description: 'ระบบกำลังดำเนินการ กรุณารอสักครู่',
     });
     try {
@@ -645,14 +645,14 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       if (isAuthFailure(error)) {
         setAdminToken('');
         onAuthExpired?.();
-        toast.error('สิทธิ์เข้าแดชบอร์ดหมดอายุ', {
+        toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ', {
           id: loadingToastId,
-          description: 'กรุณาเข้าสู่แดชบอร์ดใหม่อีกครั้ง',
+          description: 'กรุณาเข้าสู่หน้าจัดการใหม่อีกครั้ง',
         });
         setDeleteLoadingId('');
         return;
       }
-      toast.error('ลบคำสั่งเบิกเสื้อไม่สำเร็จ', {
+      toast.error('ลบรายการเบิกไม่สำเร็จ', {
         id: loadingToastId,
         description: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
       });
@@ -666,7 +666,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
     });
     setSelectedBatch(null);
     setDeleteLoadingId('');
-    toast.success('ลบคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
+    toast.success('ลบรายการเบิกแล้ว', { id: loadingToastId });
   }
 
   function requestDeleteBatch(batchId) {
@@ -702,13 +702,13 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       return;
     }
     const header = [
-      'รหัสคำสั่ง',
+      'เลขที่รายการ',
       'สถานะ',
       'อัปเดตสถานะ',
       'วันที่',
       'ชื่อบริษัท',
       'สาขา',
-      'ผู้ขอเบิก/ผู้ติดต่อ',
+      'ผู้ติดต่อ',
       'เบอร์ติดต่อ',
       'ชื่อพนักงาน',
       'เพศ',
@@ -829,7 +829,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       {dataError && (
         <DashboardDataNotice
           message={getDashboardLoadErrorDescription({ message: dataError })}
-          detail="แดชบอร์ดจะแสดงเฉพาะข้อมูลจริงจาก Google Sheets เท่านั้น ไม่มีการดึงข้อมูลคำสั่งเบิกจากเครื่องนี้"
+          detail="หน้าจัดการจะแสดงเฉพาะข้อมูลจริงจาก Google Sheets เท่านั้น ไม่มีการดึงข้อมูลรายการเบิกจากเครื่องนี้"
           onRetry={() => loadData({ silent: true })}
           refreshing={refreshing}
         />
@@ -893,7 +893,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                 <TextInput
                   value={query}
                   onChange={setQuery}
-                  placeholder="เลขที่คำสั่งเบิก, ผู้ขอ, เบอร์โทร"
+                  placeholder="เลขที่รายการ, ผู้ติดต่อ, เบอร์โทร"
                 />
               </Field>
             </div>
@@ -912,10 +912,10 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
               <p>ทั้งหมด {filteredBatches.length} รายการ</p>
             </div>
             <div className="dashboard-panel-actions">
-              <button type="button" onClick={() => setColumnSettingsTable('orders')} title="ตั้งค่าคอลัมน์ตาราง">
+              <button type="button" className="dashboard-icon-action" onClick={() => setColumnSettingsTable('orders')} title="ตั้งค่าคอลัมน์ตาราง" aria-label="ตั้งค่าคอลัมน์ตาราง">
                 <Settings2 className="size-4" />
               </button>
-              <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
+              <button type="button" className="dashboard-icon-action" onClick={() => loadData({ silent: true })} disabled={refreshing} title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               </button>
               <button onClick={() => setExportExpanded((value) => !value)}>
@@ -968,7 +968,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
           {!isOrderPageLoading && !filteredBatches.length && (
             <DashboardInlineEmptyState
               title="ยังไม่มีรายการเบิก"
-              description="ข้อมูลเดโม่ชุดนี้ยังไม่มีคำสั่งเบิกตามตัวกรอง เปิดหน้าสั่งเบิกเสื้อเพื่อสร้างรายการแรก"
+              description="ข้อมูลเดโม่ชุดนี้ยังไม่มีรายการเบิกตามตัวกรอง เปิดหน้าสั่งเบิกเสื้อเพื่อสร้างรายการแรก"
               onOpenOrder={onOpenOrder}
             />
           )}
@@ -986,7 +986,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                     <table className="dashboard-batch-table">
                       <thead>
                         <tr>
-                          {isOrderColumnVisible('code') && <th>รหัสคำสั่ง</th>}
+                          {isOrderColumnVisible('code') && <th>เลขที่รายการ</th>}
                           {isOrderColumnVisible('date') && <th>วันที่</th>}
                           {isOrderColumnVisible('company') && <th>บริษัท/หน่วยงาน</th>}
                           {isOrderColumnVisible('branch') && <th>สาขา</th>}
@@ -1195,7 +1195,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
               <table className="dashboard-batch-table">
               <thead>
                 <tr>
-                  {isOrderColumnVisible('code') && <th>รหัสคำสั่ง</th>}
+                  {isOrderColumnVisible('code') && <th>เลขที่รายการ</th>}
                   {isOrderColumnVisible('date') && <th>วันที่</th>}
                   {isOrderColumnVisible('company') && <th>บริษัท/หน่วยงาน</th>}
                   {isOrderColumnVisible('branch') && <th>สาขา</th>}
@@ -1451,16 +1451,14 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
           <div className="dashboard-panel-head">
             <div>
               <h2>ประวัติการเบิก</h2>
-              <p>แสดงจากคำสั่งเบิกเท่านั้น ไม่มีตารางพนักงานแยก</p>
+              <p>แสดงจากรายการเบิกเท่านั้น ไม่มีตารางพนักงานแยก</p>
             </div>
             <div className="dashboard-panel-actions">
-              <button type="button" onClick={() => setColumnSettingsTable('employees')} title="ตั้งค่าคอลัมน์ตาราง">
+              <button type="button" className="dashboard-icon-action" onClick={() => setColumnSettingsTable('employees')} title="ตั้งค่าคอลัมน์ตาราง" aria-label="ตั้งค่าคอลัมน์ตาราง">
                 <Settings2 className="size-4" />
-                <span>คอลัมน์</span>
               </button>
-              <button onClick={() => loadData({ silent: true })} disabled={refreshing}>
+              <button type="button" className="dashboard-icon-action" onClick={() => loadData({ silent: true })} disabled={refreshing} title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                <span>โหลดใหม่</span>
               </button>
             </div>
           </div>
@@ -1468,7 +1466,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
           {!isEmployeePageLoading && !employeeRows.length && (
             <DashboardInlineEmptyState
               title="ยังไม่มีประวัติการเบิก"
-              description="หน้านี้สรุปจาก Orders เท่านั้น เมื่อมีคำสั่งเบิก ระบบจะแสดงประวัติที่นี่"
+              description="หน้านี้สรุปจากรายการเบิกเท่านั้น เมื่อมีรายการเบิก ระบบจะแสดงประวัติที่นี่"
               onOpenOrder={onOpenOrder}
             />
           )}
@@ -1560,7 +1558,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                         if (rowBatch) setSelectedBatch(rowBatch);
                       }}
                     >
-                      ดูคำสั่ง
+                      ดูรายการ
                     </button>
                   </div>
                 </article>
@@ -1599,7 +1597,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             </div>
           </div>
           <div className="dashboard-kpi-grid">
-            <MiniMetric label="คำสั่งเบิกทั้งหมด" value={filteredBatches.length} />
+            <MiniMetric label="รายการเบิกทั้งหมด" value={filteredBatches.length} />
             <MiniMetric label="รอจัดส่ง" value={countByStatus(ORDER_STATUS_PENDING)} />
             <MiniMetric label="จัดส่งแล้ว" value={countByStatus(ORDER_STATUS_DELIVERED)} />
             <MiniMetric label="ยกเลิก" value={countByStatus(ORDER_STATUS_CANCELED)} />
@@ -1631,12 +1629,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
 
       {activeView === 'stock' && (
         <section className="dashboard-inventory-manager">
-          <div className="dashboard-panel-head">
-            <div>
-              <h2>สต๊อก</h2>
-              <p>ตรวจคงเหลือ รับเข้า ปรับลด และเปิดจัดการแบบเสื้อจากหน้านี้</p>
-            </div>
-          </div>
           <InventoryManager
             initialMode="stock"
             modeLocked
@@ -1694,9 +1686,9 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       />
       <ConfirmDialog
         open={Boolean(deleteConfirmBatch)}
-        title="ยืนยันลบคำสั่งเบิกเสื้อ"
-        description={deleteConfirmBatch ? `ลบคำสั่งเบิกเสื้อ ${deleteConfirmBatch.batchId}?` : ''}
-        confirmLabel="ลบคำสั่ง"
+        title="ยืนยันลบรายการเบิก"
+        description={deleteConfirmBatch ? `ลบรายการเบิก ${deleteConfirmBatch.batchId}?` : ''}
+        confirmLabel="ลบรายการ"
         cancelLabel="ยกเลิก"
         loading={Boolean(deleteConfirmBatch && deleteLoadingId === deleteConfirmBatch.batchId)}
         destructive
@@ -2078,7 +2070,7 @@ function BatchDetailDialog({
                     className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
-                    {isDeleting ? 'กำลังลบคำสั่งเบิกเสื้อ' : 'ลบคำสั่งเบิกเสื้อนี้'}
+                    {isDeleting ? 'กำลังลบรายการเบิก' : 'ลบรายการเบิกนี้'}
                   </button>
                 </div>
                 <section className="mb-4 overflow-hidden rounded-xl border border-[#DCE6F4] bg-white">

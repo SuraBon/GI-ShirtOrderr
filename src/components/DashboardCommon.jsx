@@ -76,14 +76,15 @@ export function DashboardDataNotice({ message, detail, onRetry, refreshing }) {
           type="button"
           onClick={onRetry}
           disabled={refreshing}
-          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-yellow-300 bg-white px-3 text-xs font-black text-yellow-900 shadow-xs transition hover:bg-yellow-100 disabled:opacity-60"
+          className="dashboard-icon-action inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-yellow-300 bg-white px-3 text-xs font-black text-yellow-900 shadow-xs transition hover:bg-yellow-100 disabled:opacity-60"
+          title="โหลดข้อมูลใหม่"
+          aria-label="โหลดข้อมูลใหม่"
         >
           {refreshing ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
             <RefreshCw className="size-4" />
           )}
-          โหลดใหม่
         </button>
       </div>
     </section>

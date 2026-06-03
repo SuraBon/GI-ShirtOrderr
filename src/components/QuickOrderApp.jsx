@@ -298,8 +298,8 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
     };
 
     setIsSubmitting(true);
-    const loadingToastId = toast.loading('กำลังส่งคำสั่งเบิกเสื้อ...', {
-      description: 'ระบบกำลังบันทึกคำสั่ง กรุณารอสักครู่',
+    const loadingToastId = toast.loading('กำลังส่งรายการเบิกเสื้อ...', {
+      description: 'ระบบกำลังบันทึกรายการเบิก กรุณารอสักครู่',
     });
     try {
       const submitOrderRequest = async (data, attempts = 2, timeoutMs = 15000) => {
@@ -316,7 +316,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
             });
             clearTimeout(id);
             const json = await res.json().catch(() => null);
-            if (!res.ok || json?.success === false) throw new Error(json?.error || 'บันทึกคำสั่งเบิกไม่สำเร็จ');
+            if (!res.ok || json?.success === false) throw new Error(json?.error || 'บันทึกรายการเบิกไม่สำเร็จ');
             return json;
           } catch (err) {
             lastErr = err;
@@ -328,7 +328,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
       };
 
       await submitOrderRequest(payload);
-      toast.success('บันทึกคำสั่งเบิกเสื้อแล้ว', { id: loadingToastId });
+      toast.success('บันทึกรายการเบิกเสื้อแล้ว', { id: loadingToastId });
       setSuccessData(payload); // Save success data for the Success Screen
       setQuery('');
       setShowIncompleteOnly(false);
@@ -532,7 +532,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
             <div className="grid gap-2 text-xs sm:text-sm font-bold text-neutral-700">
               <div className="flex justify-between"><span className="text-neutral-400 font-medium">บริษัท/หน่วยงาน:</span><span>{successData.companyName}</span></div>
               <div className="flex justify-between"><span className="text-neutral-400 font-medium">สาขาจัดส่ง:</span><span>{successData.branch}</span></div>
-              <div className="flex justify-between"><span className="text-neutral-400 font-medium">ผู้ขอเบิก:</span><span>คุณ{successData.supervisorName}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-400 font-medium">ผู้ติดต่อ:</span><span>คุณ{successData.supervisorName}</span></div>
               <div className="flex justify-between"><span className="text-neutral-400 font-medium">เบอร์ติดต่อ:</span><span>{formatPhone(successData.supervisorPhone)}</span></div>
               <div className="flex justify-between"><span className="text-neutral-400 font-medium">วันที่ทำรายการ:</span><span>{new Date(successData.submittedAt).toLocaleString('th-TH')}</span></div>
               <div className="flex justify-between border-t border-neutral-200 pt-2.5 mt-1 font-black text-[#071638]">
@@ -1413,7 +1413,7 @@ function SetupWarning() {
     <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 flex items-start gap-3 shadow-sm animate-fade-in">
       <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5" />
       <div>
-        <h4 className="text-sm font-extrabold text-yellow-800">ระบบบันทึกคำสั่งเบิกเสื้อยังไม่พร้อมใช้งาน</h4>
+        <h4 className="text-sm font-extrabold text-yellow-800">ระบบบันทึกรายการเบิกเสื้อยังไม่พร้อมใช้งาน</h4>
         <p className="text-xs text-yellow-700 font-semibold mt-1 leading-5">
           กรุณาตั้งค่าลิงก์ Web App URL ของ Google Apps Script ในไฟล์ .env (`VITE_GAS_URL`) ก่อนส่งคำขอเบิกเสื้อ
         </p>
