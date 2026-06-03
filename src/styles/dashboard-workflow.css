@@ -622,34 +622,31 @@
 
   .gi-dashboard-nav {
     grid-column: 1 / -1;
-    display: flex !important;
+    display: grid !important;
     width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.35rem !important;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 0.15rem 0 0.05rem;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .gi-dashboard-nav::-webkit-scrollbar {
-    display: none;
+    overflow: visible !important;
+    padding: 0.15rem 0 0.05rem !important;
   }
 
   .gi-dashboard-nav button {
     min-height: 2rem !important;
-    flex: 0 0 auto;
+    width: auto !important;
+    min-width: 0 !important;
+    flex: initial !important;
     justify-content: center;
     gap: 0.32rem !important;
-    padding-inline: 0.62rem !important;
+    padding-inline: 0.42rem !important;
     font-size: 0.72rem !important;
-    line-height: 1 !important;
-    white-space: nowrap;
+    line-height: 1.15 !important;
+    white-space: normal !important;
   }
 
   .gi-dashboard-nav button svg {
     width: 0.92rem !important;
     height: 0.92rem !important;
+    flex: 0 0 auto;
   }
 
   .app-shadcn-theme main.gi-container {
@@ -720,5 +717,11 @@
 
   .inventory-size-fields-dialog .inventory-size-detail-row button {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .gi-dashboard-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
