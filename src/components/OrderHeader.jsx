@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, ClipboardList, LayoutDashboard, LogOut, Ruler, Shirt } from 'lucide-react';
+import { Building2, ClipboardList, Gauge, History, LogOut, Package, Ruler, Settings2 } from 'lucide-react';
 
 export function Logo({ surface = 'order', showMark = true }) {
   const isDashboard = surface === 'dashboard';
@@ -48,7 +48,7 @@ export function OrderHeader({ onSizeOpen, onOpenDashboard }) {
             className="btn-outline flex min-h-10 shrink-0 items-center gap-1.5 px-3 text-xs font-black shadow-sm transition hover:shadow-md active:scale-95 sm:text-sm sm:hover:-translate-y-0.5"
             title="ไปยังหน้าจัดการ"
           >
-            <LayoutDashboard className="size-4" />
+            <Settings2 className="size-4" />
             <span>หน้าจัดการ</span>
           </button>
         </div>
@@ -63,10 +63,10 @@ export function DashboardHeader({
   onLogout,
 }) {
   const navItems = [
-    { id: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'ภาพรวม', icon: Gauge },
     { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
-    { id: 'employees', label: 'ประวัติการเบิก', icon: ClipboardList },
-    { id: 'stock', label: 'สต๊อก', icon: Shirt },
+    { id: 'employees', label: 'ประวัติการเบิก', icon: History },
+    { id: 'stock', label: 'สต๊อก', icon: Package },
     { id: 'branches', label: 'จัดการสาขา', icon: Building2 },
   ];
 
