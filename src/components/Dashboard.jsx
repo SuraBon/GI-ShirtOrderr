@@ -1011,22 +1011,14 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                           >
                             {isOrderColumnVisible('code') && (
                             <td>
-                              <button
-                                className="dashboard-link dashboard-row-open"
-                                title={String(batch.batchId)}
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  toggleBatchExpanded(batch.batchId);
-                                }}
-                              >
+                              <span className="dashboard-link dashboard-row-open" title={String(batch.batchId)}>
                                 <span>{String(batch.batchId)}</span>
                                 {expandedBatchIds.has(batch.batchId) ? (
                                   <ChevronUp className="size-4" />
                                 ) : (
                                   <ChevronDown className="size-4" />
                                 )}
-                              </button>
+                              </span>
                             </td>
                             )}
                             {isOrderColumnVisible('date') && <td>{formatDashboardDate(batch.submittedAt)}</td>}
@@ -1220,22 +1212,14 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                     >
                     {isOrderColumnVisible('code') && (
                     <td>
-                      <button
-                        className="dashboard-link dashboard-row-open"
-                        title={String(batch.batchId)}
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleBatchExpanded(batch.batchId);
-                        }}
-                      >
+                      <span className="dashboard-link dashboard-row-open" title={String(batch.batchId)}>
                         <span>{String(batch.batchId)}</span>
                         {expandedBatchIds.has(batch.batchId) ? (
                           <ChevronUp className="size-4" />
                         ) : (
                           <ChevronDown className="size-4" />
                         )}
-                      </button>
+                      </span>
                     </td>
                     )}
                     {isOrderColumnVisible('date') && <td>{formatDashboardDate(batch.submittedAt)}</td>}

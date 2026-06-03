@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import {
   AlertTriangle,
-  ArrowRight,
   ClipboardList,
   PackageSearch,
   Shirt,
@@ -42,15 +41,6 @@ function PanelShell({ title, description, action, children, tone = 'default' }) 
       </div>
       {children}
     </section>
-  );
-}
-
-function PanelAction({ children, onClick }) {
-  return (
-    <button type="button" className="dashboard-workflow-panel-action" onClick={onClick}>
-      {children}
-      <ArrowRight className="size-4" />
-    </button>
   );
 }
 
@@ -108,11 +98,15 @@ export function DashboardTaskPanel({ batches, statuses, onOpenOrders }) {
       title="งานที่ต้องทำ"
       description="รายการรอจัดส่ง เรียงจากเก่าสุด"
       tone="priority"
-      action={<PanelAction onClick={onOpenOrders}>รายการเบิก</PanelAction>}
     >
       <div className="dashboard-workflow-list">
         {rows.map((batch) => (
-          <article key={batch.batchId} className="dashboard-workflow-row is-pending">
+          <button
+            key={batch.batchId}
+            type="button"
+            className="dashboard-workflow-row is-pending"
+            onClick={onOpenOrders}
+          >
             <span className="dashboard-workflow-row-icon warning" aria-hidden="true">
               <AlertTriangle className="size-4" />
             </span>
@@ -121,7 +115,7 @@ export function DashboardTaskPanel({ batches, statuses, onOpenOrders }) {
               <p>{batch.branch || '-'} · {formatDate(batch.submittedAt)} · {getBatchPieces(batch)} ชิ้น</p>
             </div>
             <StatusPill tone="warning">{batch.status}</StatusPill>
-          </article>
+          </button>
         ))}
         {!rows.length && <div className="dashboard-empty-line">ไม่มีงานรอจัดส่งตอนนี้</div>}
       </div>
@@ -143,11 +137,10 @@ export function DashboardStockPanel({ stockRows, onOpenStock }) {
     <PanelShell
       title="รายการที่ควรเติม"
       description="เพศและไซส์ที่ควรตรวจจำนวนคงเหลือ"
-      action={<PanelAction onClick={onOpenStock}>สต๊อก</PanelAction>}
     >
       <div className="dashboard-workflow-list">
         {lowRows.map((row) => (
-          <article key={row.id} className="dashboard-workflow-row">
+          <button key={row.id} type="button" className="dashboard-workflow-row" onClick={onOpenStock}>
             <span className="dashboard-workflow-row-icon blue" aria-hidden="true">
               <Shirt className="size-4" />
             </span>
@@ -158,7 +151,7 @@ export function DashboardStockPanel({ stockRows, onOpenStock }) {
             <StatusPill tone={Number(row.remaining || 0) <= 0 ? 'danger' : 'warning'}>
               เหลือ {Number(row.remaining || 0).toLocaleString('th-TH')}
             </StatusPill>
-          </article>
+          </button>
         ))}
         {!lowRows.length && <div className="dashboard-empty-line">จำนวนคงเหลืออยู่ในระดับปกติ</div>}
       </div>
@@ -178,14 +171,13 @@ export function DashboardRecentOrdersPanel({ batches, statuses, onOpenOrders }) 
     <PanelShell
       title="รายการล่าสุด"
       description="ดูสถานะรายการเบิกล่าสุดอย่างรวดเร็ว"
-      action={<PanelAction onClick={onOpenOrders}>ดูทั้งหมด</PanelAction>}
     >
       <div className="dashboard-workflow-list">
         {rows.map((batch) => {
           const tone =
             batch.status === deliveredStatus ? 'success' : batch.status === canceledStatus ? 'danger' : 'warning';
           return (
-            <article key={batch.batchId} className="dashboard-workflow-row">
+            <button key={batch.batchId} type="button" className="dashboard-workflow-row" onClick={onOpenOrders}>
               <span className="dashboard-workflow-row-icon neutral" aria-hidden="true">
                 <ClipboardList className="size-4" />
               </span>
@@ -194,7 +186,7 @@ export function DashboardRecentOrdersPanel({ batches, statuses, onOpenOrders }) 
                 <p>{batch.branch || '-'} · {formatDate(batch.submittedAt)} · {getBatchPieces(batch)} ชิ้น</p>
               </div>
               <StatusPill tone={tone}>{batch.status}</StatusPill>
-            </article>
+            </button>
           );
         })}
         {!rows.length && <div className="dashboard-empty-line">ยังไม่มีรายการล่าสุด</div>}

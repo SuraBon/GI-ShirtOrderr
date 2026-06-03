@@ -53,9 +53,6 @@ export function DashboardOverview({
           <p>ดูรายการที่ต้องจัดส่ง สต๊อกที่ต้องเติม และรายการล่าสุด</p>
         </div>
         <div className="dashboard-workflow-head-actions">
-          <button type="button" onClick={() => onViewChange?.('orders')} className="dashboard-primary-action">
-            รายการเบิก
-          </button>
           <button type="button" onClick={onRefresh} className="dashboard-action-btn dashboard-secondary-action dashboard-icon-action" title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
             <RefreshCw className="size-4" />
             <span>โหลดใหม่</span>
