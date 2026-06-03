@@ -1,14 +1,16 @@
 import React from 'react';
 import { Building2, ClipboardList, LayoutDashboard, LogOut, Ruler, Shirt } from 'lucide-react';
 
-export function Logo({ surface = 'order' }) {
+export function Logo({ surface = 'order', showMark = true }) {
   const isDashboard = surface === 'dashboard';
 
   return (
     <div className="gi-brand flex min-w-0 items-center gap-3">
-      <span className="gi-brand-mark" aria-hidden="true">
-        GI
-      </span>
+      {showMark ? (
+        <span className="gi-brand-mark" aria-hidden="true">
+          GI
+        </span>
+      ) : null}
       <div className="min-w-0">
         <h1 className="truncate text-lg font-black leading-none tracking-tight text-primary-900 sm:text-xl">
           ระบบเบิกเสื้อพนักงาน
@@ -71,7 +73,7 @@ export function DashboardHeader({
   return (
     <header className="gi-dashboard-header relative z-10 border-b px-3 py-2 shadow-xs">
       <div className="gi-container flex items-center gap-3">
-        <Logo surface="dashboard" />
+        <Logo surface="dashboard" showMark={false} />
         <nav className="gi-dashboard-nav flex items-center gap-2" aria-label="เมนูแอดมิน">
           {navItems.map((item) => (
             <button

@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertTriangle, Check, Loader2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { BRANCHES } from '../constants/branches';
+import { ConfirmDialog } from './SharedDialogs';
 
 export function BranchManager({ onSaved }) {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
+  const [editingBranchName, setEditingBranchName] = useState('');
+  const [editingValue, setEditingValue] = useState('');
+  const [deleteBranchName, setDeleteBranchName] = useState('');
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
 
-  // Load branches
   useEffect(() => {
     loadBranches();
   }, []);
@@ -21,14 +25,12 @@ export function BranchManager({ onSaved }) {
     try {
       const response = await fetch('/api/blob/branches', { cache: 'no-store' });
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data?.error || 'โหลดข้อมูลสาขาไม่สำเร็จ');
       }
 
-      // If no branches exist in blob storage, use default from constants
       if (!data?.branches) {
-        const { BRANCHES } = await import('../constants/branches.js');
         setBranches(BRANCHES);
       } else {
         setBranches(data.branches);
@@ -36,13 +38,7 @@ export function BranchManager({ onSaved }) {
       }
     } catch (err) {
       console.error('Failed to load branches:', err);
-      // Fallback to default branches
-      try {
-        const { BRANCHES } = await import('../constants/branches.js');
-        setBranches(BRANCHES);
-      } catch {
-        setError('โหลดข้อมูลสาขาไม่สำเร็จ');
-      }
+      setBranches(BRANCHES);
     } finally {
       setLoading(false);
     }
@@ -62,10 +58,9 @@ export function BranchManager({ onSaved }) {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         if (response.status === 409) {
-          // Conflict - data was updated elsewhere
           setError(data?.error || 'ข้อมูลสาขามีการอัปเดต กรุณาโหลดข้อมูลใหม่');
           await loadBranches();
           return false;
@@ -86,16 +81,26 @@ export function BranchManager({ onSaved }) {
     }
   }
 
-  async function addBranch() {
-    const trimmedName = newBranchName.trim();
-    
+  function validateBranchName(branchName, currentName = '') {
+    const trimmedName = branchName.trim();
+
     if (!trimmedName) {
-      setError('โปรดกรอกชื่อสาขา');
-      return;
+      return 'โปรดกรอกชื่อสาขา';
     }
 
-    if (branches.includes(trimmedName)) {
-      setError('สาขานี้มีอยู่แล้ว');
+    if (trimmedName !== currentName && branches.includes(trimmedName)) {
+      return 'สาขานี้มีอยู่แล้ว';
+    }
+
+    return '';
+  }
+
+  async function addBranch() {
+    const trimmedName = newBranchName.trim();
+    const validationError = validateBranchName(trimmedName);
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -104,110 +109,188 @@ export function BranchManager({ onSaved }) {
       return;
     }
 
-    const updatedBranches = [...branches, trimmedName];
-    const success = await saveBranches(updatedBranches);
-    
+    const success = await saveBranches([...branches, trimmedName]);
+
     if (success) {
       setNewBranchName('');
       toast.success('เพิ่มสาขาสำเร็จ');
     }
   }
 
-  async function deleteBranch(branchName) {
-    if (!window.confirm(`ลบสาขา "${branchName}" หรือไม่?`)) {
+  function startEditing(branchName) {
+    setError('');
+    setEditingBranchName(branchName);
+    setEditingValue(branchName);
+  }
+
+  function cancelEditing() {
+    setEditingBranchName('');
+    setEditingValue('');
+  }
+
+  async function renameBranch(branchName) {
+    const trimmedName = editingValue.trim();
+    const validationError = validateBranchName(trimmedName, branchName);
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    const updatedBranches = branches.filter(b => b !== branchName);
-    const success = await saveBranches(updatedBranches);
-    
+    if (trimmedName === branchName) {
+      cancelEditing();
+      return;
+    }
+
+    const success = await saveBranches(branches.map((branch) => (branch === branchName ? trimmedName : branch)));
+
+    if (success) {
+      cancelEditing();
+      toast.success('แก้ไขสาขาสำเร็จ');
+    }
+  }
+
+  async function confirmDeleteBranch() {
+    if (!deleteBranchName) return;
+
+    const success = await saveBranches(branches.filter((branch) => branch !== deleteBranchName));
+
     if (success) {
       toast.success('ลบสาขาสำเร็จ');
+      setDeleteBranchName('');
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-6 animate-spin text-[#002B5B]" />
+      <div className="branch-manager-loading">
+        <Loader2 className="size-5 animate-spin" />
+        <span>กำลังโหลดสาขา</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Add New Branch */}
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
-        <h3 className="mb-4 text-lg font-black text-[#071638]">เพิ่มสาขาใหม่</h3>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <input
-            type="text"
-            value={newBranchName}
-            onChange={(e) => {
-              setNewBranchName(e.target.value);
-              setError('');
-            }}
-            onKeyPress={(e) => e.key === 'Enter' && addBranch()}
-            placeholder="กรอกชื่อสาขา เช่น สาขาใหญ่, สาขาพระราม 2"
-            disabled={saving}
-            className="flex-1 rounded-lg border border-[#CBD5E1] bg-white px-4 py-2.5 text-sm font-semibold placeholder-[#94A3B8] focus:border-[#002B5B] focus:outline-none focus:ring-2 focus:ring-[#002B5B]/20 disabled:cursor-not-allowed disabled:bg-[#F8FAFC]"
-          />
-          <button
-            onClick={addBranch}
-            disabled={saving}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002B5B] px-6 font-black text-white transition hover:bg-[#001B3B] disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-            เพิ่ม
-          </button>
-        </div>
-      </div>
+    <>
+      <div className="branch-manager">
+        <section className="branch-manager-add">
+          <div className="branch-manager-add-copy">
+            <h3>เพิ่มสาขา</h3>
+            <p>ชื่อสาขาจะถูกใช้ในหน้าเบิกเสื้อ ตัวกรอง และรายงานคำสั่งเบิก</p>
+          </div>
+          <div className="branch-manager-add-form">
+            <input
+              type="text"
+              value={newBranchName}
+              onChange={(event) => {
+                setNewBranchName(event.target.value);
+                setError('');
+              }}
+              onKeyDown={(event) => event.key === 'Enter' && addBranch()}
+              placeholder="เช่น GI(สาขาใหญ่)"
+              disabled={saving}
+            />
+            <button type="button" className="dashboard-primary-action" onClick={addBranch} disabled={saving}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+              <span>เพิ่ม</span>
+            </button>
+          </div>
+        </section>
 
-      {/* Error Message */}
-      {error && (
-        <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-sm font-bold text-[#B91C1C]">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+        {error ? (
+          <div className="branch-manager-alert">
+            <AlertTriangle className="size-4" />
             <span>{error}</span>
           </div>
-        </div>
-      )}
+        ) : null}
 
-      {/* Branches List */}
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6">
-        <h3 className="mb-4 text-lg font-black text-[#071638]">รายชื่อสาขา ({branches.length})</h3>
-        
-        {branches.length === 0 ? (
-          <p className="text-sm font-semibold text-[#64748B]">ยังไม่มีสาขา</p>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {branches.map((branch) => (
-              <div
-                key={branch}
-                className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 transition hover:bg-white hover:shadow-sm"
-              >
-                <span className="truncate font-semibold text-[#071638]">{branch}</span>
-                <button
-                  onClick={() => deleteBranch(branch)}
-                  disabled={saving}
-                  className="ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-[#B91C1C] transition hover:bg-[#FEE2E2] disabled:cursor-not-allowed disabled:opacity-60"
-                  title="ลบสาขา"
-                  type="button"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-            ))}
+        <section className="branch-manager-list-panel">
+          <div className="branch-manager-list-head">
+            <div>
+              <h3>สาขาที่ใช้งาน</h3>
+              <p>{branches.length} สาขาในระบบ</p>
+            </div>
+            <button type="button" className="dashboard-secondary-action" onClick={loadBranches} disabled={saving}>
+              <RefreshCw className="size-4" />
+              <span>โหลดใหม่</span>
+            </button>
           </div>
-        )}
-      </div>
 
-      {/* Info Box */}
-      <div className="rounded-2xl border border-[#DBEAFE] bg-[#F0F9FF] px-4 py-3">
-        <p className="text-sm font-semibold text-[#0C4A6E]">
-          💡 คำแนะนำ: สามารถเพิ่มหรือลบสาขาเพื่ออัปเดตรายชื่อสาขาที่ใช้งานในระบบเบิกเสื้อ
+          {branches.length === 0 ? (
+            <div className="branch-manager-empty">
+              <span>ยังไม่มีสาขา</span>
+              <p>เพิ่มสาขาแรกเพื่อให้หน้าเบิกเสื้อและรายงานเลือกสาขาได้</p>
+            </div>
+          ) : (
+            <div className="branch-manager-list">
+              {branches.map((branch, index) => {
+                const isEditing = editingBranchName === branch;
+
+                return (
+                  <div key={branch} className="branch-manager-row">
+                    <span className="branch-manager-index">{index + 1}</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editingValue}
+                        onChange={(event) => {
+                          setEditingValue(event.target.value);
+                          setError('');
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') renameBranch(branch);
+                          if (event.key === 'Escape') cancelEditing();
+                        }}
+                        disabled={saving}
+                        autoFocus
+                      />
+                    ) : (
+                      <strong>{branch}</strong>
+                    )}
+                    <div className="branch-manager-row-actions">
+                      {isEditing ? (
+                        <>
+                          <button type="button" onClick={() => renameBranch(branch)} disabled={saving} title="บันทึก">
+                            {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                          </button>
+                          <button type="button" onClick={cancelEditing} disabled={saving} title="ยกเลิก">
+                            <X className="size-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button type="button" onClick={() => startEditing(branch)} disabled={saving} title="แก้ไข">
+                            <Pencil className="size-4" />
+                          </button>
+                          <button type="button" onClick={() => setDeleteBranchName(branch)} disabled={saving} title="ลบ">
+                            <Trash2 className="size-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <p className="branch-manager-note">
+          ระบบใช้รายชื่อนี้ร่วมกันทุกหน้า หลังบันทึกแล้วหน้าสั่งเบิกและตัวกรองจะใช้ชุดสาขาใหม่ทันที
         </p>
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteBranchName)}
+        title="ยืนยันลบสาขา"
+        description={deleteBranchName ? `ลบสาขา ${deleteBranchName} ออกจากระบบ?` : ''}
+        confirmLabel="ลบสาขา"
+        cancelLabel="ยกเลิก"
+        loading={saving}
+        destructive
+        onCancel={() => !saving && setDeleteBranchName('')}
+        onConfirm={confirmDeleteBranch}
+      />
+    </>
   );
 }

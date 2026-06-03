@@ -295,6 +295,104 @@
   padding-inline: 0.85rem !important;
 }
 
+.dashboard-console.orders-only .dashboard-filter-rail.collapsed {
+  grid-template-columns: 1fr;
+  align-items: center;
+  padding-block: 0.65rem !important;
+}
+
+.dashboard-console.orders-only .dashboard-filter-rail.collapsed .dashboard-filter-body {
+  display: none !important;
+}
+
+.dashboard-console.orders-only .dashboard-filter-rail.collapsed .dashboard-panel-title {
+  align-items: center;
+}
+
+.dashboard-filter-title-actions {
+  gap: 0.35rem !important;
+}
+
+.dashboard-filter-toggle,
+.dashboard-filter-title-actions > button,
+.dashboard-panel-actions button,
+.dashboard-secondary-action,
+.dashboard-action-btn {
+  display: inline-flex !important;
+  min-height: 2.15rem !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.38rem !important;
+  border: 1px solid var(--gi-border) !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: var(--gi-navy) !important;
+  padding: 0 0.68rem !important;
+  font-size: 0.76rem !important;
+  font-weight: 850 !important;
+  line-height: 1.1 !important;
+  box-shadow: none !important;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.dashboard-filter-toggle,
+.dashboard-filter-title-actions > button:not(.dashboard-filter-clear) {
+  width: 2.15rem !important;
+  padding: 0 !important;
+}
+
+.dashboard-filter-toggle:hover,
+.dashboard-filter-title-actions > button:hover,
+.dashboard-panel-actions button:hover,
+.dashboard-secondary-action:hover,
+.dashboard-action-btn:hover {
+  border-color: #b9c9df !important;
+  background: var(--gi-panel) !important;
+  color: var(--gi-blue) !important;
+}
+
+.dashboard-filter-toggle:active,
+.dashboard-filter-title-actions > button:active,
+.dashboard-panel-actions button:active,
+.dashboard-secondary-action:active,
+.dashboard-action-btn:active {
+  transform: translateY(1px);
+}
+
+.dashboard-primary-action,
+.dashboard-filter-clear {
+  display: inline-flex !important;
+  min-height: 2.25rem !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.42rem !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: var(--gi-navy) !important;
+  color: #ffffff !important;
+  padding: 0 0.85rem !important;
+  font-size: 0.78rem !important;
+  font-weight: 900 !important;
+  line-height: 1.1 !important;
+  box-shadow: 0 8px 18px rgba(10, 42, 94, 0.16) !important;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.dashboard-primary-action:hover,
+.dashboard-filter-clear:hover {
+  background: #153d75 !important;
+  box-shadow: 0 10px 22px rgba(10, 42, 94, 0.2) !important;
+}
+
+.dashboard-primary-action:active,
+.dashboard-filter-clear:active {
+  transform: translateY(1px);
+}
+
+.dashboard-filter-rail .dashboard-panel-title h2 {
+  font-size: 0.9rem !important;
+}
+
 .dashboard-panel-head {
   min-height: 0 !important;
 }
@@ -311,6 +409,232 @@
 
 .dashboard-panel-summary {
   margin-inline: 0.85rem;
+}
+
+.dashboard-branches-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.branch-manager-shell {
+  padding: 0 0.85rem 0.85rem;
+}
+
+.branch-manager {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.branch-manager-add,
+.branch-manager-list-panel,
+.branch-manager-alert,
+.branch-manager-note,
+.branch-manager-loading {
+  border: 1px solid var(--gi-border);
+  border-radius: var(--gi-radius-lg);
+  background: #ffffff;
+  box-shadow: var(--gi-shadow-soft);
+}
+
+.branch-manager-add {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.52fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 0.85rem;
+  padding: 0.85rem;
+}
+
+.branch-manager-add-copy h3,
+.branch-manager-list-head h3 {
+  margin: 0;
+  color: var(--gi-text);
+  font-size: 0.96rem;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.branch-manager-add-copy p,
+.branch-manager-list-head p,
+.branch-manager-empty p,
+.branch-manager-note {
+  margin: 0.22rem 0 0;
+  color: var(--gi-muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.branch-manager-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+}
+
+.branch-manager input {
+  min-width: 0;
+  min-height: 2.35rem;
+  border: 1px solid var(--gi-border);
+  border-radius: var(--gi-radius);
+  background: var(--gi-panel);
+  color: var(--gi-text);
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  outline: none;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.branch-manager input::placeholder {
+  color: #7b889c;
+  font-weight: 750;
+}
+
+.branch-manager input:focus {
+  border-color: #8fb3ee;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.branch-manager-add-form .dashboard-primary-action,
+.branch-manager-list-head .dashboard-secondary-action {
+  min-height: 2.35rem !important;
+  padding-inline: 0.8rem !important;
+  white-space: nowrap;
+}
+
+.branch-manager-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #b91c1c;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.branch-manager-list-panel {
+  overflow: hidden;
+}
+
+.branch-manager-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--gi-border);
+  padding: 0.8rem 0.85rem;
+}
+
+.branch-manager-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.55rem;
+  padding: 0.75rem;
+}
+
+.branch-manager-row {
+  display: grid;
+  grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.8rem;
+  border: 1px solid var(--gi-border);
+  border-radius: var(--gi-radius);
+  background: #ffffff;
+  padding: 0.45rem;
+}
+
+.branch-manager-index {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--gi-blue-soft);
+  color: var(--gi-blue);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.branch-manager-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--gi-text);
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-manager-row input {
+  min-height: 2rem;
+  padding-inline: 0.55rem;
+}
+
+.branch-manager-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.branch-manager-row-actions button {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gi-muted);
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.branch-manager-row-actions button:hover,
+.branch-manager-row-actions button:focus-visible {
+  border-color: var(--gi-border);
+  background: var(--gi-panel);
+  color: var(--gi-navy);
+}
+
+.branch-manager-row-actions button[title='ลบ']:hover,
+.branch-manager-row-actions button[title='ลบ']:focus-visible {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #b91c1c;
+}
+
+.branch-manager-empty {
+  margin: 0.75rem;
+  border: 1px dashed #c8d4e5;
+  border-radius: var(--gi-radius);
+  background: var(--gi-panel);
+  padding: 1rem;
+}
+
+.branch-manager-empty span {
+  display: block;
+  color: var(--gi-text);
+  font-size: 0.86rem;
+  font-weight: 950;
+}
+
+.branch-manager-note {
+  background: #f0f7ff;
+  border-color: #cfe2ff;
+  padding: 0.7rem 0.85rem;
+}
+
+.branch-manager-loading {
+  display: flex;
+  min-height: 9rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: var(--gi-navy);
+  font-size: 0.82rem;
+  font-weight: 850;
 }
 
 @media (max-width: 1100px) {
@@ -351,6 +675,31 @@
 
   .dashboard-console.orders-only .dashboard-filter-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .branch-manager-shell {
+    padding: 0 0.65rem 0.65rem;
+  }
+
+  .branch-manager-add,
+  .branch-manager-add-form,
+  .branch-manager-list-head {
+    grid-template-columns: 1fr;
+  }
+
+  .branch-manager-list-head {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .branch-manager-add-form .dashboard-primary-action,
+  .branch-manager-list-head .dashboard-secondary-action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .branch-manager-list {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-inline-empty {

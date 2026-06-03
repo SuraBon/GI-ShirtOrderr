@@ -898,7 +898,8 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
               </Field>
             </div>
             <button className="dashboard-primary-action dashboard-filter-clear" onClick={clearFilters}>
-              ล้างตัวกรอง
+              <Eraser className="size-4" />
+              <span>ล้างตัวกรอง</span>
             </button>
           </div>
         </aside>
@@ -1663,10 +1664,9 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             </div>
           </div>
 
-          <div className="mx-auto max-w-2xl px-4 py-6">
+          <div className="branch-manager-shell">
             <BranchManager 
               onSaved={async () => {
-                toast.success('บันทึกข้อมูลสาขาสำเร็จ');
                 await refreshBranches();
               }} 
             />
