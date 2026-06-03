@@ -323,10 +323,47 @@ body,
   padding: 0.8rem !important;
 }
 
+.inventory-manage-details-button {
+  border: 1px solid var(--gi-border-strong) !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: var(--gi-text) !important;
+  box-shadow: none !important;
+}
+
+.inventory-manage-details-button:hover,
+.inventory-manage-details-button:active,
+.inventory-manage-details-button:focus-visible {
+  background: #f8fafc !important;
+  color: var(--gi-navy) !important;
+  transform: none !important;
+}
+
 .inventory-hero-media,
 .inventory-image-box {
   border-radius: 10px !important;
   background: #f8fafc !important;
+}
+
+.inventory-image-box > img,
+.inventory-image-box > span {
+  width: 100% !important;
+  aspect-ratio: 1 !important;
+  object-fit: contain !important;
+}
+
+.inventory-image-upload-button {
+  width: 100% !important;
+  border: 1px solid var(--gi-border-strong) !important;
+  background: #ffffff !important;
+  color: var(--gi-text) !important;
+  box-shadow: none !important;
+}
+
+.inventory-image-upload-button:hover,
+.inventory-image-upload-button:focus-within {
+  background: #f8fafc !important;
+  color: var(--gi-navy) !important;
 }
 
 .inventory-stock-summary-strip {

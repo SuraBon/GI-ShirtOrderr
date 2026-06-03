@@ -24,7 +24,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { cn, digitsOnly, phoneDigitsOnly, formatPhone, genderSymbol, PHONE_LENGTH } from '../lib/utils';
+import { cn, csvCell, digitsOnly, phoneDigitsOnly, formatPhone, genderSymbol, PHONE_LENGTH } from '../lib/utils';
 import { toast } from 'sonner';
 import {
   getClothingTypes,
@@ -378,12 +378,16 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
 
   // CSV Template and Import Helpers
   function downloadCsvTemplate() {
-    const csvContent = "\ufeff" + [
-      ['ชื่อ-นามสกุล', 'เพศ', 'แบบเสื้อ', 'ไซส์', 'จำนวน'],
-      ['สมชาย ดีใจ', 'ชาย', 'เสื้อโปโล', 'L', '2'],
-      ['สมหญิง รักดี', 'หญิง', 'เสื้อโปโล', 'M', '1'],
-      ['วิชัย มั่นคง', 'ชาย', 'เสื้อแจ็คเก็ต', 'XL', '1'],
-    ].map(e => e.join(",")).join("\n");
+    const availableTypes = getClothingTypes();
+    const templateRows = [
+      ['ชื่อ-นามสกุล', 'เพศ', 'แบบเสื้อ', 'ไซส์', 'จำนวน', 'รายชื่อเสื้อทั้งหมด (อ้างอิง)'],
+      ...availableTypes.map((type, index) => {
+        const gender = GENDERS[index % GENDERS.length];
+        const size = getSizeOptions(type, gender).find((option) => option !== OTHER_SIZE) || '';
+        return [`ตัวอย่าง ${index + 1}`, gender, type, size, '1', type];
+      }),
+    ];
+    const csvContent = `\ufeff${templateRows.map((row) => row.map(csvCell).join(',')).join('\n')}`;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -455,7 +459,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
       if (gender && garmentType && size) {
         const allowedSizes = getSizeOptions(garmentType, gender);
         if (!allowedSizes.includes(size)) {
-          rowErrors.push(`ไซส์ ${size} ไม่มีสำหรับ ${garmentType} ({$gender})`);
+          rowErrors.push(`ไซส์ ${size} ไม่มีสำหรับ ${garmentType} (${gender})`);
         }
       }
 

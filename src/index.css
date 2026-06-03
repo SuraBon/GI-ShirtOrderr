@@ -4342,6 +4342,13 @@ textarea:focus-visible {
   object-fit: contain;
 }
 
+.inventory-item-thumb > img,
+.inventory-hero-media > img,
+.inventory-image-box > img {
+  display: block;
+  background: #f8fafc;
+}
+
 .inventory-detail-grid {
   display: grid;
   grid-template-columns: 12rem minmax(0, 1fr);
@@ -4351,6 +4358,7 @@ textarea:focus-visible {
 
 .inventory-image-box {
   display: grid;
+  align-content: start;
   gap: 0.65rem;
 }
 
@@ -4372,15 +4380,51 @@ textarea:focus-visible {
 .inventory-image-box label {
   display: inline-flex;
   min-height: 2.35rem;
+  width: 100%;
   cursor: pointer;
   align-items: center;
   justify-content: center;
+  gap: 0.4rem;
   border: 1px solid var(--gi-border);
   border-radius: 8px;
   background: #ffffff;
   color: var(--gi-text);
   font-size: 0.78rem;
   font-weight: 900;
+}
+
+.inventory-image-upload-button {
+  position: relative;
+  z-index: 1;
+  grid-row: auto;
+}
+
+.inventory-manage-details-button {
+  display: inline-flex;
+  min-height: 2.55rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--gi-border-strong);
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 0 0.9rem;
+  color: var(--gi-text);
+  font-size: 0.8rem;
+  font-weight: 950;
+  box-shadow: none;
+}
+
+.inventory-manage-details-button:hover {
+  border-color: var(--gi-navy);
+  background: #f8fafc;
+  color: var(--gi-navy);
+}
+
+.inventory-manage-details-button:active,
+.inventory-manage-details-button:focus-visible {
+  background: #ffffff;
+  color: var(--gi-navy);
 }
 
 .inventory-image-box input[type='file'] {
@@ -4583,9 +4627,14 @@ textarea:focus-visible {
 .inventory-stock-header,
 .inventory-stock-row {
   display: grid;
-  grid-template-columns: minmax(7rem, 0.8fr) minmax(8rem, 0.7fr) minmax(12rem, 1.2fr);
+  grid-template-columns: minmax(7rem, 0.9fr) repeat(3, minmax(7rem, 0.7fr));
   gap: 0.6rem;
   align-items: center;
+}
+
+.inventory-stock-table.is-editing .inventory-stock-header,
+.inventory-stock-table.is-editing .inventory-stock-row {
+  grid-template-columns: minmax(7rem, 0.9fr) repeat(3, minmax(7rem, 0.7fr)) minmax(12rem, 1.2fr);
 }
 
 .inventory-stock-header {

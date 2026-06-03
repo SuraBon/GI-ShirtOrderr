@@ -546,7 +546,7 @@ export function InventoryManager({
                   iconClassName="size-8"
                 />
                 {editing && (
-                  <label>
+                  <label className="inventory-image-upload-button">
                     <ImagePlus className="size-4" />
                     {uploadingId === selectedItem.id ? 'กำลังอัปโหลด' : 'แนบรูป'}
                     <input
@@ -663,6 +663,8 @@ export function InventoryManager({
             <div className={cn('inventory-stock-table', mode === 'details' && 'hidden', editing && 'is-editing')}>
               <div className="inventory-stock-header">
                 <span>ไซส์</span>
+                <span>สต๊อกทั้งหมด</span>
+                <span>เบิกไป</span>
                 <span>คงเหลือ</span>
                 {editing && <span>รับเข้า / ปรับลด</span>}
               </div>
@@ -671,6 +673,8 @@ export function InventoryManager({
                 return (
                   <div className="inventory-stock-row" key={`${selectedItem.id}-${selectedGender}-${index}`}>
                     <strong>{row.size || '-'}</strong>
+                    <span>{summary.totalStock.toLocaleString('th-TH')} ชิ้น</span>
+                    <span>{summary.withdrawn.toLocaleString('th-TH')} ชิ้น</span>
                     <span>{summary.remaining.toLocaleString('th-TH')} ชิ้น</span>
                     {editing && (
                       <div className="inventory-stock-adjust">
@@ -720,7 +724,7 @@ export function InventoryManager({
                   fallbackClassName="inventory-image-fallback"
                   iconClassName="size-8"
                 />
-                <label>
+                <label className="inventory-image-upload-button">
                   <ImagePlus className="size-4" />
                   {uploadingId === selectedItem.id ? 'กำลังอัปโหลด' : 'แนบรูป'}
                   <input

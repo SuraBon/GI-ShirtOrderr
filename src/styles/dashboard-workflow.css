@@ -1,3 +1,17 @@
+.app-shadcn-theme {
+  --dashboard-action-height: 2.45rem;
+  --dashboard-action-radius: 999px;
+  --dashboard-action-gap: 0.45rem;
+  --dashboard-action-padding-x: 0.9rem;
+  --dashboard-action-font: 0.84rem;
+  --dashboard-action-icon: 1.1rem;
+  --dashboard-action-border: var(--gi-border);
+  --dashboard-action-bg: #ffffff;
+  --dashboard-action-fg: var(--gi-navy);
+  --dashboard-action-primary-bg: var(--gi-navy);
+  --dashboard-action-primary-fg: #ffffff;
+}
+
 .dashboard-workflow-head {
   display: flex;
   align-items: center;
@@ -319,17 +333,17 @@
 .dashboard-secondary-action,
 .dashboard-action-btn {
   display: inline-flex !important;
-  min-height: 2.15rem !important;
+  min-height: var(--dashboard-action-height) !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 0.38rem !important;
-  border: 1px solid var(--gi-border) !important;
-  border-radius: 8px !important;
-  background: #ffffff !important;
-  color: var(--gi-navy) !important;
-  padding: 0 0.68rem !important;
-  font-size: 0.76rem !important;
-  font-weight: 850 !important;
+  gap: var(--dashboard-action-gap) !important;
+  border: 1px solid var(--dashboard-action-border) !important;
+  border-radius: var(--dashboard-action-radius) !important;
+  background: var(--dashboard-action-bg) !important;
+  color: var(--dashboard-action-fg) !important;
+  padding: 0 var(--dashboard-action-padding-x) !important;
+  font-size: var(--dashboard-action-font) !important;
+  font-weight: 900 !important;
   line-height: 1.1 !important;
   box-shadow: none !important;
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
@@ -337,14 +351,14 @@
 
 .dashboard-filter-toggle,
 .dashboard-filter-title-actions > button:not(.dashboard-filter-clear) {
-  width: 2.25rem !important;
+  width: var(--dashboard-action-height) !important;
   padding: 0 !important;
 }
 
 .dashboard-icon-action {
-  width: 2.45rem !important;
-  min-width: 2.45rem !important;
-  padding-inline: 0 !important;
+  width: auto !important;
+  min-width: 7rem !important;
+  padding-inline: var(--dashboard-action-padding-x) !important;
 }
 
 .dashboard-filter-toggle:hover,
@@ -368,16 +382,16 @@
 .dashboard-primary-action,
 .dashboard-filter-clear {
   display: inline-flex !important;
-  min-height: 2.25rem !important;
+  min-height: var(--dashboard-action-height) !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 0.42rem !important;
+  gap: var(--dashboard-action-gap) !important;
   border: 1px solid transparent !important;
-  border-radius: 8px !important;
-  background: var(--gi-navy) !important;
-  color: #ffffff !important;
-  padding: 0 0.85rem !important;
-  font-size: 0.78rem !important;
+  border-radius: var(--dashboard-action-radius) !important;
+  background: var(--dashboard-action-primary-bg) !important;
+  color: var(--dashboard-action-primary-fg) !important;
+  padding: 0 var(--dashboard-action-padding-x) !important;
+  font-size: var(--dashboard-action-font) !important;
   font-weight: 900 !important;
   line-height: 1.1 !important;
   box-shadow: 0 8px 18px rgba(10, 42, 94, 0.16) !important;
@@ -422,8 +436,8 @@
 }
 
 .dashboard-panel-actions button {
-  min-height: 2.1rem !important;
-  padding-inline: 0.65rem !important;
+  min-height: var(--dashboard-action-height) !important;
+  padding-inline: var(--dashboard-action-padding-x) !important;
 }
 
 .dashboard-panel-summary {
@@ -725,6 +739,42 @@
     flex-direction: column;
     align-items: stretch;
   }
+
+  .dashboard-workflow-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-workflow-panel-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .dashboard-workflow-panel-action {
+    min-width: 7rem;
+    justify-content: center;
+  }
+
+  .dashboard-panel-head {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .dashboard-panel-actions {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    width: 100%;
+    gap: 0.55rem !important;
+  }
+
+  .dashboard-panel-actions button,
+  .dashboard-icon-action,
+  .dashboard-primary-action,
+  .dashboard-action-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
 }
 
 .inventory-workbench.stock-focus {
@@ -767,7 +817,7 @@
 }
 
 .inventory-workbench.stock-focus .inventory-hero-card {
-  grid-template-columns: minmax(0, 1fr) auto auto !important;
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(9.5rem, 10.5rem)) !important;
   gap: 0.65rem !important;
   align-items: center !important;
   padding: 0.65rem 0.75rem !important;
@@ -812,7 +862,7 @@
 
 .inventory-manage-details-button {
   display: inline-flex;
-  min-height: 2.25rem !important;
+  min-height: 2.45rem !important;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
@@ -827,8 +877,24 @@
 }
 
 .inventory-workbench.stock-focus .inventory-edit-toggle {
-  min-height: 2.25rem !important;
+  min-height: 2.45rem !important;
   padding-inline: 0.75rem !important;
+}
+
+.inventory-workbench.stock-focus .inventory-manage-details-button,
+.inventory-workbench.stock-focus .inventory-edit-toggle {
+  width: 100% !important;
+  min-width: 0 !important;
+  border-radius: 999px !important;
+  font-size: 0.84rem !important;
+  line-height: 1.1 !important;
+}
+
+.inventory-workbench.stock-focus .inventory-manage-details-button svg,
+.inventory-workbench.stock-focus .inventory-edit-toggle svg {
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+  min-width: 1.15rem !important;
 }
 
 .inventory-workbench.stock-focus .inventory-stock-summary-strip {
@@ -870,12 +936,12 @@
 
 .inventory-workbench.stock-focus .inventory-stock-header,
 .inventory-workbench.stock-focus .inventory-stock-row {
-  grid-template-columns: minmax(3rem, 0.45fr) minmax(4rem, 0.7fr) !important;
+  grid-template-columns: minmax(3rem, 0.55fr) repeat(3, minmax(4rem, 0.7fr)) !important;
 }
 
 .inventory-workbench.stock-focus .inventory-stock-table.is-editing .inventory-stock-header,
 .inventory-workbench.stock-focus .inventory-stock-table.is-editing .inventory-stock-row {
-  grid-template-columns: minmax(3rem, 0.45fr) minmax(4rem, 0.7fr) minmax(0, 1.35fr) !important;
+  grid-template-columns: minmax(3rem, 0.55fr) repeat(3, minmax(4rem, 0.7fr)) minmax(0, 1.35fr) !important;
 }
 
 .inventory-workbench.stock-focus .inventory-stock-row {
@@ -900,7 +966,7 @@
   position: fixed;
   left: 50%;
   top: 50%;
-  z-index: 60;
+  z-index: 90;
   display: grid;
   width: min(calc(100vw - 3rem), 1040px);
   max-height: min(90dvh, 820px);
@@ -946,9 +1012,21 @@
 }
 
 .inventory-details-dialog .inventory-image-box {
-  height: 9.5rem !important;
+  height: auto !important;
   min-height: 0 !important;
   aspect-ratio: auto !important;
+}
+
+.inventory-details-dialog .inventory-image-box > img,
+.inventory-details-dialog .inventory-image-box > span {
+  height: 9.5rem !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+}
+
+.inventory-details-dialog .inventory-image-upload-button {
+  position: static !important;
+  min-height: 2.35rem !important;
 }
 
 .inventory-details-dialog .inventory-detail-fields {
@@ -1089,7 +1167,7 @@
 
   .inventory-workbench.stock-focus .inventory-stock-row,
   .inventory-workbench.stock-focus .inventory-stock-table.is-editing .inventory-stock-row {
-    grid-template-columns: minmax(3rem, 0.5fr) minmax(4rem, 0.7fr) !important;
+    grid-template-columns: minmax(3rem, 0.6fr) repeat(3, minmax(4rem, 0.7fr)) !important;
   }
 
   .inventory-workbench.stock-focus .inventory-stock-adjust {
@@ -1136,8 +1214,6 @@
   --admin-nav-font: 0.76rem;
   --admin-nav-icon: 0.95rem;
   --admin-nav-height: 2.1rem;
-  --admin-action-font: 0.78rem;
-  --admin-action-icon: 1rem;
 }
 
 .gi-dashboard-header > .gi-container {
@@ -1187,9 +1263,9 @@
 .dashboard-primary-action svg,
 .inventory-manage-details-button svg,
 .inventory-edit-toggle svg {
-  width: var(--admin-action-icon) !important;
-  height: var(--admin-action-icon) !important;
-  min-width: var(--admin-action-icon) !important;
+  width: var(--dashboard-action-icon) !important;
+  height: var(--dashboard-action-icon) !important;
+  min-width: var(--dashboard-action-icon) !important;
   stroke-width: 2.15 !important;
 }
 
@@ -1205,10 +1281,10 @@
 .dashboard-primary-action,
 .inventory-manage-details-button,
 .inventory-edit-toggle {
-  min-height: 2.15rem !important;
-  border-radius: 8px !important;
-  font-size: var(--admin-action-font) !important;
-  font-weight: 850 !important;
+  min-height: var(--dashboard-action-height) !important;
+  border-radius: var(--dashboard-action-radius) !important;
+  font-size: var(--dashboard-action-font) !important;
+  font-weight: 900 !important;
   line-height: 1.1 !important;
 }
 
@@ -1229,19 +1305,15 @@
 .dashboard-icon-action,
 .dashboard-filter-toggle,
 .dashboard-filter-title-actions > button:not(.dashboard-filter-clear) {
-  width: 2.45rem !important;
-  height: 2.45rem !important;
-  min-width: 2.45rem !important;
-  min-height: 2.45rem !important;
-  padding: 0 !important;
+  min-height: var(--dashboard-action-height) !important;
 }
 
 .dashboard-icon-action svg,
 .dashboard-filter-toggle svg,
 .dashboard-filter-title-actions > button:not(.dashboard-filter-clear) svg {
-  width: 1rem !important;
-  height: 1rem !important;
-  min-width: 1rem !important;
+  width: var(--dashboard-action-icon) !important;
+  height: var(--dashboard-action-icon) !important;
+  min-width: var(--dashboard-action-icon) !important;
 }
 
 .dashboard-inventory-manager .btn-primary,
@@ -1442,4 +1514,115 @@
     min-height: var(--admin-nav-height) !important;
     padding: 0 0.34rem !important;
   }
+}
+
+@media (max-width: 760px) {
+  .gi-dashboard-nav {
+    display: flex !important;
+    gap: 0.4rem !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 0.2rem 0 0.1rem !important;
+    scrollbar-width: none;
+  }
+
+  .gi-dashboard-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gi-dashboard-nav button {
+    flex: 0 0 auto !important;
+    min-width: 6.2rem !important;
+    white-space: nowrap !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-catalog-top-panel .inventory-list-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: start !important;
+    gap: 0.65rem !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-catalog-top-panel .inventory-list-head > div {
+    min-width: 0;
+    text-align: left !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-catalog-top-panel .inventory-list-head button {
+    width: auto !important;
+    min-width: 5.25rem !important;
+    padding-inline: 0.8rem !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-hero-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.55rem !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-stock-action-copy {
+    grid-column: 1 / -1;
+  }
+
+  .inventory-workbench.stock-focus .inventory-manage-details-button,
+  .inventory-workbench.stock-focus .inventory-edit-toggle {
+    grid-column: auto !important;
+    width: 100% !important;
+    min-height: 2.4rem !important;
+    padding-inline: 0.55rem !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-section-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-section-head > div {
+    min-width: 0;
+  }
+
+  .inventory-workbench.stock-focus .inventory-section-head .inventory-gender-toggle {
+    width: auto !important;
+    justify-self: end;
+  }
+
+  .inventory-workbench.stock-focus .inventory-section-head .inventory-gender-toggle button {
+    flex: 0 0 auto !important;
+    min-width: 4.5rem !important;
+    padding-inline: 0.7rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .inventory-workbench.stock-focus .inventory-catalog-top-panel .inventory-list-head,
+  .inventory-workbench.stock-focus .inventory-section-head {
+    grid-template-columns: 1fr !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-catalog-top-panel .inventory-list-head button,
+  .inventory-workbench.stock-focus .inventory-section-head .inventory-gender-toggle {
+    width: 100% !important;
+  }
+
+  .inventory-workbench.stock-focus .inventory-section-head .inventory-gender-toggle button {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+  }
+}
+
+.inventory-workbench.stock-focus .inventory-manage-details-button,
+.inventory-workbench.stock-focus .inventory-edit-toggle {
+  min-height: 2.45rem !important;
+  border-radius: 999px !important;
+  font-size: 0.84rem !important;
+  font-weight: 900 !important;
+  line-height: 1.1 !important;
+}
+
+.inventory-workbench.stock-focus .inventory-manage-details-button svg,
+.inventory-workbench.stock-focus .inventory-edit-toggle svg {
+  width: 1.12rem !important;
+  height: 1.12rem !important;
+  min-width: 1.12rem !important;
 }

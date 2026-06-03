@@ -914,9 +914,11 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             <div className="dashboard-panel-actions">
               <button type="button" className="dashboard-icon-action" onClick={() => setColumnSettingsTable('orders')} title="ตั้งค่าคอลัมน์ตาราง" aria-label="ตั้งค่าคอลัมน์ตาราง">
                 <Settings2 className="size-4" />
+                <span>คอลัมน์</span>
               </button>
               <button type="button" className="dashboard-icon-action" onClick={() => loadData({ silent: true })} disabled={refreshing} title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                <span>โหลดใหม่</span>
               </button>
               <button onClick={() => setExportExpanded((value) => !value)}>
                 <Download className="size-4" />
@@ -1456,9 +1458,11 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             <div className="dashboard-panel-actions">
               <button type="button" className="dashboard-icon-action" onClick={() => setColumnSettingsTable('employees')} title="ตั้งค่าคอลัมน์ตาราง" aria-label="ตั้งค่าคอลัมน์ตาราง">
                 <Settings2 className="size-4" />
+                <span>คอลัมน์</span>
               </button>
               <button type="button" className="dashboard-icon-action" onClick={() => loadData({ silent: true })} disabled={refreshing} title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
                 {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                <span>โหลดใหม่</span>
               </button>
             </div>
           </div>
