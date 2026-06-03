@@ -83,6 +83,7 @@ export function InventoryManager({
   onAuthExpired,
   initialMode = 'details',
   modeLocked = false,
+  detailsInDialog = false,
   title = 'แบบเสื้อและสต๊อก',
 }) {
   const [selectedId, setSelectedId] = useState(() => config[0]?.id || '');
@@ -92,6 +93,7 @@ export function InventoryManager({
   const [uploadingId, setUploadingId] = useState('');
   const [stockAdjustments, setStockAdjustments] = useState({});
   const [deleteClothingId, setDeleteClothingId] = useState('');
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const syncTimerRef = useRef(null);
 
   const selectedItem = config.find((item) => item.id === selectedId) || config[0];
@@ -407,12 +409,12 @@ export function InventoryManager({
 
   return (
     <>
-      <section className="inventory-workbench">
+      <section className={cn('inventory-workbench', modeLocked && mode === 'stock' && 'stock-focus', detailsInDialog && 'details-dialog-mode')}>
         <aside className="inventory-catalog-top-panel">
           <div className="inventory-list-head">
             <div>
               <h3>{title}</h3>
-              <p>เลือกแบบเสื้อเพื่อแก้ข้อมูลและสต๊อก</p>
+              <p>{detailsInDialog ? 'เลือกแบบเสื้อแล้วปรับสต๊อก หรือเปิด popup เพื่อแก้รายละเอียด' : 'เลือกแบบเสื้อเพื่อแก้ข้อมูลและสต๊อก'}</p>
             </div>
             <button type="button" className="btn-primary btn-sm" onClick={addClothing}>
               <Plus className="size-4" /> เพิ่ม
@@ -480,9 +482,22 @@ export function InventoryManager({
               <h3>{selectedItem.type || 'ยังไม่ระบุชื่อ'}</h3>
               <p>{selectedGender} / {stockRows.length} ไซส์</p>
             </div>
+            {detailsInDialog && (
+              <button
+                type="button"
+                className="inventory-manage-details-button"
+                onClick={() => {
+                  setEditing(true);
+                  setDetailsDialogOpen(true);
+                }}
+              >
+                <Pencil className="size-4" />
+                จัดการแบบเสื้อ
+              </button>
+            )}
             <button type="button" className={cn('inventory-edit-toggle', editing && 'done')} onClick={() => setEditing((value) => !value)}>
               <Pencil className="size-4" />
-              {editing ? 'เสร็จสิ้น' : 'แก้ไข'}
+              {editing ? 'เสร็จสิ้น' : detailsInDialog ? 'แก้สต๊อก' : 'แก้ไข'}
             </button>
           </div>
 
@@ -646,7 +661,7 @@ export function InventoryManager({
                 ))}
               </div>
             </div>
-            <div className={cn('inventory-stock-table', mode === 'details' && 'hidden')}>
+            <div className={cn('inventory-stock-table', mode === 'details' && 'hidden', editing && 'is-editing')}>
               <div className="inventory-stock-header">
                 <span>ไซส์</span>
                 <span>คงเหลือ</span>
@@ -681,6 +696,122 @@ export function InventoryManager({
           </section>
         </div>
       </section>
+
+      <Dialog.Root open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="dashboard-dialog-overlay" />
+          <Dialog.Content className="inventory-details-dialog">
+            <div className="inventory-details-dialog-head">
+              <div>
+                <Dialog.Title>จัดการแบบเสื้อ</Dialog.Title>
+                <Dialog.Description>
+                  แก้ชื่อ รูปภาพ และรายละเอียดไซส์ของ {selectedItem.type || 'แบบเสื้อที่เลือก'}
+                </Dialog.Description>
+              </div>
+              <Dialog.Close className="dashboard-dialog-close" aria-label="ปิด">
+                <X className="size-4" />
+              </Dialog.Close>
+            </div>
+
+            <div className="inventory-detail-grid">
+              <div className="inventory-image-box">
+                <ClothingImage
+                  src={selectedItem.imageUrl}
+                  alt={selectedItem.type}
+                  fallbackClassName="inventory-image-fallback"
+                  iconClassName="size-8"
+                />
+                <label>
+                  <ImagePlus className="size-4" />
+                  {uploadingId === selectedItem.id ? 'กำลังอัปโหลด' : 'แนบรูป'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={uploadingId === selectedItem.id}
+                    onChange={(event) => {
+                      uploadImage(selectedItem.id, event.target.files?.[0]);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
+              <div className="inventory-detail-fields">
+                <Field label="ชื่อแบบเสื้อ">
+                  <TextInput
+                    value={selectedItem.type}
+                    onChange={(value) => patchItem(selectedItem.id, { type: value })}
+                    placeholder="เช่น เสื้อโปโล"
+                  />
+                </Field>
+                <div className="inventory-info-note">
+                  ข้อมูลส่วนนี้ใช้ควบคุมสิ่งที่ผู้เบิกเห็น ส่วนจำนวนคงเหลือให้แก้ในหน้าสต๊อกหลัก
+                </div>
+              </div>
+            </div>
+
+            <div className="inventory-size-fields inventory-size-fields-dialog">
+              <div className="inventory-size-fields-top">
+                <div>
+                  <strong>รายละเอียดไซส์</strong>
+                  <span>แก้ค่าอก/เอวแยกตามเพศ</span>
+                </div>
+                <div className="inventory-size-fields-actions">
+                  <button type="button" className="btn-secondary btn-sm inventory-add-detail-field" onClick={() => addDetailField(selectedItem.id)}>
+                    <Plus className="size-4" />
+                    เพิ่มรายละเอียด
+                  </button>
+                  <div className="inventory-gender-toggle">
+                    {GENDERS.map((gender) => (
+                      <button key={gender} type="button" className={selectedGender === gender ? 'active' : ''} onClick={() => setSelectedGender(gender)}>
+                        {gender}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="inventory-size-field-list">
+                {detailFields.map((field, index) => (
+                  <div key={`${selectedItem.id}-dialog-detail-field-${index}`} className="inventory-size-field-row">
+                    <TextInput value={field} onChange={(value) => patchDetailField(selectedItem.id, index, value)} placeholder="อก" />
+                    <button type="button" onClick={() => removeDetailField(selectedItem.id, index)} disabled={detailFields.length <= 1} title="ลบช่องรายละเอียด">
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="inventory-size-detail-table">
+                <div className="inventory-size-detail-header" style={sizeDetailGridStyle}>
+                  <span>ไซส์</span>
+                  {detailFields.map((field) => <span key={`${selectedItem.id}-dialog-size-head-${field}`}>{field}</span>)}
+                  <span />
+                </div>
+                {stockRows.map((row, index) => (
+                  <div className="inventory-size-detail-row" key={`${selectedItem.id}-${selectedGender}-dialog-detail-${index}`} style={sizeDetailGridStyle}>
+                    <TextInput value={row.size} onChange={(value) => patchStock(selectedItem.id, index, { size: value })} placeholder="ไซส์" />
+                    {detailFields.map((field) => (
+                      <TextInput
+                        key={`${selectedItem.id}-${selectedGender}-${index}-dialog-${field}`}
+                        value={row.details?.[field] || ''}
+                        onChange={(value) => patchStockDetail(selectedItem.id, index, field, value)}
+                        placeholder={field}
+                      />
+                    ))}
+                    <button type="button" onClick={() => removeStockRow(selectedItem.id, index)} title="ลบไซส์">
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button type="button" className="btn-secondary btn-sm inventory-add-stock" onClick={() => addStockRow(selectedItem.id)}>
+                <Plus className="size-4" /> เพิ่มไซส์
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <DeleteClothingDialog
         item={deleteClothingItem}

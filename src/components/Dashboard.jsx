@@ -12,7 +12,6 @@ import {
   Loader2,
   RefreshCw,
   Settings2,
-  Shirt,
   Truck,
   X,
 } from 'lucide-react';
@@ -1659,18 +1658,13 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
           <div className="dashboard-panel-head">
             <div>
               <h2>สต๊อก</h2>
-              <p>รับเข้า ปรับลด และตรวจจำนวนคงเหลือตามเพศ/ไซส์</p>
-            </div>
-            <div className="dashboard-panel-actions">
-              <button onClick={() => onViewChange?.('inventory')}>
-                <Shirt className="size-4" />
-                <span>ไปหน้าแบบเสื้อ</span>
-              </button>
+              <p>ตรวจคงเหลือ รับเข้า ปรับลด และเปิดจัดการแบบเสื้อจากหน้านี้</p>
             </div>
           </div>
           <InventoryManager
             initialMode="stock"
             modeLocked
+            detailsInDialog
             title="สต๊อก"
             config={clothingConfig}
             setConfig={setClothingConfig}

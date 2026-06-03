@@ -32,6 +32,7 @@ describe('dashboard workflow', () => {
       'fetch',
       vi.fn(async (url) => {
         const path = String(url);
+        if (path.includes('/api/auth/dashboard')) return jsonResponse({ token: 'test-token' });
         if (path.includes('/api/dashboard/orders')) return jsonResponse({ success: true, data: [] });
         if (path.includes('/api/blob/branches')) return jsonResponse({ branches: ['GI(สาขาใหญ่)'] });
         if (path.includes('/api/blob/config')) return jsonResponse({ config: null });
@@ -67,6 +68,29 @@ describe('dashboard workflow', () => {
     expect(await screen.findByRole('heading', { name: 'ภาพรวมงาน' })).toBeInTheDocument();
     expect(screen.getByText('ยังไม่มีคำสั่งเบิก')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'เปิดหน้าสั่งเบิกเสื้อ' })[0]).toBeInTheDocument();
+  }, 20000);
+
+  it('resets back to รายการเบิก after logout and login from another dashboard view', async () => {
+    await act(async () => {
+      await import('../src/main.jsx');
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /สต๊อก/ }));
+    });
+    expect(await screen.findByRole('heading', { name: 'สต๊อก', level: 2 })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'ออกจากระบบ' }));
+    });
+    expect(await screen.findByRole('heading', { name: 'เข้าสู่แดชบอร์ด' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('กรอกรหัส'), { target: { value: '1234' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'เข้าสู่แดชบอร์ด' }));
+    });
+
+    expect(await screen.findByRole('heading', { name: 'รายการเบิก' })).toBeInTheDocument();
   }, 20000);
 
   it('does not bring removed employee-master or manual copy back into source', () => {

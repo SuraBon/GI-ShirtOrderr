@@ -18,16 +18,19 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
   function handleUnlock(token) {
     setAdminToken(token);
     setDashboardToken(token);
+    setDashboardView('orders');
   }
 
   function handleAuthExpired() {
     setAdminToken('');
     setDashboardToken('');
+    setDashboardView('orders');
   }
 
   function handleLogout() {
     setAdminToken('');
     setDashboardToken('');
+    setDashboardView('orders');
   }
 
   if (!adminToken) {

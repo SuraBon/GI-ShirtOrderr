@@ -64,7 +64,6 @@ export function DashboardHeader({
     { id: 'dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
     { id: 'orders', label: 'รายการเบิก', icon: ClipboardList },
     { id: 'employees', label: 'ประวัติการเบิก', icon: ClipboardList },
-    { id: 'inventory', label: 'แบบเสื้อ', icon: Shirt },
     { id: 'stock', label: 'สต๊อก', icon: Shirt },
     { id: 'branches', label: 'จัดการสาขา', icon: Building2 },
   ];
