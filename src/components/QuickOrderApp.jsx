@@ -839,7 +839,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                                   setEditingCardId(employee.id);
                                 }
                               }}
-                              title={editingCardId !== employee.id ? "คลิกเพื่อแก้ไขข้อมูลพนักงานคนนี้" : undefined}
+                              title={editingCardId !== employee.id ? "คลิกเพื่อแก้ไขรายชื่อนี้" : undefined}
                             >
                               {editingCardId === employee.id ? (
                                 <div className="space-y-3 flex-1 flex flex-col justify-between animate-fade-in" onClick={(e) => e.stopPropagation()}>
@@ -1107,7 +1107,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                     <div className="space-y-4">
                       <div className="pb-3 border-b border-neutral-100">
                         <h3 className="text-sm sm:text-base font-extrabold text-[#071638]">นำเข้าข้อมูลจาก Excel / CSV</h3>
-                        <p className="text-xs text-neutral-500 font-semibold mt-0.5">ดาวน์โหลดไฟล์ตัวอย่าง กรอกข้อมูลพนักงานแล้วอัปโหลดกลับเข้าระบบ</p>
+                        <p className="text-xs text-neutral-500 font-semibold mt-0.5">ดาวน์โหลดไฟล์ตัวอย่าง กรอกรายชื่อผู้เบิกแล้วอัปโหลดกลับเข้าระบบ</p>
                       </div>
 
                       <div className="grid gap-4 sm:grid-cols-2">
@@ -1785,7 +1785,7 @@ function QuickOrderDialog({ open, setOpen, state, dispatch }) {
       <ConfirmDialog
         open={replaceConfirmOpen}
         title="แทนที่รายการเดิม"
-        description="มีข้อมูลพนักงานเดิมอยู่แล้ว ต้องการแทนที่ด้วยรายชื่อชุดใหม่หรือไม่?"
+        description="มีรายชื่อเดิมอยู่แล้ว ต้องการแทนที่ด้วยรายชื่อชุดใหม่หรือไม่?"
         confirmLabel="แทนที่"
         cancelLabel="ยกเลิก"
         onCancel={() => setReplaceConfirmOpen(false)}

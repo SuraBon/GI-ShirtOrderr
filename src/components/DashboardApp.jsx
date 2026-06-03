@@ -13,7 +13,7 @@ import Dashboard from './Dashboard';
 function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
   const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [adminToken, setDashboardToken] = useState(getAdminToken);
-  const [dashboardView, setDashboardView] = useState('dashboard');
+  const [dashboardView, setDashboardView] = useState('orders');
 
   function handleUnlock(token) {
     setAdminToken(token);
@@ -49,6 +49,7 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
           refreshBranches={refreshBranches}
           onAuthExpired={handleAuthExpired}
           onViewChange={setDashboardView}
+          onOpenOrder={onOpenOrder}
         />
       </main>
     </>

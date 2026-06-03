@@ -1,0 +1,360 @@
+.dashboard-workflow-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--gi-border);
+  border-radius: var(--gi-radius-lg);
+  background: #ffffff;
+  padding: 1rem;
+  box-shadow: var(--gi-shadow-soft);
+}
+
+.dashboard-workflow-head h2,
+.dashboard-workflow-panel h3,
+.dashboard-workflow-empty h3 {
+  margin: 0;
+  color: var(--gi-text);
+  letter-spacing: 0;
+}
+
+.dashboard-workflow-head h2 {
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.dashboard-workflow-head p,
+.dashboard-workflow-panel p,
+.dashboard-workflow-empty p,
+.dashboard-inline-empty p {
+  margin: 0.25rem 0 0;
+  color: var(--gi-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.dashboard-workflow-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dashboard-workflow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.9fr) minmax(0, 1fr);
+  gap: 0.85rem;
+}
+
+.dashboard-workflow-panel,
+.dashboard-workflow-empty,
+.dashboard-inline-empty {
+  border: 1px solid var(--gi-border);
+  border-radius: var(--gi-radius-lg);
+  background: #ffffff;
+  box-shadow: var(--gi-shadow-soft);
+}
+
+.dashboard-workflow-panel {
+  min-width: 0;
+  padding: 0.85rem;
+}
+
+.dashboard-workflow-panel.priority {
+  border-color: #f7d9a8;
+  background: linear-gradient(180deg, #fffaf2 0%, #ffffff 58%);
+}
+
+.dashboard-workflow-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--gi-border);
+}
+
+.dashboard-workflow-panel h3 {
+  font-size: 0.98rem;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.dashboard-workflow-panel-action,
+.dashboard-secondary-action,
+.dashboard-panel-actions button,
+.dashboard-secondary-row-action {
+  border: 1px solid var(--gi-border) !important;
+  background: #ffffff !important;
+  color: var(--gi-navy) !important;
+  box-shadow: none !important;
+}
+
+.dashboard-workflow-panel-action {
+  display: inline-flex;
+  min-height: 2.15rem;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--gi-radius);
+  padding: 0 0.75rem;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.dashboard-workflow-list {
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.75rem;
+}
+
+.dashboard-workflow-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid var(--gi-border);
+  border-radius: var(--gi-radius);
+  background: #ffffff;
+  padding: 0.65rem;
+}
+
+.dashboard-workflow-row.is-pending,
+.dashboard-clickable-row.is-pending,
+.dashboard-mobile-order-card.is-pending {
+  border-color: #f4c27a !important;
+  background: #fffaf2 !important;
+}
+
+.dashboard-clickable-row.is-pending td:first-child {
+  box-shadow: inset 3px 0 0 var(--gi-warning);
+}
+
+.dashboard-workflow-row strong,
+.dashboard-inline-empty strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--gi-text);
+  font-size: 0.84rem;
+  font-weight: 900;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-workflow-row-icon,
+.dashboard-workflow-empty-icon {
+  display: grid;
+  place-items: center;
+  border-radius: var(--gi-radius);
+}
+
+.dashboard-workflow-row-icon {
+  width: 2rem;
+  height: 2rem;
+  background: var(--gi-panel);
+  color: var(--gi-navy);
+}
+
+.dashboard-workflow-row-icon.warning {
+  background: var(--gi-warning-soft);
+  color: var(--gi-warning);
+}
+
+.dashboard-workflow-row-icon.blue {
+  background: var(--gi-blue-soft);
+  color: var(--gi-blue);
+}
+
+.dashboard-workflow-status {
+  display: inline-flex;
+  min-height: 1.7rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.dashboard-workflow-status.warning {
+  background: var(--gi-warning-soft);
+  color: var(--gi-warning);
+}
+
+.dashboard-workflow-status.success {
+  background: var(--gi-success-soft);
+  color: var(--gi-success);
+}
+
+.dashboard-workflow-status.danger {
+  background: var(--gi-error-soft);
+  color: var(--gi-error);
+}
+
+.dashboard-workflow-status.neutral {
+  background: var(--gi-panel);
+  color: var(--gi-muted);
+}
+
+.dashboard-workflow-empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.dashboard-workflow-empty-icon {
+  width: 2.8rem;
+  height: 2.8rem;
+  background: var(--gi-blue-soft);
+  color: var(--gi-blue);
+}
+
+.dashboard-inline-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.85rem;
+  padding: 0.85rem;
+  color: var(--gi-muted);
+}
+
+.dashboard-inline-empty > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.dashboard-inline-empty button {
+  min-height: 2.15rem !important;
+  flex-shrink: 0;
+  border: 1px solid var(--gi-border) !important;
+  border-radius: var(--gi-radius) !important;
+  background: #ffffff !important;
+  color: var(--gi-navy) !important;
+  padding: 0 0.75rem !important;
+  font-size: 0.76rem !important;
+  font-weight: 850 !important;
+}
+
+.dashboard-primary-row-action {
+  border-color: transparent !important;
+  background: var(--gi-navy) !important;
+  color: #ffffff !important;
+}
+
+.dashboard-row-actions-group {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem !important;
+}
+
+.dashboard-row-actions .dashboard-action-btn {
+  min-height: 2rem !important;
+  padding: 0 0.65rem !important;
+  white-space: nowrap;
+}
+
+.dashboard-console.orders-only {
+  gap: 0.8rem !important;
+}
+
+.dashboard-console.orders-only .dashboard-filter-rail {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: end;
+  gap: 0.8rem;
+  padding: 0.75rem 0.85rem !important;
+}
+
+.dashboard-console.orders-only .dashboard-filter-rail .dashboard-panel-title {
+  align-items: flex-end;
+  padding: 0 !important;
+}
+
+.dashboard-console.orders-only .dashboard-filter-body {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.dashboard-console.orders-only .dashboard-filter-grid {
+  grid-template-columns: repeat(4, minmax(8rem, 1fr)) !important;
+  gap: 0.55rem !important;
+}
+
+.dashboard-console.orders-only .dashboard-filter-clear {
+  min-height: 2.25rem !important;
+  padding-inline: 0.85rem !important;
+}
+
+.dashboard-panel-head {
+  min-height: 0 !important;
+}
+
+.dashboard-panel-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dashboard-panel-actions button {
+  min-height: 2.1rem !important;
+  padding-inline: 0.65rem !important;
+}
+
+.dashboard-panel-summary {
+  margin-inline: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-workflow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-console.orders-only .dashboard-filter-rail,
+  .dashboard-console.orders-only .dashboard-filter-body {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-console.orders-only .dashboard-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-workflow-head,
+  .dashboard-workflow-empty {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .dashboard-workflow-head {
+    display: grid;
+  }
+
+  .dashboard-workflow-head-actions,
+  .dashboard-workflow-empty .dashboard-primary-action {
+    width: 100%;
+  }
+
+  .dashboard-workflow-head-actions > *,
+  .dashboard-workflow-empty .dashboard-primary-action {
+    justify-content: center;
+  }
+
+  .dashboard-console.orders-only .dashboard-filter-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-inline-empty {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

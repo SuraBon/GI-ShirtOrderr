@@ -49,6 +49,7 @@ import { ORDER_STATUS_CANCELED, ORDER_STATUS_DELIVERED, ORDER_STATUS_PENDING, OR
 import { BRANCHES } from '../constants/branches';
 import { DashboardOverview, Field, Select, TextInput, GridInput, CustomSelect, BranchManager, InventoryManager } from '.';
 import { ConfirmDialog, ColumnSettingsDialog } from './SharedDialogs';
+import { DashboardInlineEmptyState } from './DashboardWorkflowPanels';
 
 function getDashboardLoadErrorDescription(error) {
   const message = String(error?.message || '');
@@ -67,7 +68,7 @@ function getDashboardLoadErrorDescription(error) {
   return 'ระบบอ่านข้อมูลจาก Google Sheets ไม่สำเร็จ กรุณาลองใหม่หรือติดต่อผู้ดูแลระบบ';
 }
 
-function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches, onAuthExpired, onViewChange }) {
+function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches, onAuthExpired, onViewChange, onOpenOrder }) {
   const effectiveBranches = Array.isArray(branches) && branches.length ? branches : BRANCHES;
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -819,6 +820,10 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       toggleBatchExpanded(batchId);
     }
   };
+  const openBatchDetails = (event, batch) => {
+    event.stopPropagation();
+    setSelectedBatch(batch);
+  };
 
   return (
     <>
@@ -836,7 +841,6 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
           <DashboardOverview
             onRefresh={() => loadData({ silent: true })}
             metrics={metrics}
-            rows={rows}
             filteredBatches={filteredBatches}
             stockSummaryRows={stockSummaryRows}
             statuses={{
@@ -844,6 +848,8 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
               delivered: ORDER_STATUS_DELIVERED,
               canceled: ORDER_STATUS_CANCELED,
             }}
+            onViewChange={onViewChange}
+            onOpenOrder={onOpenOrder}
           />
         </section>
       )}
@@ -959,6 +965,14 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             </div>
           )}
 
+          {!isOrderPageLoading && !filteredBatches.length && (
+            <DashboardInlineEmptyState
+              title="ยังไม่มีรายการเบิก"
+              description="ข้อมูลเดโม่ชุดนี้ยังไม่มีคำสั่งเบิกตามตัวกรอง เปิดหน้าสั่งเบิกเสื้อเพื่อสร้างรายการแรก"
+              onOpenOrder={onOpenOrder}
+            />
+          )}
+
           {isOrderPageLoading ? (
             <DashboardPageSkeleton rows={Math.min(orderPageSize, Math.max(3, orderRows.length || 3))} />
           ) : useSplitOrderColumns ? (
@@ -987,7 +1001,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                         {rows.map((batch) => (
                           <React.Fragment key={batch.batchId}>
                           <tr
-                            className="dashboard-clickable-row"
+                            className={cn('dashboard-clickable-row', batch.status === ORDER_STATUS_PENDING && 'is-pending')}
                             tabIndex={0}
                             aria-expanded={expandedBatchIds.has(batch.batchId)}
                             onClick={() => toggleBatchExpanded(batch.batchId)}
@@ -1026,15 +1040,22 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                             {isOrderColumnVisible('updated') && <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>}
                             <td className="dashboard-row-actions">
                               <div className="dashboard-row-actions-group">
-                                {batch.status !== ORDER_STATUS_DELIVERED && (
+                                <button
+                                  type="button"
+                                  className="dashboard-action-btn dashboard-secondary-row-action"
+                                  onClick={(event) => openBatchDetails(event, batch)}
+                                >
+                                  ดูรายละเอียด
+                                </button>
+                                {batch.status === ORDER_STATUS_PENDING && (
                                   <button
-                                    className="dashboard-action-btn"
+                                    className="dashboard-action-btn dashboard-primary-row-action"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED);
                                     }}
                                   >
-                                    จัดส่งแล้ว
+                                    จัดส่ง
                                   </button>
                                 )}
                               </div>
@@ -1189,7 +1210,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                 {orderRows.map((batch) => (
                   <React.Fragment key={batch.batchId}>
                     <tr
-                      className="dashboard-clickable-row"
+                      className={cn('dashboard-clickable-row', batch.status === ORDER_STATUS_PENDING && 'is-pending')}
                       tabIndex={0}
                       aria-expanded={expandedBatchIds.has(batch.batchId)}
                       onClick={() => toggleBatchExpanded(batch.batchId)}
@@ -1228,17 +1249,24 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
                     {isOrderColumnVisible('updated') && <td>{formatDashboardDate(batch.statusUpdatedAt || batch.submittedAt)}</td>}
                             <td className="dashboard-row-actions">
                       <div className="dashboard-row-actions-group">
-                                {batch.status !== ORDER_STATUS_DELIVERED && (
-                                  <button
-                                    className="dashboard-action-btn"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED);
-                                    }}
-                                  >
-                                    ยืนยันจัดส่ง
-                                  </button>
-                                )}
+                        <button
+                          type="button"
+                          className="dashboard-action-btn dashboard-secondary-row-action"
+                          onClick={(event) => openBatchDetails(event, batch)}
+                        >
+                          ดูรายละเอียด
+                        </button>
+                        {batch.status === ORDER_STATUS_PENDING && (
+                          <button
+                            className="dashboard-action-btn dashboard-primary-row-action"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              updateBatchStatus(batch.batchId, ORDER_STATUS_DELIVERED);
+                            }}
+                          >
+                            จัดส่ง
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1370,7 +1398,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
             ) : orderRows.map((batch) => (
               <article
                 key={batch.batchId}
-                className="dashboard-mobile-order-card"
+                className={cn('dashboard-mobile-order-card', batch.status === ORDER_STATUS_PENDING && 'is-pending')}
               >
                 <div className="dashboard-mobile-order-top">
                         <div>
@@ -1422,8 +1450,8 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
         <section className="dashboard-employees-panel">
           <div className="dashboard-panel-head">
             <div>
-              <h2>ประวัติรายการเบิกของพนักงาน</h2>
-              <p>แสดงจากคำสั่งเบิกเท่านั้น ไม่มีการเก็บฐานข้อมูลพนักงานแยก</p>
+              <h2>ประวัติการเบิก</h2>
+              <p>แสดงจากคำสั่งเบิกเท่านั้น ไม่มีตารางพนักงานแยก</p>
             </div>
             <div className="dashboard-panel-actions">
               <button type="button" onClick={() => setColumnSettingsTable('employees')} title="ตั้งค่าคอลัมน์ตาราง">
@@ -1436,6 +1464,14 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
               </button>
             </div>
           </div>
+
+          {!isEmployeePageLoading && !employeeRows.length && (
+            <DashboardInlineEmptyState
+              title="ยังไม่มีประวัติการเบิก"
+              description="หน้านี้สรุปจาก Orders เท่านั้น เมื่อมีคำสั่งเบิก ระบบจะแสดงประวัติที่นี่"
+              onOpenOrder={onOpenOrder}
+            />
+          )}
 
           <div className="dashboard-panel-summary">
             <MiniMetric label="รายการเบิก" value={employeeRows.length} />
@@ -1708,7 +1744,7 @@ function Dashboard({ activeView = 'orders', branches = BRANCHES, refreshBranches
       />
       <ColumnSettingsDialog
         open={columnSettingsTable === 'employees'}
-        title="ตั้งค่าคอลัมน์ข้อมูลพนักงาน"
+        title="ตั้งค่าคอลัมน์ประวัติการเบิก"
         columns={EMPLOYEE_TABLE_COLUMNS}
         visibleColumns={visibleEmployeeColumns}
         onChange={setVisibleEmployeeColumns}
