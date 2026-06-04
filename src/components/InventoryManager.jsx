@@ -1041,16 +1041,6 @@ export function InventoryManager({
                   {selectedItem.type || 'แบบเสื้อที่เลือก'} · {selectedGender} / {stockRows.length} ไซส์
                 </Dialog.Description>
               </div>
-              <div className="inventory-dialog-head-actions">
-                <button
-                  type="button"
-                  className="btn-primary btn-sm inventory-dialog-stock-button"
-                  onClick={() => setDetailsDialogTab('stock')}
-                >
-                  <Pencil className="size-4" />
-                  ปรับสต๊อก
-                </button>
-              </div>
               <Dialog.Close className="dashboard-dialog-close" aria-label="ปิด">
                 <X className="size-4" />
               </Dialog.Close>
