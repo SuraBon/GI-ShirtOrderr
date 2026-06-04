@@ -6,7 +6,7 @@ export function Logo({ showMark = true }) {
     <div className="gi-brand flex min-w-0 items-center gap-3">
       {showMark ? (
         <span className="gi-brand-mark" aria-hidden="true">
-          GI
+          <img src="/gi-logo.png" alt="" />
         </span>
       ) : null}
       <div className="min-w-0">

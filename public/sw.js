@@ -1,10 +1,13 @@
-const CACHE_NAME = "shirtclaim-shell-v4";
+const CACHE_NAME = "shirtclaim-shell-v5";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
-  "/gold-integrate-logo.jpg",
-  "/ev7-logo.jpg"
+  "/gi-logo.png",
+  "/pwa-icon-192.png",
+  "/pwa-icon-512.png",
+  "/apple-touch-icon.png",
+  "/favicon-32.png"
 ];
 
 self.addEventListener("install", (event) => {

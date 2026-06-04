@@ -1954,13 +1954,15 @@ body {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 0.65rem;
-  background: linear-gradient(180deg, var(--gi-navy), #10275a);
-  color: #ffffff;
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0;
-  line-height: 1;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 8px 18px rgba(13, 27, 61, 0.14);
+  overflow: hidden;
+  background: #000000;
+  box-shadow: 0 8px 18px rgba(13, 27, 61, 0.14);
+}
+
+.gi-brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .app-shadcn-theme header h1 {
