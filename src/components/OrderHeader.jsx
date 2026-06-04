@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, ClipboardList, Gauge, History, LogOut, Package, Ruler, Settings2 } from 'lucide-react';
+import { Building2, ClipboardList, Gauge, History, Loader2, LogOut, Package, RefreshCw, Ruler, Settings2 } from 'lucide-react';
 
 export function Logo({ surface = 'order', showMark = true }) {
   const isDashboard = surface === 'dashboard';
@@ -60,6 +60,7 @@ export function OrderHeader({ onSizeOpen, onOpenDashboard }) {
 export function DashboardHeader({
   activeView = 'orders',
   onViewChange,
+  onRefresh,
   onLogout,
   syncState,
 }) {
@@ -80,6 +81,7 @@ export function DashboardHeader({
       default: return 'bg-emerald-400';
     }
   };
+  const isRefreshing = syncState?.status === 'loading' || syncState?.status === 'saving';
 
   return (
     <header className="gi-dashboard-header w-full bg-[#1a2b4c] text-white shadow-md border-b border-slate-700/50">
@@ -115,9 +117,9 @@ export function DashboardHeader({
         </div>
 
         {/* Right Section (Status & Logout) */}
-        <div className="flex items-center gap-4">
+        <div className="dashboard-header-tools flex items-center gap-2">
           {/* Sync status */}
-          <div className="flex items-center gap-2 text-sm text-slate-300">
+          <div className="dashboard-sync-text flex items-center gap-2 text-sm text-slate-300">
             <span className={`w-2 h-2 rounded-full ${getIndicatorColor()}`}></span>
             <span>
               {syncState?.status === 'loading' || syncState?.status === 'saving'
@@ -132,10 +134,21 @@ export function DashboardHeader({
             </span>
           </div>
 
+          <button
+            onClick={onRefresh}
+            className="dashboard-header-icon-button flex items-center justify-center transition-colors"
+            title="โหลดข้อมูลใหม่"
+            type="button"
+            aria-label="โหลดข้อมูลใหม่"
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? <Loader2 className="size-4 shrink-0 animate-spin" /> : <RefreshCw className="size-4 shrink-0" />}
+          </button>
+
           {/* Logout Button */}
           <button
             onClick={onLogout}
-            className="dashboard-logout-button flex items-center justify-center transition-colors"
+            className="dashboard-logout-button dashboard-header-icon-button flex items-center justify-center transition-colors"
             title="ออกจากระบบแอดมิน"
             type="button"
             aria-label="ออกจากระบบ"

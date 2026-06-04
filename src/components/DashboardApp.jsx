@@ -44,6 +44,7 @@ function DashboardApp({ onOpenOrder, branches = BRANCHES, refreshBranches }) {
         activeView={dashboardView}
         onViewChange={setDashboardView}
         onOpenOrder={onOpenOrder}
+        onRefresh={() => window.dispatchEvent(new window.CustomEvent('gi-dashboard-refresh'))}
         onLogout={handleLogout}
         syncState={syncState}
       />

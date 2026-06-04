@@ -1144,7 +1144,7 @@
     top: 0;
     z-index: 40;
     padding: 0.55rem 0.65rem 0.5rem !important;
-    box-shadow: 0 6px 18px rgba(18, 48, 92, 0.16) !important;
+    box-shadow: 0 1px 12px rgba(15, 23, 42, 0.06) !important;
   }
 
   .gi-dashboard-header > .gi-container {
@@ -1291,10 +1291,15 @@
 }
 
 /* Admin scale normalization: keep text, buttons, and icons visually balanced. */
+.app-shadcn-theme .gi-dashboard-header,
 .gi-dashboard-header {
   --admin-nav-font: 0.76rem;
   --admin-nav-icon: 0.95rem;
   --admin-nav-height: 2.1rem;
+  border-bottom: 1px solid var(--gi-border) !important;
+  background: #ffffff !important;
+  color: var(--gi-text) !important;
+  box-shadow: 0 1px 12px rgba(15, 23, 42, 0.06) !important;
 }
 
 .gi-dashboard-header > .gi-container {
@@ -1315,19 +1320,28 @@
   width: 2.15rem !important;
   height: 2.15rem !important;
   min-width: 2.15rem !important;
+  border: 1px solid var(--gi-border) !important;
   border-radius: 8px !important;
+  background: var(--gi-navy) !important;
+  color: #ffffff !important;
   font-size: 0.76rem !important;
 }
 
 .gi-dashboard-header .gi-brand h1 {
+  color: var(--gi-text) !important;
   font-size: 0.9rem !important;
   line-height: 1.15 !important;
   letter-spacing: 0 !important;
 }
 
 .gi-dashboard-header .gi-brand p {
+  color: var(--gi-muted) !important;
   font-size: 0.66rem !important;
   line-height: 1.1 !important;
+}
+
+.gi-dashboard-header :where(.text-slate-300, .text-white, .text-white\/70) {
+  color: var(--gi-navy) !important;
 }
 
 .gi-dashboard-nav {
@@ -1341,16 +1355,57 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 0.34rem !important;
+  border: 1px solid transparent !important;
   border-radius: 8px !important;
+  background: transparent !important;
+  color: #334155 !important;
   padding: 0 0.68rem !important;
   font-size: var(--admin-nav-font) !important;
   font-weight: 850 !important;
   line-height: 1.1 !important;
 }
 
+.gi-dashboard-nav button:hover {
+  border-color: var(--gi-border) !important;
+  background: #f8fafc !important;
+  color: var(--gi-navy) !important;
+}
+
+.gi-dashboard-nav button.active,
+.gi-dashboard-nav button[aria-current='page'] {
+  border-color: #c9d7ea !important;
+  background: var(--gi-blue-soft) !important;
+  color: var(--gi-navy) !important;
+}
+
 .gi-dashboard-nav .dashboard-nav-logout {
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  color: rgba(255, 255, 255, 0.86) !important;
+  border-color: var(--gi-border) !important;
+  color: var(--gi-navy) !important;
+}
+
+.gi-dashboard-header .dashboard-header-tools {
+  flex: 0 0 auto;
+}
+
+.gi-dashboard-header .dashboard-header-icon-button {
+  width: var(--admin-nav-height) !important;
+  height: var(--admin-nav-height) !important;
+  min-width: var(--admin-nav-height) !important;
+  min-height: var(--admin-nav-height) !important;
+  padding: 0 !important;
+  border: 1px solid var(--gi-border) !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  color: var(--gi-navy) !important;
+  box-shadow: none !important;
+}
+
+.gi-dashboard-header .dashboard-header-icon-button:hover {
+  background: #f8fafc !important;
+}
+
+.gi-dashboard-header .dashboard-header-icon-button:disabled {
+  opacity: 0.7;
 }
 
 .gi-dashboard-nav button svg,
@@ -1370,6 +1425,8 @@
   width: var(--admin-nav-icon) !important;
   height: var(--admin-nav-icon) !important;
   min-width: var(--admin-nav-icon) !important;
+  color: currentColor !important;
+  stroke: currentColor !important;
 }
 
 .dashboard-header-actions button,
@@ -1650,9 +1707,10 @@
     width: 1.8rem;
     height: var(--admin-nav-height);
     place-items: center;
+    border: 1px solid var(--gi-border);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.14);
-    color: #ffffff;
+    background: #f1f5f9;
+    color: var(--gi-navy);
     font-weight: 950;
     pointer-events: none;
   }
@@ -1662,7 +1720,7 @@
     right: 2.05rem;
     top: -1.15rem;
     display: block;
-    color: rgba(255, 255, 255, 0.72);
+    color: #64748b;
     font-size: 0.64rem;
     font-weight: 850;
     line-height: 1;

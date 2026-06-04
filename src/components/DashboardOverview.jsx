@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AlertTriangle, Ban, PackageCheck, RefreshCw, Shirt } from 'lucide-react';
+import { AlertTriangle, Ban, PackageCheck, Shirt } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -34,7 +34,6 @@ function KpiCard({ icon: Icon, label, value, detail, tone = 'default' }) {
 }
 
 export function DashboardOverview({
-  onRefresh,
   metrics,
   filteredBatches,
   itemRows = [],
@@ -82,12 +81,6 @@ export function DashboardOverview({
         <div>
           <h2>ภาพรวมงานเบิกเสื้อ</h2>
           <p>ดูงานที่ต้องจัดส่ง สต๊อกที่ต้องเติม และสรุปสถานะรายการ</p>
-        </div>
-        <div className="dashboard-workflow-head-actions">
-          <button type="button" onClick={onRefresh} className="dashboard-action-btn dashboard-secondary-action dashboard-icon-action" title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
-            <RefreshCw className="size-4" />
-            <span>โหลดใหม่</span>
-          </button>
         </div>
       </div>
 

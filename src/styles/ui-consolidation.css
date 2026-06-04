@@ -39,30 +39,6 @@ body,
   box-shadow: 0 1px 10px rgba(15, 23, 42, 0.05) !important;
 }
 
-.app-shadcn-theme .gi-dashboard-header {
-  background: #12305c !important;
-  border-color: transparent !important;
-  box-shadow: 0 8px 22px rgba(18, 48, 92, 0.18) !important;
-}
-
-.gi-dashboard-nav {
-  gap: 0.3rem !important;
-}
-
-.gi-dashboard-nav button {
-  min-height: 2.25rem !important;
-  border-radius: 8px !important;
-  padding-inline: 0.8rem !important;
-  color: rgba(255, 255, 255, 0.78) !important;
-  font-size: 0.78rem !important;
-  font-weight: 800 !important;
-}
-
-.gi-dashboard-nav button.active {
-  background: rgba(255, 255, 255, 0.14) !important;
-  color: #ffffff !important;
-}
-
 .app-shadcn-theme .gi-order-header h1,
 .app-shadcn-theme .gi-order-header :where(button, button span, button svg) {
   color: var(--gi-text) !important;

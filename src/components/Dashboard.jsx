@@ -10,7 +10,6 @@ import {
   Download,
   Loader2,
   MoreHorizontal,
-  RefreshCw,
   Settings2,
   Truck,
   X,
@@ -194,6 +193,14 @@ function Dashboard({
     },
     []
   );
+
+  useEffect(() => {
+    function handleDashboardRefresh() {
+      loadData({ silent: true });
+    }
+    window.addEventListener('gi-dashboard-refresh', handleDashboardRefresh);
+    return () => window.removeEventListener('gi-dashboard-refresh', handleDashboardRefresh);
+  });
 
   useEffect(() => {
     function onResize() {
@@ -996,7 +1003,6 @@ function Dashboard({
       {activeView === 'dashboard' && (
         <section className="dashboard-overview-page">
           <DashboardOverview
-            onRefresh={() => loadData({ silent: true })}
             metrics={metrics}
             filteredBatches={filteredBatches}
             itemRows={rows}
@@ -1060,10 +1066,6 @@ function Dashboard({
               <button type="button" className="dashboard-icon-action" onClick={() => setColumnSettingsTable('orders')} title="ตั้งค่าคอลัมน์ตาราง" aria-label="ตั้งค่าคอลัมน์ตาราง">
                 <Settings2 className="size-4" />
                 <span>คอลัมน์</span>
-              </button>
-              <button type="button" className="dashboard-icon-action" onClick={() => loadData({ silent: true })} disabled={refreshing} title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
-                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                <span>โหลดใหม่</span>
               </button>
               <button onClick={() => setExportExpanded((value) => !value)}>
                 <Download className="size-4" />
@@ -1556,10 +1558,6 @@ function Dashboard({
               <button type="button" className="dashboard-icon-action" onClick={() => setColumnSettingsTable('employees')} title="ตั้งค่าคอลัมน์ตาราง" aria-label="ตั้งค่าคอลัมน์ตาราง">
                 <Settings2 className="size-4" />
                 <span>คอลัมน์</span>
-              </button>
-              <button type="button" className="dashboard-icon-action" onClick={() => loadData({ silent: true })} disabled={refreshing} title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่">
-                {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                <span>โหลดใหม่</span>
               </button>
             </div>
           </div>

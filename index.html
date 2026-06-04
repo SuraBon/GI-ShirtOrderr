@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
     
     <!-- Theme & Branding -->
-    <meta name="theme-color" content="#4f68a8" />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="color-scheme" content="light" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="ระบบเบิกเสื้อพนักงาน" />
     
     <!-- SEO & Description -->
@@ -87,15 +87,6 @@
   <body>
     <!-- Main App Container -->
     <div id="root"></div>
-    
-    <!-- Service Worker Registration for PWA -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
-          // Service worker registration failed, app will still work
-        });
-      }
-    </script>
     
     <!-- Main App Script -->
     <script type="module" src="/src/main.jsx"></script>

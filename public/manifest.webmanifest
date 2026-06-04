@@ -1,13 +1,19 @@
 {
+  "id": "/",
   "name": "ระบบเบิกเสื้อพนักงาน",
   "short_name": "เบิกเสื้อ",
   "description": "ระบบเบิกเสื้อพนักงาน Gold Integrate",
   "start_url": "/",
   "scope": "/",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#f6f8fb",
-  "theme_color": "#0d152a",
+  "theme_color": "#ffffff",
   "orientation": "portrait-primary",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/gold-integrate-logo.jpg",
