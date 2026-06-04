@@ -1,6 +1,6 @@
 import { list, put } from "@vercel/blob";
-import { fetchGas, getConfiguredGasUrl } from "../_gas.js";
-import { rateLimit, readJsonBody, requireAdmin } from "../_security.js";
+import { fetchGas, getConfiguredGasUrl, readGasJson } from "../_gas.js";
+import { getGasAdminToken, rateLimit, readJsonBody, requireAdmin } from "../_security.js";
 
 function requireBlobToken(response) {
   if (process.env.BLOB_READ_WRITE_TOKEN) return false;
@@ -10,6 +10,7 @@ function requireBlobToken(response) {
 
 const CONFIG_PATH = "shirt-config/clothing-config.json";
 const MAX_CONFIG_ITEMS = 100;
+const STOCK_FIELDS = ["qty", "stockOpeningQty", "stockAdded", "stockWithdrawn", "stockAdjustedOut"];
 
 function runAfterResponse(request, promise) {
   if (typeof request.waitUntil === "function") {
@@ -33,6 +34,52 @@ async function syncStockToGoogleSheets(config) {
   });
 }
 
+async function loadStockRowsFromGoogleSheets() {
+  const gasUrl = getConfiguredGasUrl();
+  const adminToken = getGasAdminToken();
+  if (!gasUrl || !adminToken) return [];
+
+  const url = new URL(gasUrl);
+  url.searchParams.set("adminToken", adminToken);
+  url.searchParams.set("action", "stock");
+  const gasResponse = await fetchGas(url.toString(), { cache: "no-store", timeoutMs: 12_000 });
+  const result = await readGasJson(gasResponse);
+  return gasResponse.ok && result?.success !== false && Array.isArray(result?.data) ? result.data : [];
+}
+
+function getStockKey(type, gender, size) {
+  return [type, gender, size].map((value) => String(value || "").trim()).join("\u0000");
+}
+
+function mergeStockRowsIntoConfig(config, stockRows) {
+  if (!Array.isArray(config) || !Array.isArray(stockRows) || !stockRows.length) return config;
+  const stockByKey = new Map(
+    stockRows.map((row) => [getStockKey(row.type, row.gender, row.size), row])
+  );
+
+  return config.map((item) => {
+    const nextGenderSizeRows = { ...(item.genderSizeRows || {}) };
+    for (const [gender, rows] of Object.entries(nextGenderSizeRows)) {
+      nextGenderSizeRows[gender] = Array.isArray(rows)
+        ? rows.map((row) => {
+            const stockRow = stockByKey.get(getStockKey(item.type, gender, row.size));
+            if (!stockRow) return row;
+            return STOCK_FIELDS.reduce(
+              (nextRow, field) => ({ ...nextRow, [field]: Number(stockRow[field] || 0) }),
+              row
+            );
+          })
+        : rows;
+    }
+
+    return {
+      ...item,
+      genderSizeRows: nextGenderSizeRows,
+      sizeRows: nextGenderSizeRows.ชาย || item.sizeRows,
+    };
+  });
+}
+
 export default async function handler(request, response) {
   if (requireBlobToken(response)) return;
 
@@ -47,7 +94,16 @@ export default async function handler(request, response) {
 
       const configResponse = await fetch(blob.url, { cache: "no-store" });
       if (!configResponse.ok) throw new Error("อ่านข้อมูลแบบเสื้อไม่สำเร็จ");
-      response.status(200).json(await configResponse.json());
+      const payload = await configResponse.json();
+      const stockRows = await loadStockRowsFromGoogleSheets().catch((error) => {
+        console.error("Failed to load stock rows from Google Sheets:", error);
+        return [];
+      });
+      response.status(200).json({
+        ...payload,
+        config: mergeStockRowsIntoConfig(payload?.config, stockRows),
+        stockSource: stockRows.length ? "google-sheets" : "blob"
+      });
       return;
     }
 

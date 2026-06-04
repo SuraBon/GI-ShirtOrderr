@@ -8,12 +8,13 @@ export function getConfiguredGasUrl() {
 }
 
 export async function fetchGas(url, options = {}) {
+  const { timeoutMs = GAS_TIMEOUT_MS, ...fetchOptions } = options;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GAS_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(url, {
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
     });
   } catch (error) {

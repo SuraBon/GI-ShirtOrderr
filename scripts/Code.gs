@@ -33,6 +33,9 @@ const STOCK_HEADERS = [
 function doGet(e) {
   try {
     requireAdmin_(getRequestToken_(e, "adminToken"));
+    if (getRequestToken_(e, "action") === "stock") {
+      return json_({ success: true, data: readStockRows_(SpreadsheetApp.getActiveSpreadsheet()) });
+    }
     const sheet = getOrdersSheet_();
     return json_({ success: true, data: readCachedBatches_(sheet) });
   } catch (error) {
@@ -305,6 +308,32 @@ function readCachedBatches_(sheet) {
 
 function clearOrdersCache_() {
   CacheService.getScriptCache().remove(ORDERS_CACHE_KEY);
+}
+
+function readStockRows_(spreadsheet) {
+  const sheet = spreadsheet.getSheetByName("Stock");
+  if (!sheet) return [];
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 3) return [];
+
+  return sheet.getRange(3, 1, lastRow - 2, STOCK_HEADERS.length).getValues()
+    .map(function(row) {
+      return {
+        type: String(row[0] || "").trim(),
+        gender: String(row[1] || "").trim(),
+        size: String(row[2] || "").trim(),
+        stockOpeningQty: Number(row[3] || 0),
+        stockAdded: Number(row[4] || 0),
+        stockAdjustedOut: Number(row[5] || 0),
+        stockWithdrawn: Number(row[6] || 0),
+        totalStock: Number(row[7] || 0),
+        qty: Number(row[8] || 0)
+      };
+    })
+    .filter(function(row) {
+      return row.type && row.gender && row.size;
+    });
 }
 
 function toIso_(value) {

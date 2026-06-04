@@ -53,6 +53,21 @@ export const SIZE_TABLES = {
   ],
 };
 
+const STOCK_ROW_NUMBER_FIELDS = [
+  'qty',
+  'stockOpeningQty',
+  'stockAdded',
+  'stockWithdrawn',
+  'stockAdjustedOut',
+];
+
+function preserveStockFields(row) {
+  return STOCK_ROW_NUMBER_FIELDS.reduce((fields, field) => {
+    if (row?.[field] === undefined) return fields;
+    return { ...fields, [field]: Number(row[field] || 0) };
+  }, {});
+}
+
 export function getStandardSizeSource(type, gender) {
   if (type === 'เสื้อโปโล')
     return SIZE_TABLES[`เสื้อโปโล ${gender}`] || SIZE_TABLES['เสื้อโปโล ชาย'];
@@ -74,11 +89,19 @@ export function buildStandardSizeRows(type, gender) {
 
 export function buildDefaultClothingItem(type, item = {}) {
   const detailFields = getStandardDetailFields(type);
+  const fallbackExistingRows = Array.isArray(item.sizeRows) ? item.sizeRows : [];
   const genderSizeRows = GENDERS.reduce(
-    (rows, gender) => ({
-      ...rows,
-      [gender]: buildStandardSizeRows(type, gender),
-    }),
+    (rows, gender) => {
+      const existingRows = item.genderSizeRows?.[gender] || fallbackExistingRows;
+      const existingBySize = new Map(existingRows.map((row) => [String(row?.size || ''), row]));
+      return {
+        ...rows,
+        [gender]: buildStandardSizeRows(type, gender).map((row) => ({
+          ...row,
+          ...preserveStockFields(existingBySize.get(String(row.size))),
+        })),
+      };
+    },
     {}
   );
   return {
@@ -114,6 +137,7 @@ export function normalizeSizeRows(rows, detailFields) {
           size: String(row?.size || '').trim(),
           details: normalizeSizeDetails(row, detailFields),
           qty: Number(row?.qty || 0),
+          ...preserveStockFields(row),
         }))
       : [];
   return normalizedRows.length
