@@ -6262,7 +6262,7 @@ body,
 .inventory-catalog-table th:nth-child(3),
 .inventory-catalog-table th:nth-child(4),
 .inventory-catalog-number {
-  text-align: right;
+  text-align: center;
 }
 
 .inventory-catalog-number {

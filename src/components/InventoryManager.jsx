@@ -711,9 +711,9 @@ export function InventoryManager({
                 <TableHeader>
                   <TableRow>
                     <TableHead>แบบเสื้อ</TableHead>
-                    <TableHead className="text-right">ทั้งหมด</TableHead>
-                    <TableHead className="text-right">เบิกไป</TableHead>
-                    <TableHead className="text-right">คงเหลือ</TableHead>
+                    <TableHead>ทั้งหมด</TableHead>
+                    <TableHead>เบิกไป</TableHead>
+                    <TableHead>คงเหลือ</TableHead>
                     <TableHead className="w-28 text-center">จัดการ</TableHead>
                   </TableRow>
                 </TableHeader>
