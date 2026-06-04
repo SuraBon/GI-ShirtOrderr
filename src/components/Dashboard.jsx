@@ -1654,7 +1654,6 @@ function Dashboard({
                     <span>จำนวน <strong>{row.qty} ตัว</strong></span>
                   </div>
                   <div className="dashboard-mobile-order-bottom">
-                    <span>อัปเดตล่าสุด {formatDashboardDate(row.statusUpdatedAt || row.submittedAt)}</span>
                     <button
                       type="button"
                       disabled={!rowBatch}
