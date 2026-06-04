@@ -990,9 +990,18 @@
   min-height: 2rem !important;
 }
 
-.inventory-workbench.stock-focus .inventory-stock-adjust button {
-  min-height: 2rem !important;
-  padding-inline: 0.65rem !important;
+.inventory-workbench.stock-focus .inventory-stock-save-row,
+.inventory-dialog-stock-table .inventory-stock-save-row {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  padding-top: 0.35rem;
+}
+
+.inventory-workbench.stock-focus .inventory-stock-save-row button,
+.inventory-dialog-stock-table .inventory-stock-save-row button {
+  min-height: 2.4rem !important;
+  padding-inline: 1.1rem !important;
 }
 
 .inventory-details-dialog {
@@ -2125,6 +2134,14 @@
 
   .inventory-dialog-stock-table .inventory-stock-adjust {
     grid-column: 1 / -1;
+  }
+
+  .inventory-dialog-stock-table .inventory-stock-save-row {
+    justify-content: stretch;
+  }
+
+  .inventory-dialog-stock-table .inventory-stock-save-row button {
+    width: 100%;
   }
 }
 

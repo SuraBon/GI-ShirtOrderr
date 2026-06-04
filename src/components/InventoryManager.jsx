@@ -11,11 +11,13 @@ import {
   IMAGE_UPLOAD_TYPES,
   normalizeClothingConfig,
   publishSharedClothingConfig,
+  loadSharedClothingConfig,
   saveClothingConfig,
 } from '../lib/config';
 import { applyStockMovement, getStockLedgerSummary } from '../lib/stockHelpers';
 import { Field, TextInput } from './FormComponents';
 import { ClothingImage } from './ClothingImage';
+import { ConfirmDialog } from './SharedDialogs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 function validateImageFile(file) {
@@ -109,6 +111,8 @@ export function InventoryManager({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createDraft, setCreateDraft] = useState(() => createBlankClothingDraft());
   const [catalogViewMode, setCatalogViewMode] = useState('card');
+  const [stockConfirmOpen, setStockConfirmOpen] = useState(false);
+  const [stockSaving, setStockSaving] = useState(false);
   const syncTimerRef = useRef(null);
 
   const selectedItem = selectedId ? (config.find((item) => item.id === selectedId) || null) : null;
@@ -137,6 +141,22 @@ export function InventoryManager({
   const createSizeDetailGridStyle = {
     '--inventory-size-detail-columns': `minmax(6rem, 0.75fr) repeat(${createDraft.detailFields.length}, minmax(6rem, 1fr)) 2.5rem`,
   };
+  const pendingStockAdjustments = stockRows
+    .map((row, index) => {
+      const key = getStockAdjustmentKey(index);
+      const amount = Number(stockAdjustments[key] || 0);
+      return Number.isFinite(amount) && amount !== 0
+        ? { key, index, size: row.size || '-', amount }
+        : null;
+    })
+    .filter(Boolean);
+  const stockConfirmDescription = pendingStockAdjustments.length
+    ? [
+        `ยืนยันบันทึกการปรับสต๊อก ${pendingStockAdjustments.length} รายการ`,
+        `${selectedItem?.type || 'แบบเสื้อที่เลือก'} · ${selectedGender}`,
+        ...pendingStockAdjustments.map((item) => `${item.size}: ${item.amount > 0 ? '+' : ''}${item.amount} ชิ้น`),
+      ].join('\n')
+    : '';
 
   useEffect(() => {
     if (selectedId !== null && !config.some((item) => item.id === selectedId)) {
@@ -208,26 +228,73 @@ export function InventoryManager({
     return `${selectedItem?.id || ''}:${selectedGender}:${rowIndex}`;
   }
 
-  function adjustStockQuantity(id, rowIndex) {
-    const key = getStockAdjustmentKey(rowIndex);
-    const amount = Number(stockAdjustments[key] || 0);
-    if (!amount) return;
-    commit(
-      config.map((item) => {
-        if (item.id !== id) return item;
-        const rows = item.genderSizeRows?.[selectedGender] || item.sizeRows || [];
-        return {
-          ...item,
-          genderSizeRows: {
-            ...(item.genderSizeRows || {}),
-            [selectedGender]: rows.map((row, index) =>
-              index === rowIndex ? applyStockMovement(row, amount, 'manual') : row
-            ),
-          },
-        };
-      })
-    );
-    setStockAdjustments((current) => ({ ...current, [key]: '' }));
+  function requestStockSave() {
+    if (!pendingStockAdjustments.length) {
+      toast.error('ยังไม่มีรายการปรับสต๊อก', {
+        description: 'กรอกจำนวนรับเข้า หรือจำนวนติดลบที่ต้องการปรับลดก่อนบันทึก',
+      });
+      return;
+    }
+    setStockConfirmOpen(true);
+  }
+
+  function applyStockAdjustmentsToConfig(baseConfig, selectedItemId, gender, adjustments) {
+    const movementByIndex = new Map(adjustments.map((item) => [item.index, item.amount]));
+    const movementBySize = new Map(adjustments.map((item) => [String(item.size || ''), item.amount]));
+    return baseConfig.map((item) => {
+      if (item.id !== selectedItemId) return item;
+      const rows = item.genderSizeRows?.[gender] || item.sizeRows || [];
+      return {
+        ...item,
+        genderSizeRows: {
+          ...(item.genderSizeRows || {}),
+          [gender]: rows.map((row, index) => {
+            const sizeKey = String(row.size || '');
+            const amount = movementBySize.has(sizeKey) ? movementBySize.get(sizeKey) : movementByIndex.get(index);
+            return amount ? applyStockMovement(row, amount, 'manual') : row;
+          }),
+        },
+      };
+    });
+  }
+
+  async function confirmStockSave() {
+    if (!selectedItem || !pendingStockAdjustments.length) {
+      setStockConfirmOpen(false);
+      return;
+    }
+    setStockSaving(true);
+    try {
+      const latestConfig = await loadSharedClothingConfig().catch(() => null);
+      const baseConfig = latestConfig?.length ? latestConfig : config;
+      const nextConfig = normalizeClothingConfig(
+        applyStockAdjustmentsToConfig(baseConfig, selectedItem.id, selectedGender, pendingStockAdjustments)
+      );
+      setConfig(nextConfig);
+      saveClothingConfig(nextConfig);
+      await publishSharedClothingConfig(nextConfig);
+      setStockAdjustments((current) => {
+        const next = { ...current };
+        pendingStockAdjustments.forEach((item) => {
+          next[item.key] = '';
+        });
+        return next;
+      });
+      setStockConfirmOpen(false);
+      toast.success('บันทึกการปรับสต๊อกแล้ว');
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        setAdminToken('');
+        onAuthExpired?.();
+        toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ');
+      } else {
+        toast.error('บันทึกข้อมูลเสื้อไม่สำเร็จ', {
+          description: error?.message || 'กรุณาโหลดข้อมูลล่าสุดแล้วลองใหม่',
+        });
+      }
+    } finally {
+      setStockSaving(false);
+    }
   }
 
   function patchStockDetail(id, rowIndex, field, value) {
@@ -920,14 +987,18 @@ export function InventoryManager({
                           }
                           placeholder="+10 หรือ -2"
                         />
-                        <button type="button" className="btn-primary btn-sm" onClick={() => adjustStockQuantity(selectedItem.id, index)}>
-                          บันทึก
-                        </button>
                       </div>
                     )}
                   </div>
                 );
               })}
+              {editing && (
+                <div className="inventory-stock-save-row">
+                  <button type="button" className="btn-primary" onClick={requestStockSave}>
+                    บันทึกการปรับสต๊อก
+                  </button>
+                </div>
+              )}
             </div>
           </section>
         
@@ -1137,13 +1208,15 @@ export function InventoryManager({
                           }
                           placeholder="+10 หรือ -2"
                         />
-                        <button type="button" className="btn-primary btn-sm" onClick={() => adjustStockQuantity(selectedItem.id, index)}>
-                          บันทึก
-                        </button>
                       </div>
                     </div>
                   );
                 })}
+                <div className="inventory-stock-save-row">
+                  <button type="button" className="btn-primary" onClick={requestStockSave}>
+                    บันทึกการปรับสต๊อก
+                  </button>
+                </div>
               </div>
             </div>
           
@@ -1260,6 +1333,16 @@ export function InventoryManager({
         item={deleteClothingItem}
         onCancel={() => setDeleteClothingId('')}
         onConfirm={confirmDeleteClothing}
+      />
+      <ConfirmDialog
+        open={stockConfirmOpen}
+        title="ยืนยันบันทึกการปรับสต๊อก"
+        description={stockConfirmDescription}
+        confirmLabel="ยืนยันบันทึก"
+        cancelLabel="ยกเลิก"
+        loading={stockSaving}
+        onCancel={() => setStockConfirmOpen(false)}
+        onConfirm={confirmStockSave}
       />
     </>
   );
