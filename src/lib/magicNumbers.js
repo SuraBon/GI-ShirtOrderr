@@ -4,7 +4,7 @@
  */
 
 // API & Network
-export const API_TIMEOUT_MS = 15000;
+export const API_TIMEOUT_MS = 45000;
 
 // Form Validation
 export const ORDER_SUBMIT_RETRIES = 2;

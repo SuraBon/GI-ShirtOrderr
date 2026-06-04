@@ -1,3 +1,5 @@
+import { API_TIMEOUT_MS } from './magicNumbers';
+
 export const APPS_SCRIPT_URL = import.meta.env.VITE_GAS_URL || 'YOUR_SCRIPT_URL_HERE';
 export const DASHBOARD_PATH = '#/dashboard';
 export const ORDER_PATH = '/';
@@ -19,7 +21,7 @@ export function isAuthFailure(error) {
 export async function authFetch(url, options = {}) {
   const token = getAdminToken();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {

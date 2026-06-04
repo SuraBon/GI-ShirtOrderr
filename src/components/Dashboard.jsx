@@ -143,7 +143,7 @@ function Dashboard({
   const [pagingLoading, setPagingLoading] = useState({ orders: false, employees: false });
   const pagingTimersRef = useRef({});
 
-  async function loadData({ silent = false } = {}) {
+  async function loadData({ silent = false, force = false } = {}) {
     if (refreshing) return;
     onSyncStateChange?.({ status: 'loading', updatedAt: null, label: 'กำลังโหลด' });
     const showSkeleton = !silent && !batches.length;
@@ -153,7 +153,9 @@ function Dashboard({
       ? toast.loading('กำลังโหลดข้อมูล...', { description: 'ระบบกำลังเตรียมข้อมูล กรุณารอสักครู่' })
       : null;
     try {
-      const response = await authFetch('/api/dashboard/orders', { cache: 'no-store' });
+      const response = await authFetch(`/api/dashboard/orders${force ? '?force=1' : ''}`, {
+        cache: 'no-store',
+      });
       const result = await response.json();
       if (!response.ok || result?.success === false)
         throw new Error(result?.error || 'โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ');
@@ -196,7 +198,7 @@ function Dashboard({
 
   useEffect(() => {
     function handleDashboardRefresh() {
-      loadData({ silent: true });
+      loadData({ silent: true, force: true });
     }
     window.addEventListener('gi-dashboard-refresh', handleDashboardRefresh);
     return () => window.removeEventListener('gi-dashboard-refresh', handleDashboardRefresh);
@@ -995,7 +997,7 @@ function Dashboard({
         <DashboardDataNotice
           message={getDashboardLoadErrorDescription({ message: dataError })}
           detail="หน้าจัดการจะแสดงเฉพาะข้อมูลจริงจาก Google Sheets เท่านั้น ไม่มีการดึงข้อมูลรายการเบิกจากเครื่องนี้"
-          onRetry={() => loadData({ silent: true })}
+          onRetry={() => loadData({ silent: true, force: true })}
           refreshing={refreshing}
         />
       )}

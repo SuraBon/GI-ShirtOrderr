@@ -1,3 +1,4 @@
+import { clearCachedDashboardOrders, fetchGas, getConfiguredGasUrl, readGasJson } from "../_gas.js";
 import { rateLimit, readJsonBody, sendError } from "../_security.js";
 
 const ORDER_STATUS_PENDING = "รอจัดส่ง";
@@ -63,7 +64,7 @@ export default async function handler(request, response) {
   }
 
   try {
-    const gasUrl = process.env.VITE_GAS_URL || process.env.GAS_URL || "";
+    const gasUrl = getConfiguredGasUrl();
     if (!gasUrl || gasUrl.includes("YOUR_SCRIPT_URL")) {
       sendError(response, 500, "ยังไม่ได้ตั้งค่าแหล่งข้อมูลสำหรับบันทึกคำสั่งเบิก");
       return;
@@ -75,16 +76,26 @@ export default async function handler(request, response) {
       return;
     }
 
-    const gasResponse = await fetch(gasUrl, {
+    const gasResponse = await fetchGas(gasUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
     });
-    const text = await gasResponse.text();
-    response.status(gasResponse.ok ? 200 : 502).setHeader("Content-Type", "application/json");
-    response.send(text || JSON.stringify({ success: false }));
+    const result = await readGasJson(gasResponse);
+    if (!gasResponse.ok || result?.success === false) {
+      sendError(response, 502, result?.error || "Google Apps Script บันทึกคำสั่งเบิกไม่สำเร็จ");
+      return;
+    }
+    clearCachedDashboardOrders();
+    response.status(200).json(result);
   } catch (error) {
     console.error("Order submit proxy failed", error);
-    sendError(response, error?.message === "REQUEST_TOO_LARGE" ? 413 : 500, "ส่งคำสั่งเบิกไม่สำเร็จ");
+    sendError(
+      response,
+      error?.message === "REQUEST_TOO_LARGE" ? 413 : 502,
+      error?.message === "GAS_TIMEOUT"
+        ? "Google Apps Script ตอบกลับช้าเกินไป กรุณาลองส่งใหม่อีกครั้ง"
+        : "ส่งคำสั่งเบิกไม่สำเร็จ"
+    );
   }
 }

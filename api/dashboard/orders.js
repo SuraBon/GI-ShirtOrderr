@@ -1,3 +1,10 @@
+import {
+  fetchGas,
+  getCachedDashboardOrders,
+  getConfiguredGasUrl,
+  readGasJson,
+  setCachedDashboardOrders,
+} from "../_gas.js";
 import { getGasAdminToken, requireAdmin, sendError } from "../_security.js";
 
 export default async function handler(request, response) {
@@ -8,9 +15,17 @@ export default async function handler(request, response) {
   if (!requireAdmin(request, response)) return;
 
   try {
-    const gasUrl = process.env.VITE_GAS_URL || process.env.GAS_URL || "";
+    const gasUrl = getConfiguredGasUrl();
     if (!gasUrl || gasUrl.includes("YOUR_SCRIPT_URL")) {
       sendError(response, 500, "ยังไม่ได้ตั้งค่าแหล่งข้อมูล Google Sheets สำหรับแดชบอร์ด");
+      return;
+    }
+
+    const requestUrl = new URL(request.url || "/api/dashboard/orders", "http://localhost");
+    const forceRefresh = requestUrl.searchParams.get("force") === "1";
+    const cached = forceRefresh ? null : getCachedDashboardOrders();
+    if (cached) {
+      response.status(200).json(cached);
       return;
     }
 
@@ -22,12 +37,22 @@ export default async function handler(request, response) {
       return;
     }
     url.searchParams.set("adminToken", adminToken);
-    const gasResponse = await fetch(url.toString(), { cache: "no-store" });
-    const text = await gasResponse.text();
-    response.status(gasResponse.ok ? 200 : 502).setHeader("Content-Type", "application/json");
-    response.send(text || JSON.stringify({ success: false }));
+    const gasResponse = await fetchGas(url.toString(), { cache: "no-store" });
+    const result = await readGasJson(gasResponse);
+    if (!gasResponse.ok || result?.success === false) {
+      sendError(response, 502, result?.error || "Google Apps Script อ่านข้อมูลไม่สำเร็จ");
+      return;
+    }
+    setCachedDashboardOrders(result);
+    response.status(200).json(result);
   } catch (error) {
     console.error("Dashboard orders proxy failed", error);
-    sendError(response, 500, "โหลดข้อมูลแดชบอร์ดจาก Google Sheets ไม่สำเร็จ");
+    sendError(
+      response,
+      502,
+      error?.message === "GAS_TIMEOUT"
+        ? "Google Apps Script ตอบกลับช้าเกินไป กรุณาลองโหลดใหม่อีกครั้ง"
+        : "โหลดข้อมูลแดชบอร์ดจาก Google Sheets ไม่สำเร็จ"
+    );
   }
 }

@@ -1,4 +1,6 @@
 const SHEET_NAME = "Orders";
+const ORDERS_CACHE_KEY = "dashboard-orders-v1";
+const ORDERS_CACHE_TTL_SECONDS = 30;
 const ORDER_STATUSES = ["รอจัดส่ง", "จัดส่งแล้ว", "ยกเลิก"];
 const HEADERS = [
   "รหัสคำสั่งเบิก",
@@ -32,7 +34,7 @@ function doGet(e) {
   try {
     requireAdmin_(getRequestToken_(e, "adminToken"));
     const sheet = getOrdersSheet_();
-    return json_({ success: true, data: readBatches_(sheet) });
+    return json_({ success: true, data: readCachedBatches_(sheet) });
   } catch (error) {
     return json_({ success: false, error: String(error.message || error) });
   }
@@ -49,18 +51,21 @@ function doPost(e) {
     if (payload.action === "updateStatus") {
       requireAdmin_(payload.adminToken);
       const updatedRows = updateBatchStatus_(sheet, payload);
+      clearOrdersCache_();
       return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: updatedRows });
     }
 
     if (payload.action === "deleteBatch") {
       requireAdmin_(payload.adminToken);
       const deletedRows = deleteBatch_(sheet, payload.batchId);
+      clearOrdersCache_();
       return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: deletedRows });
     }
 
     if (payload.action === "shipItems") {
       requireAdmin_(payload.adminToken);
       const updatedRows = shipBatchItems_(sheet, payload);
+      clearOrdersCache_();
       return json_({ success: true, action: payload.action, batchId: payload.batchId, rows: updatedRows });
     }
 
@@ -76,6 +81,7 @@ function doPost(e) {
     if (rows.length) {
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADERS.length).setValues(rows);
     }
+    clearOrdersCache_();
 
     return json_({ success: true, batchId: payload.batchId, rows: rows.length });
   } catch (error) {
@@ -275,6 +281,30 @@ function readBatches_(sheet) {
   });
 
   return Array.from(batches.values()).sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
+}
+
+function readCachedBatches_(sheet) {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(ORDERS_CACHE_KEY);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (error) {
+      cache.remove(ORDERS_CACHE_KEY);
+    }
+  }
+
+  const batches = readBatches_(sheet);
+  try {
+    cache.put(ORDERS_CACHE_KEY, JSON.stringify(batches), ORDERS_CACHE_TTL_SECONDS);
+  } catch (error) {
+    console.warn("Could not cache dashboard orders:", error);
+  }
+  return batches;
+}
+
+function clearOrdersCache_() {
+  CacheService.getScriptCache().remove(ORDERS_CACHE_KEY);
 }
 
 function toIso_(value) {
