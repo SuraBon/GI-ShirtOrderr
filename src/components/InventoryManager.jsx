@@ -700,7 +700,14 @@ export function InventoryManager({
           </div>
           {catalogViewMode === 'table' ? (
             <div className="inventory-catalog-table-wrap">
-              <Table>
+              <Table className="inventory-catalog-table">
+                <colgroup>
+                  <col className="inventory-catalog-name-col" />
+                  <col className="inventory-catalog-number-col" />
+                  <col className="inventory-catalog-number-col" />
+                  <col className="inventory-catalog-number-col" />
+                  <col className="inventory-catalog-action-col" />
+                </colgroup>
                 <TableHeader>
                   <TableRow>
                     <TableHead>แบบเสื้อ</TableHead>
@@ -734,9 +741,9 @@ export function InventoryManager({
                             <strong>{item.type || 'ยังไม่ระบุชื่อ'}</strong>
                           </button>
                         </TableCell>
-                        <TableCell className="text-right font-bold">{itemStats.totalStock.toLocaleString('th-TH')}</TableCell>
-                        <TableCell className="text-right">{itemStats.withdrawn.toLocaleString('th-TH')}</TableCell>
-                        <TableCell className="text-right font-bold text-[#0F766E]">{itemStats.remaining.toLocaleString('th-TH')}</TableCell>
+                        <TableCell className="inventory-catalog-number font-bold">{itemStats.totalStock.toLocaleString('th-TH')}</TableCell>
+                        <TableCell className="inventory-catalog-number">{itemStats.withdrawn.toLocaleString('th-TH')}</TableCell>
+                        <TableCell className="inventory-catalog-number font-bold text-[#0F766E]">{itemStats.remaining.toLocaleString('th-TH')}</TableCell>
                         <TableCell className="text-center">
                           <button type="button" className="inventory-card-manage-button" onClick={openItem}>
                             จัดการ
