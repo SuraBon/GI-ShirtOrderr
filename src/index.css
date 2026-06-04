@@ -1948,45 +1948,43 @@ body {
 }
 
 .app-shadcn-theme .gi-dashboard-header {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
-    var(--gi-navy) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  color: #ffffff !important;
-  box-shadow: 0 10px 34px rgba(13, 27, 61, 0.22) !important;
+  background: #ffffff !important;
+  border-color: var(--gi-border) !important;
+  color: var(--gi-text) !important;
+  box-shadow: 0 1px 12px rgba(15, 23, 42, 0.06) !important;
 }
 
 .app-shadcn-theme .gi-dashboard-header h1,
 .app-shadcn-theme .gi-dashboard-header :where(span, button, svg) {
-  color: #ffffff !important;
+  color: var(--gi-navy) !important;
 }
 
 .gi-dashboard-header .btn-outline {
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff !important;
+  border-color: var(--gi-border) !important;
+  background: #ffffff !important;
+  color: var(--gi-navy) !important;
   box-shadow: none !important;
 }
 
 .gi-dashboard-header .btn-outline:hover {
-  background: rgba(255, 255, 255, 0.14) !important;
-  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: #f8fafc !important;
+  border-color: var(--gi-border-strong) !important;
 }
 
 .gi-dashboard-header .dashboard-logout-button {
   width: 2rem;
   height: 2rem;
   flex: 0 0 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.72) !important;
+  border: 1px solid var(--gi-border);
+  background: #ffffff;
+  color: var(--gi-navy) !important;
   padding: 0 !important;
 }
 
 .gi-dashboard-header .dashboard-logout-button:hover {
-  border-color: rgba(255, 255, 255, 0.32);
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff !important;
+  border-color: var(--gi-border-strong);
+  background: #f8fafc;
+  color: var(--gi-navy) !important;
 }
 
 .gi-dashboard-header .dashboard-logout-button svg {
@@ -2024,7 +2022,7 @@ body {
 }
 
 .app-shadcn-theme .gi-dashboard-header h1 {
-  color: #ffffff !important;
+  color: var(--gi-navy) !important;
 }
 
 .app-shadcn-theme main {
@@ -5914,7 +5912,7 @@ body,
 .app-shadcn-theme .gi-dashboard-header :where(span, button, svg),
 .app-shadcn-theme .gi-order-header h1,
 .app-shadcn-theme .gi-order-header :where(span, button, svg) {
-  color: #ffffff !important;
+  color: var(--gi-navy) !important;
 }
 
 .app-shadcn-theme .gi-order-header {
@@ -5928,9 +5926,9 @@ body,
 
 .gi-dashboard-header .btn-outline,
 .gi-order-header button {
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff !important;
+  border-color: var(--gi-border) !important;
+  background: #ffffff !important;
+  color: var(--gi-navy) !important;
 }
 
 .app-shadcn-theme .gi-order-header button {
@@ -5946,7 +5944,7 @@ body,
 
 .gi-dashboard-header .btn-outline:hover,
 .gi-order-header button:hover {
-  background: rgba(255, 255, 255, 0.16) !important;
+  background: #f8fafc !important;
   border-color: rgba(255, 255, 255, 0.28) !important;
 }
 
@@ -5957,9 +5955,9 @@ body,
 
 .gi-dashboard-header .dashboard-logout-button,
 .gi-dashboard-header .dashboard-header-actions button {
-  border-color: rgba(255, 255, 255, 0.22) !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  color: #ffffff !important;
+  border-color: var(--gi-border) !important;
+  background: #ffffff !important;
+  color: var(--gi-navy) !important;
 }
 
 .dashboard-console,

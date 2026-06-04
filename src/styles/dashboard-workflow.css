@@ -1429,6 +1429,17 @@
   stroke: currentColor !important;
 }
 
+.gi-dashboard-nav button :where(span, svg) {
+  color: #334155 !important;
+  stroke: currentColor !important;
+}
+
+.gi-dashboard-nav button.active :where(span, svg),
+.gi-dashboard-nav button[aria-current='page'] :where(span, svg) {
+  color: var(--gi-navy) !important;
+  stroke: currentColor !important;
+}
+
 .dashboard-header-actions button,
 .dashboard-panel-actions button,
 .dashboard-action-btn,
