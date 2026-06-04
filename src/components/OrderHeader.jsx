@@ -135,13 +135,12 @@ export function DashboardHeader({
           {/* Logout Button */}
           <button
             onClick={onLogout}
-            className="dashboard-logout-button flex items-center gap-1 text-sm text-slate-300 hover:text-white transition-colors"
+            className="dashboard-logout-button flex items-center justify-center transition-colors"
             title="ออกจากระบบแอดมิน"
             type="button"
             aria-label="ออกจากระบบ"
           >
             <LogOut className="size-4 shrink-0" />
-            <span className="hidden md:inline">ออกจากระบบ</span>
           </button>
         </div>
       </div>
