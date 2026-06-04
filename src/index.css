@@ -2175,25 +2175,26 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 0.45rem;
   background: transparent;
   padding: 0 1.25rem;
-  color: rgba(255, 255, 255, 0.82);
+  color: #334155;
   font-size: 0.82rem;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .gi-dashboard-nav button.active {
-  background: rgba(255, 255, 255, 0.13);
-  color: #ffffff;
+  border-color: #c9d7ea;
+  background: #eef5ff;
+  color: #12305c;
 }
 
 .gi-dashboard-header .btn-outline {
-  border-color: rgba(255, 255, 255, 0.24) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff !important;
+  border-color: #dbe3ee !important;
+  background: #ffffff !important;
+  color: #12305c !important;
   box-shadow: none !important;
 }
 
