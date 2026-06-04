@@ -1122,6 +1122,8 @@ function Dashboard({
 
           {isOrderPageLoading ? (
             <DashboardPageSkeleton rows={Math.min(orderPageSize, Math.max(3, orderRows.length || 3))} />
+          ) : orderRows.length === 0 ? (
+            <div className="text-center text-slate-500 py-8">ไม่มีรายการในขณะนี้</div>
           ) : useSplitOrderColumns ? (
             <div className="dashboard-orders-columns">
               {(() => {
@@ -1224,10 +1226,10 @@ function Dashboard({
                                               <td>
                                                 <div className="batch-item-status-cell">
                                                   <StatusBadge status={item.status || batch.status} small />
-                                                  <div className="flex flex-row items-center gap-1.5 flex-nowrap mt-1">
+                                                  <div className="flex flex-row items-center gap-2 flex-nowrap mt-1">
                                                     <button
                                                       type="button"
-                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_DELIVERED ||
@@ -1247,7 +1249,7 @@ function Dashboard({
                                                     </button>
                                                     <button
                                                       type="button"
-                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_PENDING
@@ -1265,7 +1267,7 @@ function Dashboard({
                                                     </button>
                                                     <button
                                                       type="button"
-                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_CANCELED
@@ -1408,10 +1410,10 @@ function Dashboard({
                                                 <td>
                                                   <div className="batch-item-status-cell">
                                                     <StatusBadge status={item.status || batch.status} small />
-                                                    <div className="flex flex-row items-center gap-1.5 flex-nowrap mt-1">
+                                                    <div className="flex flex-row items-center gap-2 flex-nowrap mt-1">
                                                     <button
                                                       type="button"
-                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_DELIVERED ||
@@ -1431,7 +1433,7 @@ function Dashboard({
                                                     </button>
                                                     <button
                                                       type="button"
-                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_PENDING
@@ -1449,7 +1451,7 @@ function Dashboard({
                                                     </button>
                                                     <button
                                                       type="button"
-                                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                                       disabled={
                                                         statusLoadingId === batch.batchId ||
                                                         currentStatus === ORDER_STATUS_CANCELED
@@ -1490,6 +1492,8 @@ function Dashboard({
           <div className="dashboard-mobile-orders">
             {isOrderPageLoading ? (
               <DashboardPageSkeleton rows={Math.min(orderPageSize, Math.max(3, orderRows.length || 3))} />
+            ) : orderRows.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">ไม่มีรายการในขณะนี้</div>
             ) : orderRows.map((batch) => (
               <article
                 key={batch.batchId}
@@ -1577,6 +1581,8 @@ function Dashboard({
 
           {isEmployeePageLoading ? (
             <DashboardPageSkeleton rows={Math.min(employeePageSize, Math.max(4, pagedEmployeeRows.length || 4))} />
+          ) : pagedEmployeeRows.length === 0 ? (
+            <div className="text-center text-slate-500 py-8">ไม่มีรายการในขณะนี้</div>
           ) : (
           <div className="dashboard-table-wrap">
             <table className="dashboard-employee-table">
@@ -1624,6 +1630,8 @@ function Dashboard({
           <div className="dashboard-mobile-orders">
             {isEmployeePageLoading ? (
               <DashboardPageSkeleton rows={Math.min(employeePageSize, Math.max(4, pagedEmployeeRows.length || 4))} />
+            ) : pagedEmployeeRows.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">ไม่มีรายการในขณะนี้</div>
             ) : pagedEmployeeRows.map((row) => {
               const rowBatch = batchById.get(row.batchId);
               return (
@@ -1783,6 +1791,7 @@ function Dashboard({
         batch={selectedBatch}
         clothingConfig={clothingConfig}
         onShipConfirm={shipBatchItems}
+        isBusy={statusLoadingId === selectedBatch?.batchId}
       />
       <ConfirmDialog
         open={Boolean(statusConfirm)}
@@ -1857,12 +1866,12 @@ function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onIte
       {!canShip && currentStatus !== ORDER_STATUS_CANCELED && (
         <p className="mt-2 text-xs font-black text-[#B91C1C]">สต๊อกไม่พอ (มี {currentStock})</p>
       )}
-      <div className="mt-3 grid grid-cols-3 gap-2 min-[520px]:flex">
+      <div className="flex flex-row items-center gap-2 flex-nowrap mt-3">
         <button
           type="button"
           disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
           onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_DELIVERED)}
-          className="min-h-9 rounded-lg bg-[#DCFCE7] px-2 text-xs font-black text-[#166534] disabled:opacity-50"
+          className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           จัดส่งแล้ว
         </button>
@@ -1870,7 +1879,7 @@ function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onIte
           type="button"
           disabled={isBusy || currentStatus === ORDER_STATUS_PENDING}
           onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_PENDING)}
-          className="min-h-9 rounded-lg bg-[#FFEDD5] px-2 text-xs font-black text-[#9A3412] disabled:opacity-50"
+          className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           รอจัดส่ง
         </button>
@@ -1878,7 +1887,7 @@ function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onIte
           type="button"
           disabled={isBusy || currentStatus === ORDER_STATUS_CANCELED}
           onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_CANCELED)}
-          className="min-h-9 rounded-lg bg-[#E2E8F0] px-2 text-xs font-black text-[#475569] disabled:opacity-50"
+          className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           ยกเลิก
         </button>
@@ -1887,7 +1896,7 @@ function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onIte
   );
 }
 
-function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipConfirm }) {
+function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipConfirm, isBusy }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
@@ -2088,16 +2097,18 @@ function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipCon
 
           <div className="border-t border-[#E7EAF0] p-4 grid grid-cols-2 gap-3 sm:flex sm:justify-end sm:gap-3 bg-white">
             <button
+              disabled={isBusy}
               onClick={onClose}
-              className="min-h-11 rounded-xl border border-[#CBD5E1] bg-white px-5 text-sm font-bold text-[#071638] w-full sm:w-auto"
+              className="min-h-11 rounded-xl border border-[#CBD5E1] bg-white px-5 text-sm font-bold text-[#071638] w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
             >
               ยกเลิก
             </button>
             <button
+              disabled={isBusy}
               onClick={handleConfirm}
-              className="min-h-11 rounded-xl bg-[#002B5B] px-5 text-sm font-bold text-white hover:bg-[#002144] shadow-sm transition w-full sm:w-auto"
+              className="min-h-11 rounded-xl bg-[#002B5B] px-5 text-sm font-bold text-white hover:bg-[#002144] shadow-sm transition w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              ยืนยันการจัดส่ง
+              {isBusy ? 'กำลังบันทึก...' : 'ยืนยันการจัดส่ง'}
             </button>
           </div>
         </Dialog.Content>
@@ -2343,10 +2354,10 @@ function BatchDetailDialog({
                               <td className="px-3 py-3 text-center sm:px-4">
                                 <div className="batch-item-status-cell">
                                   <StatusBadge status={currentStatus} />
-                                  <div className="flex flex-row items-center gap-1.5 flex-nowrap mt-1">
+                                  <div className="flex flex-row items-center gap-2 flex-nowrap mt-1">
                                     <button
                                       type="button"
-                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                       disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
                                       onClick={() =>
                                         onItemStatusChange?.(batch, order, item, ORDER_STATUS_DELIVERED)
@@ -2357,7 +2368,7 @@ function BatchDetailDialog({
                                     </button>
                                     <button
                                       type="button"
-                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                       disabled={isBusy || currentStatus === ORDER_STATUS_PENDING}
                                       onClick={() =>
                                         onItemStatusChange?.(batch, order, item, ORDER_STATUS_PENDING)
@@ -2367,7 +2378,7 @@ function BatchDetailDialog({
                                     </button>
                                     <button
                                       type="button"
-                                      className="px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                                       disabled={isBusy || currentStatus === ORDER_STATUS_CANCELED}
                                       onClick={() =>
                                         onItemStatusChange?.(batch, order, item, ORDER_STATUS_CANCELED)

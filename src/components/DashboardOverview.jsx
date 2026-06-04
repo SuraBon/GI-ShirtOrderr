@@ -123,9 +123,9 @@ export function DashboardOverview({
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 items-start">
         {/* Left Column (Charts) */}
-        <div className="col-span-1 flex flex-col gap-6 w-full items-stretch">
+        <div className="col-span-1 flex flex-col gap-6 w-full">
           {/* Bar Chart */}
           <section className="dashboard-overview-chart-card dashboard-overview-chart-card--branch bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
             <div className="dashboard-overview-chart-head mb-4">
@@ -194,7 +194,7 @@ export function DashboardOverview({
         </div>
 
         {/* Right Column (Actionable Lists) */}
-        <div className="col-span-1 lg:col-span-2 flex flex-col gap-6 w-full items-stretch">
+        <div className="col-span-1 lg:col-span-2 flex flex-col gap-6 w-full">
           <DashboardTaskPanel
             batches={filteredBatches}
             statuses={statuses}

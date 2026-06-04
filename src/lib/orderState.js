@@ -117,7 +117,7 @@ export function orderReducer(state, action) {
             : {
                 ...employee,
                 gender: source.gender,
-                items: source.items.map((item) => ({ ...item })),
+                items: source.items.map((item) => ({ ...item, id: crypto.randomUUID() })),
               }
         ),
       };
@@ -148,7 +148,7 @@ export function orderReducer(state, action) {
         name: source.name ? `${source.name} (คัดลอก)` : '',
         gender: source.gender,
         expanded: false,
-        items: source.items.map((item) => ({ ...item })),
+        items: source.items.map((item) => ({ ...item, id: crypto.randomUUID() })),
       };
       const employees = [...state.employees];
       employees.splice(index + 1, 0, cloned);
@@ -212,8 +212,8 @@ export function orderReducer(state, action) {
           employee.id === action.id
             ? {
                 ...employee,
-                items: employee.items.map((item) =>
-                  (action.itemId ? item.id === action.itemId : item.type === action.itemType)
+                items: employee.items.map((item, index) =>
+                  (action.itemId ? item.id === action.itemId : index === action.itemIndex)
                     ? {
                         ...item,
                         ...action.patch,
@@ -237,7 +237,7 @@ export function orderReducer(state, action) {
             ? {
                 ...employee,
                 gender: source.gender,
-                items: source.items.map((item) => ({ ...item })),
+                items: source.items.map((item) => ({ ...item, id: crypto.randomUUID() })),
               }
             : employee
         ),

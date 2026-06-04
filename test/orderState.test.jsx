@@ -15,6 +15,7 @@ describe('orderReducer', () => {
           expanded: true,
           items: [
             {
+              id: 'item-1',
               type: 'เสื้อโปโล',
               size: 'L',
               customSize: 'custom',
@@ -28,7 +29,7 @@ describe('orderReducer', () => {
     const nextState = orderReducer(state, {
       type: 'patchItem',
       id: 'employee-1',
-      itemType: 'เสื้อโปโล',
+      itemId: 'item-1',
       patch: { type: 'เสื้อช็อป' },
     });
 

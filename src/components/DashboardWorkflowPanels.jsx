@@ -33,7 +33,7 @@ function sortBySubmittedAt(direction = 'asc') {
 
 function PanelShell({ title, description, action, children, tone = 'default' }) {
   return (
-    <section className={`bg-white border border-slate-200 rounded-lg p-5 shadow-sm flex flex-col gap-4 ${tone}`}>
+    <section className={`w-full bg-white border border-slate-200 rounded-lg p-5 shadow-sm flex flex-col gap-4 ${tone}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-base font-bold text-slate-800">{title}</h3>
@@ -102,48 +102,51 @@ export function DashboardTaskPanel({ batches, statuses, onOpenOrders, onViewAll,
       tone="priority"
       action={rows.length ? <button type="button" className="dashboard-panel-link-action" onClick={onViewAll}>ดูทั้งหมด</button> : null}
     >
-      <div className="dashboard-workflow-list">
-        {rows.map((batch) => (
-          <div
-            key={batch.batchId}
-            role="button"
-            tabIndex={0}
-            className="dashboard-workflow-row is-pending"
-            onClick={onOpenOrders}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onOpenOrders?.();
-              }
-            }}
-          >
-            <span className="dashboard-workflow-row-icon warning" aria-hidden="true">
-              <AlertTriangle className="size-4" />
-            </span>
-            <div>
-              <strong>{batch.batchId}</strong>
-              <p>{batch.branch || '-'} · {formatDate(batch.submittedAt)} · {getBatchPieces(batch)} ชิ้น</p>
+      {rows.length ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full mt-4">
+          {rows.map((batch) => (
+            <div
+              key={batch.batchId}
+              role="button"
+              tabIndex={0}
+              className="dashboard-workflow-row is-pending w-full h-full flex flex-col justify-center"
+              onClick={onOpenOrders}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onOpenOrders?.();
+                }
+              }}
+            >
+              <span className="dashboard-workflow-row-icon warning" aria-hidden="true">
+                <AlertTriangle className="size-4" />
+              </span>
+              <div>
+                <strong>{batch.batchId}</strong>
+                <p>{batch.branch || '-'} · {formatDate(batch.submittedAt)} · {getBatchPieces(batch)} ชิ้น</p>
+              </div>
+              <div className="dashboard-workflow-row-actions">
+                <StatusPill tone="warning">{batch.status}</StatusPill>
+                <button
+                  type="button"
+                  className="dashboard-workflow-quick-action"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onQuickShip?.(batch);
+                  }}
+                  onKeyDown={(event) => {
+                    event.stopPropagation();
+                  }}
+                >
+                  จัดส่งด่วน
+                </button>
+              </div>
             </div>
-            <div className="dashboard-workflow-row-actions">
-              <StatusPill tone="warning">{batch.status}</StatusPill>
-              <button
-                type="button"
-                className="dashboard-workflow-quick-action"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onQuickShip?.(batch);
-                }}
-                onKeyDown={(event) => {
-                  event.stopPropagation();
-                }}
-              >
-                จัดส่งด่วน
-              </button>
-            </div>
-          </div>
-        ))}
-        {!rows.length && <div className="dashboard-empty-line">ไม่มีงานรอจัดส่งตอนนี้</div>}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="dashboard-empty-line">ไม่มีงานรอจัดส่งตอนนี้</div>
+      )}
     </PanelShell>
   );
 }
@@ -164,23 +167,26 @@ export function DashboardStockPanel({ stockRows, onOpenStock, onViewAll }) {
       description="เพศและไซส์ที่ควรตรวจจำนวนคงเหลือ"
       action={lowRows.length ? <button type="button" className="dashboard-panel-link-action" onClick={onViewAll || onOpenStock}>ดูทั้งหมด</button> : null}
     >
-      <div className="dashboard-workflow-list">
-        {lowRows.map((row) => (
-          <button key={row.id} type="button" className="dashboard-workflow-row" onClick={onOpenStock}>
-            <span className="dashboard-workflow-row-icon blue" aria-hidden="true">
-              <Shirt className="size-4" />
-            </span>
-            <div>
-              <strong>{row.type}</strong>
-              <p>{row.gender} · ไซส์ {row.size}</p>
-            </div>
-            <StatusPill tone={Number(row.remaining || 0) <= 0 ? 'danger' : 'warning'}>
-              เหลือ {Number(row.remaining || 0).toLocaleString('th-TH')}
-            </StatusPill>
-          </button>
-        ))}
-        {!lowRows.length && <div className="dashboard-empty-line">จำนวนคงเหลืออยู่ในระดับปกติ</div>}
-      </div>
+      {lowRows.length ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full mt-4">
+          {lowRows.map((row) => (
+            <button key={row.id} type="button" className="dashboard-workflow-row w-full h-full flex flex-col justify-center text-left" onClick={onOpenStock}>
+              <span className="dashboard-workflow-row-icon blue" aria-hidden="true">
+                <Shirt className="size-4" />
+              </span>
+              <div>
+                <strong>{row.type}</strong>
+                <p>{row.gender} · ไซส์ {row.size}</p>
+              </div>
+              <StatusPill tone={Number(row.remaining || 0) <= 0 ? 'danger' : 'warning'}>
+                เหลือ {Number(row.remaining || 0).toLocaleString('th-TH')}
+              </StatusPill>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="dashboard-empty-line">จำนวนคงเหลืออยู่ในระดับปกติ</div>
+      )}
     </PanelShell>
   );
 }

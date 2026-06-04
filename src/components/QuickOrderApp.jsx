@@ -469,7 +469,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
         rowNum,
         name,
         gender,
-        items: garmentType ? [{ type: garmentType, size, qty, customSize: '' }] : [],
+        items: garmentType ? [{ id: crypto.randomUUID(), type: garmentType, size, qty, customSize: '' }] : [],
         errors: rowErrors,
         isValid: rowErrors.length === 0,
       });
@@ -919,6 +919,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                                                   items: [
                                                     ...employee.items,
                                                     {
+                                                      id: crypto.randomUUID(),
                                                       type: nextType,
                                                       size: defaultSizeVal,
                                                       customSize: '',
@@ -942,7 +943,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                                             {employee.items.map((item, itemIdx) => {
                                               const sizeOptions = getSizeOptions(item.type, employee.gender);
                                               return (
-                                                <div key={itemIdx} className="p-2 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2 animate-fade-in">
+                                                <div key={item.id} className="p-2 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2 animate-fade-in">
                                                   <div className="flex items-center gap-1.5">
                                                     <div className="flex-1 min-w-0">
                                                       <Select
@@ -951,7 +952,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                                                           dispatch({
                                                             type: 'patchItem',
                                                             id: employee.id,
-                                                            itemType: item.type,
+                                                            itemId: item.id,
                                                             patch: { type: val },
                                                           })
                                                         }
@@ -987,7 +988,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                                                           dispatch({
                                                             type: 'patchItem',
                                                             id: employee.id,
-                                                            itemType: item.type,
+                                                            itemId: item.id,
                                                             patch: { size: val },
                                                           })
                                                         }
@@ -1004,7 +1005,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                                                         dispatch({
                                                           type: 'patchItem',
                                                           id: employee.id,
-                                                          itemType: item.type,
+                                                          itemId: item.id,
                                                           patch: { qty: digitsOnly(e.target.value) },
                                                         })
                                                       }
@@ -1056,7 +1057,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                                         <p className="text-xs text-neutral-400 italic">ไม่มีเสื้อ</p>
                                       ) : (
                                         employee.items.map((item, itemIdx) => (
-                                          <div key={itemIdx} className="text-xs font-bold text-neutral-700 bg-neutral-50 border border-neutral-100 rounded px-2 py-1 flex items-center justify-between animate-fade-in">
+                                          <div key={item.id || itemIdx} className="text-xs font-bold text-neutral-700 bg-neutral-50 border border-neutral-100 rounded px-2 py-1 flex items-center justify-between animate-fade-in">
                                             <span className="truncate">{item.type}</span>
                                             <span className="shrink-0 text-[#002B5B] ml-2 font-black">ไซส์ {item.size} x {item.qty} ตัว</span>
                                           </div>
@@ -1390,7 +1391,7 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
                   {isSubmitting ? (
                     <>
                       <Loader2 className="animate-spin size-4 mr-2" />
-                      <span>กำลังส่งคำขอเบิก...</span>
+                      <span>กำลังบันทึก...</span>
                     </>
                   ) : (
                     <>
@@ -1829,7 +1830,7 @@ function getFilteredEmployees(employees, query, showIncompleteOnly) {
 }
 
 function QuickGarmentCellInline({ employee, item, type, dispatch, invalidEmployeeId }) {
-  const actualItem = item || employee.items.find((entry) => entry.type === type);
+  const actualItem = item;
   const showErrors = hasEmployeeData(employee) || invalidEmployeeId === employee.id;
   const sizeOptions = getSizeOptionsWithLabels(type, employee.gender);
 
@@ -1875,7 +1876,15 @@ function QuickGarmentCellInline({ employee, item, type, dispatch, invalidEmploye
         <span className="text-[11px] font-extrabold text-[#44536A] truncate">{type}</span>
         <button
           type="button"
-          onClick={() => dispatch({ type: 'toggleType', id: employee.id, itemType: type })}
+          onClick={() =>
+            dispatch({
+              type: 'patchEmployee',
+              id: employee.id,
+              patch: {
+                items: employee.items.filter((it) => it.id !== actualItem.id),
+              },
+            })
+          }
           className="text-[#94A3B8] hover:text-[#B91C1C] transition p-0.5"
           title={`ลบ ${type}`}
         >
@@ -1896,7 +1905,6 @@ function QuickGarmentCellInline({ employee, item, type, dispatch, invalidEmploye
               type: 'patchItem',
               id: employee.id,
               itemId: actualItem.id,
-              itemType: type,
               patch: patchSizeWithDefaultQty(actualItem, value),
             })
           }
@@ -1913,7 +1921,6 @@ function QuickGarmentCellInline({ employee, item, type, dispatch, invalidEmploye
               type: 'patchItem',
               id: employee.id,
               itemId: actualItem.id,
-              itemType: type,
               patch: { qty: digitsOnly(value) },
             })
           }
@@ -1932,7 +1939,6 @@ function QuickGarmentCellInline({ employee, item, type, dispatch, invalidEmploye
               type: 'patchItem',
               id: employee.id,
               itemId: actualItem.id,
-              itemType: type,
               patch: { customSize: value },
             })
           }
@@ -1952,7 +1958,7 @@ function GarmentItemsPicker({ employee, clothingTypes, dispatch, invalidEmployee
       {employee.items.length ? (
         employee.items.map((item) => (
           <QuickGarmentCellInline
-            key={item.id || item.type}
+            key={item.id}
             employee={employee}
             item={item}
             type={item.type}
@@ -2076,7 +2082,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                         const sizeOptions = getSizeOptions(item.type, employee.gender);
                         return (
                           <div
-                            key={item.id || `${item.type}-${itemIdx}`}
+                            key={item.id}
                             className="grid min-w-0 grid-cols-[minmax(0,1fr)_4.75rem_4rem_1.75rem] items-center gap-1.5 bg-neutral-50 border border-neutral-200 rounded-lg p-1.5 shadow-xs"
                           >
                             {/* Clothing Type Select */}
@@ -2088,7 +2094,6 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                     type: 'patchItem',
                                     id: employee.id,
                                     itemId: item.id,
-                                    itemType: item.type,
                                     patch: { type: val },
                                   })
                                 }
@@ -2108,7 +2113,6 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                     type: 'patchItem',
                                     id: employee.id,
                                     itemId: item.id,
-                                    itemType: item.type,
                                     patch: { size: val },
                                   })
                                 }
@@ -2128,7 +2132,6 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                                   type: 'patchItem',
                                   id: employee.id,
                                   itemId: item.id,
-                                  itemType: item.type,
                                   patch: { qty: digitsOnly(e.target.value) },
                                 })
                               }
@@ -2175,6 +2178,7 @@ function QuickEmployeeTable({ employees, dispatch, query, showIncompleteOnly, in
                               items: [
                                 ...employee.items,
                                 {
+                                  id: crypto.randomUUID(),
                                   type: nextType,
                                   size: defaultSizeVal,
                                   customSize: '',
@@ -2532,13 +2536,19 @@ function QuickMobileEditor({ employee, employees, dispatch, onClose, onNext, inv
                             )}
                           </div>
                           {hasItem && (
-                            <div className="mt-3">
-                              <QuickGarmentCellInline
-                                employee={employee}
-                                type={type}
-                                dispatch={dispatch}
-                                invalidEmployeeId={invalidEmployeeId}
-                              />
+                            <div className="mt-3 space-y-2">
+                              {employee.items
+                                .filter((entry) => entry.type === type)
+                                .map((entry) => (
+                                  <QuickGarmentCellInline
+                                    key={entry.id}
+                                    employee={employee}
+                                    item={entry}
+                                    type={type}
+                                    dispatch={dispatch}
+                                    invalidEmployeeId={invalidEmployeeId}
+                                  />
+                                ))}
                             </div>
                           )}
                         </div>

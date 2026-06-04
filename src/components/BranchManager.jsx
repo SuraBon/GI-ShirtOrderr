@@ -194,8 +194,17 @@ export function BranchManager({ onSaved }) {
               disabled={saving}
             />
             <button type="button" className="dashboard-primary-action" onClick={addBranch} disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-              <span>เพิ่ม</span>
+              {saving ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>กำลังบันทึก...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="size-4" />
+                  <span>เพิ่ม</span>
+                </>
+              )}
             </button>
           </div>
         </section>

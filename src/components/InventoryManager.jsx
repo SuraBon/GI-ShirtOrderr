@@ -180,14 +180,12 @@ export function InventoryManager({
 
   function confirmDeleteClothing() {
     if (!deleteClothingItem || config.length <= 1) return;
+    setSelectedId(null);
+    setEditing(false);
+    setDetailsDialogOpen(false);
+    setDeleteClothingId('');
     const nextConfig = config.filter((current) => current.id !== deleteClothingItem.id);
     commit(nextConfig);
-    if (deleteClothingItem.id === selectedId) {
-      setSelectedId(null);
-      setEditing(false);
-      setDetailsDialogOpen(false);
-    }
-    setDeleteClothingId('');
   }
 
   function patchStock(id, rowIndex, patch) {

@@ -82,80 +82,58 @@ export function DashboardHeader({
   };
 
   return (
-    <header className="bg-[#1a2b4c] text-white relative z-10 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 py-3 md:py-0 md:h-16 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
-        {/* Left: Brand and Mobile controls */}
-        <div className="flex items-center justify-between w-full md:w-auto">
-          <Logo surface="dashboard" showMark={false} />
-          
-          {/* Mobile Right Section: Status & Logout */}
-          <div className="flex md:hidden items-center gap-3">
-            {/* Sync status */}
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold bg-white/5 border border-white/10 rounded-full px-2 py-1 text-slate-200">
-              <div className={`w-1.5 h-1.5 rounded-full ${getIndicatorColor()}`} />
-              <span>{syncState?.label || 'พร้อมใช้งาน'}</span>
-            </div>
-            
-            {/* Logout */}
-            <button
-              onClick={onLogout}
-              className="flex items-center justify-center p-2 rounded-md text-slate-300 hover:text-white hover:bg-white/10"
-              title="ออกจากระบบแอดมิน"
-              type="button"
-            >
-              <LogOut className="size-4 shrink-0" />
-            </button>
-          </div>
-        </div>
+    <header className="w-full bg-[#1a2b4c] text-white shadow-md border-b border-slate-700/50">
+      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        {/* Left Section (Brand) */}
+        <div className="font-bold text-lg text-white tracking-wide">ระบบเบิกเสื้อพนักงาน</div>
 
-        {/* Center: Nav items wrapped in nav with aria-label, scrollable on mobile */}
-        <nav
-          className="gi-dashboard-nav-shell w-full md:w-auto overflow-x-auto md:overflow-x-visible scrollbar-none py-1 md:py-0"
-          aria-label="เมนูแอดมิน"
-        >
-          <div className="flex items-center gap-2 min-w-max md:min-w-0">
-            {navItems.map((item) => {
-              const isActive = activeView === item.id;
-              return (
-                <button
-                  key={item.id}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-white/20 text-white font-bold'
-                      : 'text-slate-300 hover:text-white hover:bg-white/10'
-                  }`}
-                  onClick={() => onViewChange?.(item.id)}
-                  type="button"
-                  aria-current={isActive ? 'page' : undefined}
-                >
+        {/* Center Section (Menu) */}
+        <nav className="hidden md:flex items-center gap-1" aria-label="เมนูแอดมิน">
+          {navItems.map((item) => {
+            const isActive = activeView === item.id;
+            return (
+              <button
+                key={item.id}
+                className={
+                  isActive
+                    ? 'bg-white/20 text-white px-3 py-2 rounded-md text-sm font-medium'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors'
+                }
+                onClick={() => onViewChange?.(item.id)}
+                type="button"
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <span className="flex items-center gap-1.5">
                   {item.icon ? <item.icon className="size-4 shrink-0" /> : null}
                   <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
+                </span>
+              </button>
+            );
+          })}
         </nav>
 
-        {/* Right Section: Status & Logout (Desktop only) */}
-        <div className="hidden md:flex items-center gap-4">
+        {/* Right Section (Status & Logout) */}
+        <div className="flex items-center gap-4">
           {/* Sync status */}
-          <div className="flex items-center gap-2 text-xs font-semibold bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-slate-200">
-            <div className={`w-2 h-2 rounded-full ${getIndicatorColor()}`} />
-            <span>{syncState?.label || 'พร้อมใช้งาน'}</span>
-            {syncState?.updatedAt ? (
-              <span className="text-slate-400 border-l border-white/10 pl-2">
-                {new Date(syncState.updatedAt).toLocaleTimeString('th-TH', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            ) : null}
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <span className={`w-2 h-2 rounded-full ${getIndicatorColor()}`}></span>
+            <span>
+              {syncState?.status === 'loading' || syncState?.status === 'saving'
+                ? 'กำลังซิงก์...'
+                : 'ซิงก์แล้ว'}{' '}
+              {syncState?.updatedAt
+                ? new Date(syncState.updatedAt).toLocaleTimeString('th-TH', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '02:54'}
+            </span>
           </div>
 
           {/* Logout Button */}
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white hover:bg-white/10"
+            className="flex items-center gap-1 text-sm text-slate-300 hover:text-white transition-colors"
             title="ออกจากระบบแอดมิน"
             type="button"
           >
