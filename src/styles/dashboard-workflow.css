@@ -1616,7 +1616,26 @@
     scrollbar-width: none;
   }
 
+  .gi-dashboard-header > .gi-container {
+    height: auto !important;
+    min-height: 5.6rem !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.65rem !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+  }
+
+  .gi-dashboard-header > .gi-container > :nth-child(1) {
+    order: 1 !important;
+  }
+
+  .gi-dashboard-header > .gi-container > :nth-child(3) {
+    order: 2 !important;
+  }
+
   .gi-dashboard-nav-shell {
+    order: 3 !important;
     grid-column: 1 / -1;
     width: 100%;
     padding-right: 2.1rem;
