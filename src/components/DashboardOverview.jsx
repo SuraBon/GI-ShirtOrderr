@@ -18,6 +18,26 @@ import {
   DashboardTaskPanel,
 } from './DashboardWorkflowPanels';
 
+const BRANCH_CHART_COLORS = [
+  '#2563eb',
+  '#16a34a',
+  '#f97316',
+  '#7c3aed',
+  '#dc2626',
+  '#0891b2',
+  '#ca8a04',
+  '#db2777',
+];
+
+function getBranchChartColor(branch) {
+  const key = branch || '-';
+  let hash = 0;
+  for (let index = 0; index < key.length; index += 1) {
+    hash = (hash + key.charCodeAt(index) * (index + 1)) % BRANCH_CHART_COLORS.length;
+  }
+  return BRANCH_CHART_COLORS[hash];
+}
+
 function KpiCard({ icon: Icon, label, value, detail, tone = 'default' }) {
   return (
     <div className={`dashboard-overview-stat-card ${tone}`}>
@@ -64,7 +84,7 @@ export function DashboardOverview({
       .filter((row) => (row.itemStatus || row.status) === statuses.pending)
       .forEach((row) => totals.set(row.branch || '-', (totals.get(row.branch || '-') || 0) + Number(row.qty || 0)));
     return [...totals.entries()]
-      .map(([branch, qty]) => ({ branch, qty }))
+      .map(([branch, qty]) => ({ branch, qty, color: getBranchChartColor(branch) }))
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 6);
   }, [itemRows, statuses.pending]);
@@ -142,7 +162,11 @@ export function DashboardOverview({
                     />
                     <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                     <Tooltip />
-                    <Bar dataKey="qty" fill="#1a2b4c" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="qty" radius={[6, 6, 0, 0]}>
+                      {branchChartRows.map((row) => (
+                        <Cell key={row.branch} fill={row.color} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
