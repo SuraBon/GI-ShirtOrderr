@@ -4,6 +4,7 @@ import path from "node:path";
 import dashboardAuthHandler from "./api/auth/dashboard.js";
 import blobBranchesHandler from "./api/blob/branches.js";
 import blobConfigHandler from "./api/blob/config.js";
+import blobDeleteImageHandler from "./api/blob/delete-image.js";
 import blobUploadHandler from "./api/blob/upload.js";
 import dashboardActionHandler from "./api/dashboard/action.js";
 import dashboardOrdersHandler from "./api/dashboard/orders.js";
@@ -26,6 +27,7 @@ const LOCAL_API_HANDLERS = new Map([
   ["/api/auth/dashboard", dashboardAuthHandler],
   ["/api/blob/branches", blobBranchesHandler],
   ["/api/blob/config", blobConfigHandler],
+  ["/api/blob/delete-image", blobDeleteImageHandler],
   ["/api/blob/upload", blobUploadHandler],
   ["/api/dashboard/action", dashboardActionHandler],
   ["/api/dashboard/orders", dashboardOrdersHandler],

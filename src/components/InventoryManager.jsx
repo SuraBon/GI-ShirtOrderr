@@ -37,6 +37,25 @@ async function uploadImageToBlob(file) {
   });
 }
 
+async function deleteImageFromBlob(url) {
+  const token = getAdminToken();
+  if (!token) throw new Error('สิทธิ์ลบรูปหมดอายุ กรุณาเข้าสู่หน้าจัดการใหม่');
+  const response = await fetch('/api/blob/delete-image', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ url }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    const error = new Error(data?.error || 'ลบรูปเสื้อไม่สำเร็จ');
+    error.status = response.status;
+    throw error;
+  }
+}
+
 function getItemStockStats(item, gender) {
   const rows = item?.genderSizeRows?.[gender] || item?.sizeRows || [];
   return rows.reduce(
@@ -200,12 +219,28 @@ export function InventoryManager({
 
   function confirmDeleteClothing() {
     if (!deleteClothingItem || config.length <= 1) return;
+    const deletedItem = deleteClothingItem;
+    const imageUrlToDelete = deletedItem.imageUrl;
+    const nextConfig = config.filter((current) => current.id !== deletedItem.id);
+    const imageStillUsed = imageUrlToDelete && nextConfig.some((item) => item.imageUrl === imageUrlToDelete);
     setSelectedId(null);
     setEditing(false);
     setDetailsDialogOpen(false);
     setDeleteClothingId('');
-    const nextConfig = config.filter((current) => current.id !== deleteClothingItem.id);
     commit(nextConfig);
+    if (imageUrlToDelete && !imageStillUsed) {
+      deleteImageFromBlob(imageUrlToDelete).catch((error) => {
+        if (isAuthFailure(error)) {
+          setAdminToken('');
+          onAuthExpired?.();
+          toast.error('สิทธิ์ลบรูปหมดอายุ');
+          return;
+        }
+        toast.error('ลบแบบเสื้อแล้ว แต่ลบรูปไม่สำเร็จ', {
+          description: error?.message || 'รูปอาจยังค้างอยู่ใน Blob Storage',
+        });
+      });
+    }
   }
 
   function patchStock(id, rowIndex, patch) {
