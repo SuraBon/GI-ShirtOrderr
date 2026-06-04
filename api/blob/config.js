@@ -51,6 +51,27 @@ function getStockKey(type, gender, size) {
   return [type, gender, size].map((value) => String(value || "").trim()).join("\u0000");
 }
 
+function normalizeStockFields(stockRow) {
+  const qty = Number(stockRow?.qty || 0);
+  const stockAdded = Number(stockRow?.stockAdded || 0);
+  const stockWithdrawn = Number(stockRow?.stockWithdrawn || 0);
+  const stockAdjustedOut = Number(stockRow?.stockAdjustedOut || 0);
+  const rawOpeningQty = Number(stockRow?.stockOpeningQty || 0);
+  const rawTotalStock = Number(stockRow?.totalStock || 0);
+  const hasLedgerTotal = rawOpeningQty + stockAdded - stockAdjustedOut > 0 || rawTotalStock > 0;
+  const stockOpeningQty = hasLedgerTotal
+    ? rawOpeningQty
+    : Math.max(0, qty + stockWithdrawn - stockAdded + stockAdjustedOut);
+
+  return {
+    qty,
+    stockOpeningQty,
+    stockAdded,
+    stockWithdrawn,
+    stockAdjustedOut,
+  };
+}
+
 function mergeStockRowsIntoConfig(config, stockRows) {
   if (!Array.isArray(config) || !Array.isArray(stockRows) || !stockRows.length) return config;
   const stockByKey = new Map(
@@ -64,8 +85,9 @@ function mergeStockRowsIntoConfig(config, stockRows) {
         ? rows.map((row) => {
             const stockRow = stockByKey.get(getStockKey(item.type, gender, row.size));
             if (!stockRow) return row;
+            const normalizedStock = normalizeStockFields(stockRow);
             return STOCK_FIELDS.reduce(
-              (nextRow, field) => ({ ...nextRow, [field]: Number(stockRow[field] || 0) }),
+              (nextRow, field) => ({ ...nextRow, [field]: normalizedStock[field] }),
               row
             );
           })
