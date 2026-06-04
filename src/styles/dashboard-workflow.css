@@ -1139,80 +1139,6 @@
 }
 
 @media (max-width: 760px) {
-  .app-shadcn-theme .gi-dashboard-header {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    padding: 0.55rem 0.65rem 0.5rem !important;
-    box-shadow: 0 1px 12px rgba(15, 23, 42, 0.06) !important;
-  }
-
-  .gi-dashboard-header > .gi-container {
-    display: grid !important;
-    width: 100% !important;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.5rem;
-  }
-
-  .gi-dashboard-header .gi-brand {
-    min-width: 0;
-    gap: 0.5rem !important;
-  }
-
-  .gi-dashboard-header .gi-brand-mark {
-    width: 2rem !important;
-    height: 2rem !important;
-    min-width: 2rem !important;
-    border-radius: 8px !important;
-  }
-
-  .gi-dashboard-header .gi-brand h1 {
-    max-width: 15rem;
-    font-size: 0.82rem !important;
-    line-height: 1.15 !important;
-  }
-
-  .dashboard-header-actions {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-  }
-
-  .gi-dashboard-header .dashboard-logout-button {
-    width: 2.05rem !important;
-    height: 2.05rem !important;
-    min-height: 2.05rem !important;
-  }
-
-  .gi-dashboard-nav {
-    grid-column: 1 / -1;
-    display: grid !important;
-    width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.35rem !important;
-    overflow: visible !important;
-    padding: 0.15rem 0 0.05rem !important;
-  }
-
-  .gi-dashboard-nav button {
-    min-height: 2rem !important;
-    width: auto !important;
-    min-width: 0 !important;
-    flex: initial !important;
-    justify-content: center;
-    gap: 0.32rem !important;
-    padding-inline: 0.42rem !important;
-    font-size: 0.72rem !important;
-    line-height: 1.15 !important;
-    white-space: normal !important;
-  }
-
-  .gi-dashboard-nav button svg {
-    width: 0.92rem !important;
-    height: 0.92rem !important;
-    flex: 0 0 auto;
-  }
-
   .app-shadcn-theme main.gi-container {
     padding-top: 0.65rem !important;
   }
@@ -1281,12 +1207,6 @@
 
   .inventory-size-fields-dialog .inventory-size-detail-row button {
     width: 100%;
-  }
-}
-
-@media (max-width: 420px) {
-  .gi-dashboard-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1378,11 +1298,6 @@
   color: var(--gi-navy) !important;
 }
 
-.gi-dashboard-nav .dashboard-nav-logout {
-  border-color: var(--gi-border) !important;
-  color: var(--gi-navy) !important;
-}
-
 .gi-dashboard-header .dashboard-header-tools {
   flex: 0 0 auto;
 }
@@ -1409,7 +1324,6 @@
 }
 
 .gi-dashboard-nav button svg,
-.dashboard-header-actions button svg,
 .dashboard-panel-actions button svg,
 .dashboard-action-btn svg,
 .dashboard-primary-action svg,
@@ -1440,7 +1354,6 @@
   stroke: currentColor !important;
 }
 
-.dashboard-header-actions button,
 .dashboard-panel-actions button,
 .dashboard-action-btn,
 .dashboard-primary-action,
@@ -1451,12 +1364,6 @@
   font-size: var(--dashboard-action-font) !important;
   font-weight: 900 !important;
   line-height: 1.1 !important;
-}
-
-.dashboard-header-actions button {
-  width: var(--dashboard-action-height) !important;
-  height: var(--dashboard-action-height) !important;
-  padding: 0 !important;
 }
 
 .dashboard-panel-head h2,
@@ -1746,10 +1653,6 @@
     flex: 0 0 auto !important;
     min-width: 6.2rem !important;
     white-space: nowrap !important;
-  }
-
-  .gi-dashboard-nav .dashboard-nav-logout {
-    min-width: 6.9rem !important;
   }
 
   .inventory-workbench.stock-focus .inventory-catalog-top-panel .inventory-list-head {

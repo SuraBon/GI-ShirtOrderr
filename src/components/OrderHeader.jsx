@@ -1,18 +1,6 @@
 import React from 'react';
 import { Building2, ClipboardList, Gauge, History, Loader2, LogOut, Package, RefreshCw, Ruler, Settings2 } from 'lucide-react';
 
-const dashboardNavStyle = {
-  backgroundColor: 'transparent',
-  borderColor: 'transparent',
-  color: '#334155',
-};
-
-const activeDashboardNavStyle = {
-  backgroundColor: '#eef5ff',
-  borderColor: '#c9d7ea',
-  color: '#12305c',
-};
-
 export function Logo({ showMark = true }) {
   return (
     <div className="gi-brand flex min-w-0 items-center gap-3">
@@ -93,7 +81,7 @@ export function DashboardHeader({
     <header className="gi-dashboard-header w-full shadow-md">
       <div className="gi-container max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Left Section (Brand) */}
-        <Logo surface="dashboard" showMark={true} />
+        <Logo showMark={true} />
 
         {/* Center Section (Menu) */}
         <div className="gi-dashboard-nav-shell">
@@ -111,7 +99,6 @@ export function DashboardHeader({
                   onClick={() => onViewChange?.(item.id)}
                   type="button"
                   aria-current={isActive ? 'page' : undefined}
-                  style={isActive ? activeDashboardNavStyle : dashboardNavStyle}
                 >
                   <span className="flex items-center gap-1.5">
                     {item.icon ? <item.icon className="size-4 shrink-0" /> : null}
