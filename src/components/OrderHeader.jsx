@@ -1,9 +1,7 @@
 import React from 'react';
 import { Building2, ClipboardList, Gauge, History, Loader2, LogOut, Package, RefreshCw, Ruler, Settings2 } from 'lucide-react';
 
-export function Logo({ surface = 'order', showMark = true }) {
-  const isDashboard = surface === 'dashboard';
-
+export function Logo({ showMark = true }) {
   return (
     <div className="gi-brand flex min-w-0 items-center gap-3">
       {showMark ? (
@@ -12,15 +10,11 @@ export function Logo({ surface = 'order', showMark = true }) {
         </span>
       ) : null}
       <div className="min-w-0">
-        <h1 className={`truncate text-lg font-black leading-none tracking-tight sm:text-xl ${isDashboard ? 'text-white' : 'text-primary-900'}`}>
+        <h1 className="truncate text-lg font-black leading-none tracking-tight text-primary-900 sm:text-xl">
           ระบบเบิกเสื้อพนักงาน
         </h1>
         <p
-          className={
-            isDashboard
-              ? 'mt-0.5 hidden text-[11px] font-bold leading-none text-white/70 sm:block'
-              : 'mt-0.5 hidden text-[11px] font-bold leading-none text-neutral-600 sm:block'
-          }
+          className="mt-0.5 hidden text-[11px] font-bold leading-none text-neutral-600 sm:block"
         >
           Gold Integrate
         </p>
@@ -84,7 +78,7 @@ export function DashboardHeader({
   const isRefreshing = syncState?.status === 'loading' || syncState?.status === 'saving';
 
   return (
-    <header className="gi-dashboard-header w-full bg-[#1a2b4c] text-white shadow-md border-b border-slate-700/50">
+    <header className="gi-dashboard-header w-full shadow-md">
       <div className="gi-container max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Left Section (Brand) */}
         <Logo surface="dashboard" showMark={true} />
@@ -99,8 +93,8 @@ export function DashboardHeader({
                   key={item.id}
                   className={
                     isActive
-                      ? 'active bg-white/20 text-white px-3 py-2 rounded-md text-sm font-medium'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors'
+                      ? 'active px-3 py-2 rounded-md text-sm font-medium'
+                      : 'px-3 py-2 rounded-md text-sm font-medium transition-colors'
                   }
                   onClick={() => onViewChange?.(item.id)}
                   type="button"
