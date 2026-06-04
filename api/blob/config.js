@@ -1,4 +1,5 @@
 import { list, put } from "@vercel/blob";
+import { fetchGas, getConfiguredGasUrl } from "../_gas.js";
 import { rateLimit, readJsonBody, requireAdmin } from "../_security.js";
 
 function requireBlobToken(response) {
@@ -9,6 +10,28 @@ function requireBlobToken(response) {
 
 const CONFIG_PATH = "shirt-config/clothing-config.json";
 const MAX_CONFIG_ITEMS = 100;
+
+function runAfterResponse(request, promise) {
+  if (typeof request.waitUntil === "function") {
+    request.waitUntil(promise);
+    return;
+  }
+  promise.catch((error) => {
+    console.error("Background task failed", error);
+  });
+}
+
+async function syncStockToGoogleSheets(config) {
+  const gasUrl = getConfiguredGasUrl();
+  const adminToken = String(process.env.GAS_ADMIN_TOKEN || process.env.ADMIN_SHARED_SECRET || "").trim();
+  if (!gasUrl || !adminToken) return;
+
+  await fetchGas(gasUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "syncStock", config, adminToken })
+  });
+}
 
 export default async function handler(request, response) {
   if (requireBlobToken(response)) return;
@@ -71,22 +94,19 @@ export default async function handler(request, response) {
         cacheControlMaxAge: 60
       });
 
-      // Sync to Google Sheets Stock tab
-      const gasUrl = process.env.VITE_GAS_URL || process.env.GAS_URL || "";
-      const adminToken = process.env.GAS_ADMIN_TOKEN || process.env.ADMIN_SHARED_SECRET || "";
-      if (gasUrl && adminToken) {
-        try {
-          await fetch(gasUrl, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "syncStock", config, adminToken })
-          });
-        } catch (err) {
-          console.error("Failed to sync stock to Google Sheets:", err);
-        }
-      }
+      runAfterResponse(
+        request,
+        syncStockToGoogleSheets(config).catch((error) => {
+          console.error("Failed to sync stock to Google Sheets:", error);
+        })
+      );
 
-      response.status(200).json({ ok: true, url: blob.url, updatedAt: JSON.parse(payload).updatedAt });
+      response.status(200).json({
+        ok: true,
+        url: blob.url,
+        updatedAt: JSON.parse(payload).updatedAt,
+        stockSync: "queued"
+      });
       return;
     }
 
