@@ -1029,6 +1029,14 @@
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
 }
 
+.confirm-dialog-overlay {
+  z-index: 120 !important;
+}
+
+.confirm-dialog-content {
+  z-index: 121 !important;
+}
+
 .inventory-details-dialog-head {
   display: flex;
   align-items: flex-start;
@@ -1053,6 +1061,16 @@
   border-radius: var(--dashboard-action-radius) !important;
   background: #fff7f7 !important;
   color: #b91c1c !important;
+  font-size: var(--dashboard-action-font) !important;
+  font-weight: 900 !important;
+}
+
+.inventory-dialog-stock-button {
+  min-height: var(--dashboard-action-height) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 var(--dashboard-action-padding-x) !important;
+  border-radius: var(--dashboard-action-radius) !important;
   font-size: var(--dashboard-action-font) !important;
   font-weight: 900 !important;
 }
@@ -1943,9 +1961,16 @@
   font-weight: 800;
 }
 
-.inventory-dialog-tabs {
+.inventory-dialog-tabs-row {
   position: relative;
   z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.inventory-dialog-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.45rem;
@@ -2120,6 +2145,14 @@
     gap: 0.7rem !important;
   }
 
+  .inventory-dialog-tabs-row {
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-dialog-tabs-row .inventory-dialog-delete-button {
+    width: 100%;
+  }
+
   .inventory-dialog-stock-table .inventory-stock-header {
     display: none !important;
   }
@@ -2146,6 +2179,7 @@
 }
 
 .inventory-details-dialog .inventory-dialog-delete-button,
+.inventory-details-dialog .inventory-dialog-stock-button,
 .inventory-details-dialog .inventory-dialog-tabs button {
   min-height: var(--dashboard-action-height) !important;
   display: inline-flex !important;

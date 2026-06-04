@@ -154,7 +154,7 @@ export function InventoryManager({
     ? [
         `ยืนยันบันทึกการปรับสต๊อก ${pendingStockAdjustments.length} รายการ`,
         `${selectedItem?.type || 'แบบเสื้อที่เลือก'} · ${selectedGender}`,
-        ...pendingStockAdjustments.map((item) => `${item.size}: ${item.amount > 0 ? '+' : ''}${item.amount} ชิ้น`),
+        ...pendingStockAdjustments.map(formatStockAdjustmentSummary),
       ].join('\n')
     : '';
 
@@ -228,6 +228,26 @@ export function InventoryManager({
     return `${selectedItem?.id || ''}:${selectedGender}:${rowIndex}`;
   }
 
+  function sanitizeStockAdjustmentInput(value) {
+    const rawValue = String(value || '');
+    const hasMinus = rawValue.includes('-');
+    const digits = rawValue.replace(/\D/g, '');
+    if (!digits) return hasMinus ? '-' : '';
+    return `${hasMinus ? '-' : ''}${digits}`;
+  }
+
+  function setStockAdjustment(rowIndex, value) {
+    setStockAdjustments((current) => ({
+      ...current,
+      [getStockAdjustmentKey(rowIndex)]: sanitizeStockAdjustmentInput(value),
+    }));
+  }
+
+  function formatStockAdjustmentSummary(item) {
+    const action = item.amount > 0 ? 'เพิ่ม' : 'ลด';
+    return `${item.size}: ${action} ${Math.abs(item.amount).toLocaleString('th-TH')} ชิ้น`;
+  }
+
   function requestStockSave() {
     if (!pendingStockAdjustments.length) {
       toast.error('ยังไม่มีรายการปรับสต๊อก', {
@@ -281,7 +301,9 @@ export function InventoryManager({
         return next;
       });
       setStockConfirmOpen(false);
-      toast.success('บันทึกการปรับสต๊อกแล้ว');
+      toast.success('บันทึกการปรับสต๊อกแล้ว', {
+        description: pendingStockAdjustments.map(formatStockAdjustmentSummary).join('\n'),
+      });
     } catch (error) {
       if (isAuthFailure(error)) {
         setAdminToken('');
@@ -950,7 +972,7 @@ export function InventoryManager({
             <div className={cn('inventory-section-head', mode === 'details' && 'hidden')}>
               <div>
                 <h4>สต๊อกตามไซส์</h4>
-                <p>รับเข้าใช้เลขบวก เช่น +10 / ปรับลดใช้เลขลบ เช่น -2</p>
+                <p>รับเข้าใช้ตัวเลข เช่น 10 / ปรับลดใช้เลขลบ เช่น -2</p>
               </div>
               <div className="inventory-gender-toggle">
                 {GENDERS.map((gender) => (
@@ -979,13 +1001,12 @@ export function InventoryManager({
                     {editing && (
                       <div className="inventory-stock-adjust">
                         <TextInput
-                          type="number"
-                          inputMode="numeric"
+                          type="text"
+                          inputMode="text"
+                          pattern="-?[0-9]*"
                           value={stockAdjustments[getStockAdjustmentKey(index)] || ''}
-                          onChange={(value) =>
-                            setStockAdjustments((current) => ({ ...current, [getStockAdjustmentKey(index)]: value }))
-                          }
-                          placeholder="+10 หรือ -2"
+                          onChange={(value) => setStockAdjustment(index, value)}
+                          placeholder="10 หรือ -2"
                         />
                       </div>
                     )}
@@ -1023,12 +1044,11 @@ export function InventoryManager({
               <div className="inventory-dialog-head-actions">
                 <button
                   type="button"
-                  className="btn-secondary btn-sm inventory-dialog-delete-button"
-                  disabled={config.length <= 1}
-                  onClick={() => setDeleteClothingId(selectedItem.id)}
+                  className="btn-primary btn-sm inventory-dialog-stock-button"
+                  onClick={() => setDetailsDialogTab('stock')}
                 >
-                  <Trash2 className="size-4" />
-                  ลบแบบเสื้อ
+                  <Pencil className="size-4" />
+                  ปรับสต๊อก
                 </button>
               </div>
               <Dialog.Close className="dashboard-dialog-close" aria-label="ปิด">
@@ -1051,20 +1071,31 @@ export function InventoryManager({
               </div>
             </div>
 
-            <div className="inventory-dialog-tabs" role="tablist" aria-label="เลือกหน้าจัดการแบบเสื้อ">
+            <div className="inventory-dialog-tabs-row">
+              <div className="inventory-dialog-tabs" role="tablist" aria-label="เลือกหน้าจัดการแบบเสื้อ">
+                <button
+                  type="button"
+                  className={detailsDialogTab === 'details' ? 'active' : ''}
+                  onClick={() => setDetailsDialogTab('details')}
+                >
+                  รายละเอียดเสื้อ
+                </button>
+                <button
+                  type="button"
+                  className={detailsDialogTab === 'stock' ? 'active' : ''}
+                  onClick={() => setDetailsDialogTab('stock')}
+                >
+                  สต๊อก
+                </button>
+              </div>
               <button
                 type="button"
-                className={detailsDialogTab === 'details' ? 'active' : ''}
-                onClick={() => setDetailsDialogTab('details')}
+                className="btn-secondary btn-sm inventory-dialog-delete-button"
+                disabled={config.length <= 1}
+                onClick={() => setDeleteClothingId(selectedItem.id)}
               >
-                รายละเอียดเสื้อ
-              </button>
-              <button
-                type="button"
-                className={detailsDialogTab === 'stock' ? 'active' : ''}
-                onClick={() => setDetailsDialogTab('stock')}
-              >
-                สต๊อก
+                <Trash2 className="size-4" />
+                ลบแบบเสื้อ
               </button>
             </div>
 
@@ -1171,7 +1202,7 @@ export function InventoryManager({
               <div className="inventory-size-fields-top inventory-stock-dialog-head">
                 <div>
                   <strong>สต๊อกตามไซส์</strong>
-                  <span>รับเข้าใช้เลขบวก เช่น +10 / ปรับลดใช้เลขลบ เช่น -2</span>
+                  <span>รับเข้าใช้ตัวเลข เช่น 10 / ปรับลดใช้เลขลบ เช่น -2</span>
                 </div>
                 <div className="inventory-gender-toggle">
                   {GENDERS.map((gender) => (
@@ -1200,13 +1231,12 @@ export function InventoryManager({
                       <span>{summary.remaining.toLocaleString('th-TH')} ชิ้น</span>
                       <div className="inventory-stock-adjust">
                         <TextInput
-                          type="number"
-                          inputMode="numeric"
+                          type="text"
+                          inputMode="text"
+                          pattern="-?[0-9]*"
                           value={stockAdjustments[getStockAdjustmentKey(index)] || ''}
-                          onChange={(value) =>
-                            setStockAdjustments((current) => ({ ...current, [getStockAdjustmentKey(index)]: value }))
-                          }
-                          placeholder="+10 หรือ -2"
+                          onChange={(value) => setStockAdjustment(index, value)}
+                          placeholder="10 หรือ -2"
                         />
                       </div>
                     </div>

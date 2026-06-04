@@ -24,10 +24,10 @@ function ConfirmDialog({
   return (
     <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && !loading && onCancel?.()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="gi-overlay fixed inset-0 z-[70] bg-[#0F172A]/45 backdrop-blur-sm" />
+        <Dialog.Overlay className="gi-overlay confirm-dialog-overlay fixed inset-0 z-[120] bg-[#0F172A]/45 backdrop-blur-sm" />
         <Dialog.Content
           aria-describedby={undefined}
-          className="fixed left-1/2 top-1/2 z-[71] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-2xl"
+          className="confirm-dialog-content fixed left-1/2 top-1/2 z-[121] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-2xl"
         >
           <Dialog.Title className="text-lg font-extrabold text-[#071638]">{title}</Dialog.Title>
           {description ? (
