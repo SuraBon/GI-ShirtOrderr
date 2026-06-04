@@ -5620,12 +5620,20 @@ textarea:focus-visible {
   color: var(--gi-muted);
   font-size: 0.78rem;
   font-weight: 900;
+  cursor: pointer !important;
+  transition: all 150ms ease !important;
+}
+
+.inventory-mode-switch button:not(.active):hover {
+  background: rgba(15, 23, 42, 0.05) !important;
+  color: var(--gi-text) !important;
 }
 
 .inventory-mode-switch button.active {
-  background: #ffffff;
-  color: var(--gi-blue);
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+  background: #ffffff !important;
+  color: var(--gi-blue) !important;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06) !important;
+  cursor: default !important;
 }
 
 .inventory-detail-stock-card {

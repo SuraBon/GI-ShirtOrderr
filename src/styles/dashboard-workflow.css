@@ -1958,15 +1958,23 @@
 .inventory-dialog-tabs button {
   min-height: var(--dashboard-action-height) !important;
   border-radius: var(--dashboard-action-radius) !important;
-  background: transparent;
-  color: var(--gi-navy);
+  background: transparent !important;
+  color: var(--gi-navy) !important;
   font-size: var(--dashboard-action-font) !important;
-  font-weight: 900;
+  font-weight: 900 !important;
+  cursor: pointer !important;
+  transition: all 150ms ease !important;
+}
+
+.inventory-dialog-tabs button:not(.active):hover {
+  background: rgba(13, 27, 61, 0.06) !important;
+  color: var(--gi-navy) !important;
 }
 
 .inventory-dialog-tabs button.active {
-  background: var(--dashboard-action-primary-bg);
-  color: #ffffff;
+  background: var(--dashboard-action-primary-bg) !important;
+  color: #ffffff !important;
+  cursor: default !important;
 }
 
 .inventory-dialog-tab-panel {
