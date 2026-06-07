@@ -1,5 +1,6 @@
-import { list, put } from "@vercel/blob";
+import { put } from "@vercel/blob";
 import { rateLimit, readJsonBody, requireAdmin } from "../_security.js";
+import { readJsonBlob, rememberJsonBlob } from "./_json.js";
 
 function requireBlobToken(response) {
   if (process.env.BLOB_READ_WRITE_TOKEN) return false;
@@ -15,16 +16,13 @@ export default async function handler(request, response) {
 
   try {
     if (request.method === "GET") {
-      const { blobs } = await list({ prefix: BRANCHES_PATH, limit: 1 });
-      const blob = blobs.find((entry) => entry.pathname === BRANCHES_PATH);
-      if (!blob) {
+      const payload = await readJsonBlob(BRANCHES_PATH);
+      if (!payload) {
         response.status(200).json({ branches: null });
         return;
       }
 
-      const branchesResponse = await fetch(blob.url, { cache: "no-store" });
-      if (!branchesResponse.ok) throw new Error("อ่านข้อมูลสาขาไม่สำเร็จ");
-      response.status(200).json(await branchesResponse.json());
+      response.status(200).json(payload);
       return;
     }
 
@@ -50,20 +48,15 @@ export default async function handler(request, response) {
       }
 
       // Read current blob to support optimistic concurrency
-      const { blobs } = await list({ prefix: BRANCHES_PATH, limit: 1 });
-      const existing = blobs.find((entry) => entry.pathname === BRANCHES_PATH);
-      if (existing) {
-        const currentResponse = await fetch(existing.url, { cache: 'no-store' });
-        if (currentResponse.ok) {
-          const currentJson = await currentResponse.json().catch(() => null);
-          const currentUpdatedAt = currentJson?.updatedAt || null;
-          if (expected && currentUpdatedAt && expected !== currentUpdatedAt) {
-            response.status(409).json({ 
-              error: 'ข้อมูลสาขามีการอัปเดตจากที่อื่น กรุณาโหลดข้อมูลล่าสุดแล้วลองใหม่', 
-              current: currentJson 
-            });
-            return;
-          }
+      const currentJson = await readJsonBlob(BRANCHES_PATH, { bypassCache: true });
+      if (currentJson) {
+        const currentUpdatedAt = currentJson?.updatedAt || null;
+        if (expected && currentUpdatedAt && expected !== currentUpdatedAt) {
+          response.status(409).json({ 
+            error: 'ข้อมูลสาขามีการอัปเดตจากที่อื่น กรุณาโหลดข้อมูลล่าสุดแล้วลองใหม่', 
+            current: currentJson 
+          });
+          return;
         }
       } else {
         if (expected) {
@@ -82,6 +75,8 @@ export default async function handler(request, response) {
         contentType: "application/json",
         cacheControlMaxAge: 60
       });
+
+      rememberJsonBlob(BRANCHES_PATH, JSON.parse(payload));
 
       response.status(200).json({ 
         ok: true, 

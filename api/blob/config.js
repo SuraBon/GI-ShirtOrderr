@@ -1,6 +1,7 @@
-import { list, put } from "@vercel/blob";
+import { put } from "@vercel/blob";
 import { fetchGas, getConfiguredGasUrl, readGasJson } from "../_gas.js";
 import { getGasAdminToken, rateLimit, readJsonBody, requireAdmin } from "../_security.js";
+import { readJsonBlob, rememberJsonBlob } from "./_json.js";
 
 function requireBlobToken(response) {
   if (process.env.BLOB_READ_WRITE_TOKEN) return false;
@@ -107,16 +108,12 @@ export default async function handler(request, response) {
 
   try {
     if (request.method === "GET") {
-      const { blobs } = await list({ prefix: CONFIG_PATH, limit: 1 });
-      const blob = blobs.find((entry) => entry.pathname === CONFIG_PATH);
-      if (!blob) {
+      const payload = await readJsonBlob(CONFIG_PATH);
+      if (!payload) {
         response.status(200).json({ config: null });
         return;
       }
 
-      const configResponse = await fetch(blob.url, { cache: "no-store" });
-      if (!configResponse.ok) throw new Error("อ่านข้อมูลแบบเสื้อไม่สำเร็จ");
-      const payload = await configResponse.json();
       const stockRows = await loadStockRowsFromGoogleSheets().catch((error) => {
         console.error("Failed to load stock rows from Google Sheets:", error);
         return [];
@@ -144,17 +141,12 @@ export default async function handler(request, response) {
       }
 
       // Read current blob to support optimistic concurrency
-      const { blobs } = await list({ prefix: CONFIG_PATH, limit: 1 });
-      const existing = blobs.find((entry) => entry.pathname === CONFIG_PATH);
-      if (existing) {
-        const currentResponse = await fetch(existing.url, { cache: 'no-store' });
-        if (currentResponse.ok) {
-          const currentJson = await currentResponse.json().catch(() => null);
-          const currentUpdatedAt = currentJson?.updatedAt || null;
-          if (expected && currentUpdatedAt && expected !== currentUpdatedAt) {
-            response.status(409).json({ error: 'ข้อมูลแบบเสื้อมีการอัปเดตจากที่อื่น กรุณาโหลดข้อมูลล่าสุดแล้วลองใหม่', current: currentJson });
-            return;
-          }
+      const currentJson = await readJsonBlob(CONFIG_PATH, { bypassCache: true });
+      if (currentJson) {
+        const currentUpdatedAt = currentJson?.updatedAt || null;
+        if (expected && currentUpdatedAt && expected !== currentUpdatedAt) {
+          response.status(409).json({ error: 'ข้อมูลแบบเสื้อมีการอัปเดตจากที่อื่น กรุณาโหลดข้อมูลล่าสุดแล้วลองใหม่', current: currentJson });
+          return;
         }
       } else {
         if (expected) {
@@ -171,6 +163,8 @@ export default async function handler(request, response) {
         contentType: "application/json",
         cacheControlMaxAge: 60
       });
+
+      rememberJsonBlob(CONFIG_PATH, JSON.parse(payload));
 
       runAfterResponse(
         request,
