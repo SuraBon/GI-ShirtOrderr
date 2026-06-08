@@ -1,4 +1,6 @@
-const CACHE_NAME = "shirtclaim-shell-v5";
+const CACHE_NAME = "shirtclaim-shell-v6";
+const BLOB_IMAGE_CACHE_NAME = "shirtclaim-blob-images-v1";
+const MAX_BLOB_IMAGE_CACHE_ENTRIES = 80;
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -9,6 +11,34 @@ const APP_SHELL = [
   "/apple-touch-icon.png",
   "/favicon-32.png"
 ];
+
+function isVercelBlobImageRequest(request, url) {
+  return request.destination === "image" && url.hostname.endsWith(".public.blob.vercel-storage.com");
+}
+
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length <= maxEntries) return;
+  await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
+}
+
+async function cacheBlobImage(request) {
+  const cache = await caches.open(BLOB_IMAGE_CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response.ok || response.type === "opaque") {
+    try {
+      await cache.put(request, response.clone());
+      await trimCache(BLOB_IMAGE_CACHE_NAME, MAX_BLOB_IMAGE_CACHE_ENTRIES);
+    } catch (error) {
+      console.warn("Failed to cache Blob image", error);
+    }
+  }
+  return response;
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -21,7 +51,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => ![CACHE_NAME, BLOB_IMAGE_CACHE_NAME].includes(key)).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -29,6 +59,15 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
+
+  if (isVercelBlobImageRequest(event.request, url)) {
+    event.respondWith(
+      cacheBlobImage(event.request).catch(() =>
+        caches.match(event.request).then((cached) => cached || Response.error())
+      )
+    );
+    return;
+  }
 
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;

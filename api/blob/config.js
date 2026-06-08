@@ -156,7 +156,8 @@ export default async function handler(request, response) {
         }
       }
 
-      const payload = JSON.stringify({ config, updatedAt: new Date().toISOString() });
+      const nextPayload = { config, updatedAt: new Date().toISOString() };
+      const payload = JSON.stringify(nextPayload);
       const blob = await put(CONFIG_PATH, payload, {
         access: "public",
         allowOverwrite: true,
@@ -164,7 +165,7 @@ export default async function handler(request, response) {
         cacheControlMaxAge: 60
       });
 
-      rememberJsonBlob(CONFIG_PATH, JSON.parse(payload));
+      rememberJsonBlob(CONFIG_PATH, nextPayload, { etag: blob.etag });
 
       runAfterResponse(
         request,
@@ -176,7 +177,7 @@ export default async function handler(request, response) {
       response.status(200).json({
         ok: true,
         url: blob.url,
-        updatedAt: JSON.parse(payload).updatedAt,
+        updatedAt: nextPayload.updatedAt,
         stockSync: "queued"
       });
       return;

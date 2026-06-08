@@ -68,7 +68,8 @@ export default async function handler(request, response) {
         }
       }
 
-      const payload = JSON.stringify({ branches, updatedAt: new Date().toISOString() });
+      const nextPayload = { branches, updatedAt: new Date().toISOString() };
+      const payload = JSON.stringify(nextPayload);
       const branchBlob = await put(BRANCHES_PATH, payload, {
         access: "public",
         allowOverwrite: true,
@@ -76,12 +77,12 @@ export default async function handler(request, response) {
         cacheControlMaxAge: 60
       });
 
-      rememberJsonBlob(BRANCHES_PATH, JSON.parse(payload));
+      rememberJsonBlob(BRANCHES_PATH, nextPayload, { etag: branchBlob.etag });
 
       response.status(200).json({ 
         ok: true, 
         url: branchBlob.url, 
-        updatedAt: JSON.parse(payload).updatedAt 
+        updatedAt: nextPayload.updatedAt
       });
       return;
     }

@@ -1,6 +1,7 @@
 import { get } from "@vercel/blob";
 
 const DEFAULT_CACHE_TTL_MS = 30_000;
+const NOT_FOUND_CACHE_TTL_MS = 5_000;
 const jsonBlobCache = new Map();
 
 async function readStreamText(stream) {
@@ -12,14 +13,24 @@ export async function readJsonBlob(pathname, { bypassCache = false, ttlMs = DEFA
   const now = Date.now();
   if (!bypassCache && cached && cached.expiresAt > now) return cached.value;
 
-  const result = await get(pathname, {
-    access: "public",
-    ifNoneMatch: cached?.etag
-  });
+  let result;
+  try {
+    result = await get(pathname, {
+      access: "public",
+      ifNoneMatch: cached?.etag
+    });
+  } catch (error) {
+    if (!bypassCache && cached && cached.value) {
+      console.warn("Serving cached Blob JSON after read failure", { pathname, error });
+      cached.expiresAt = now + Math.min(ttlMs, 5_000);
+      return cached.value;
+    }
+    throw error;
+  }
 
   if (!result) {
     const value = null;
-    jsonBlobCache.set(pathname, { value, etag: null, expiresAt: now + ttlMs });
+    jsonBlobCache.set(pathname, { value, etag: null, expiresAt: now + NOT_FOUND_CACHE_TTL_MS });
     return value;
   }
 
@@ -37,10 +48,10 @@ export async function readJsonBlob(pathname, { bypassCache = false, ttlMs = DEFA
   return value;
 }
 
-export function rememberJsonBlob(pathname, value, { ttlMs = DEFAULT_CACHE_TTL_MS } = {}) {
+export function rememberJsonBlob(pathname, value, { etag = null, ttlMs = DEFAULT_CACHE_TTL_MS } = {}) {
   jsonBlobCache.set(pathname, {
     value,
-    etag: null,
+    etag,
     expiresAt: Date.now() + ttlMs
   });
 }
