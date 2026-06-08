@@ -1,8 +1,4 @@
-import { createAdminToken, rateLimit, readJsonBody, sendError } from "../_security.js";
-
-function safeCompare(left, right) {
-  return String(left || "") === String(right || "");
-}
+import { createAdminToken, rateLimit, readJsonBody, safeEqual, sendError } from "../_security.js";
 
 export default async function handler(request, response) {
   if (request.method !== "POST") {
@@ -27,7 +23,7 @@ export default async function handler(request, response) {
     }
 
     const body = await readJsonBody(request, { maxBytes: 2048 });
-    if (!safeCompare(body?.passcode, configuredPasscode)) {
+    if (!safeEqual(body?.passcode, configuredPasscode)) {
       sendError(response, 401, "รหัสเข้าแดชบอร์ดไม่ถูกต้อง");
       return;
     }

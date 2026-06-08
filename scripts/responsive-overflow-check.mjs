@@ -36,7 +36,7 @@ try {
 
       if (path.includes('dashboard')) {
         await page.evaluate(() => {
-          sessionStorage.setItem('gi-admin-token', 'responsive-check');
+          sessionStorage.setItem('gi-dashboard-admin-token', 'responsive-check');
         });
         await page.reload({ waitUntil: 'networkidle' });
       }

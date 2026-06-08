@@ -186,7 +186,10 @@ export function migrateStandardSizeTables(config) {
   return [...migratedStandardItems, ...customItems];
 }
 
+let cachedClothingConfig = null;
+
 export function readClothingConfig() {
+  if (cachedClothingConfig) return cachedClothingConfig;
   try {
     const normalized = normalizeClothingConfig(
       JSON.parse(localStorage.getItem(CLOTHING_CONFIG_KEY) || 'null')
@@ -195,18 +198,23 @@ export function readClothingConfig() {
       const migrated = migrateStandardSizeTables(normalized);
       localStorage.setItem(CLOTHING_CONFIG_KEY, JSON.stringify(migrated));
       localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
+      cachedClothingConfig = migrated;
       return migrated;
     }
+    cachedClothingConfig = normalized;
     return normalized;
   } catch {
     const migrated = migrateStandardSizeTables();
     localStorage.setItem(CLOTHING_SIZE_TABLE_VERSION_KEY, CLOTHING_SIZE_TABLE_VERSION);
+    cachedClothingConfig = migrated;
     return migrated;
   }
 }
 
 export function saveClothingConfig(config) {
-  localStorage.setItem(CLOTHING_CONFIG_KEY, JSON.stringify(normalizeClothingConfig(config)));
+  const normalized = normalizeClothingConfig(config);
+  localStorage.setItem(CLOTHING_CONFIG_KEY, JSON.stringify(normalized));
+  cachedClothingConfig = normalized;
 }
 
 export async function loadSharedClothingConfig() {

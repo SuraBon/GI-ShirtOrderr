@@ -7,14 +7,28 @@ async function readUploadBody(request) {
 
 function getUploadToken(...args) {
   const candidate = args.find((value) => value && typeof value === "object" && "clientPayload" in value);
-  const clientPayload = candidate?.clientPayload || args.find((value) => typeof value === "string") || "";
-  if (!clientPayload) return "";
-  try {
-    const parsed = JSON.parse(clientPayload);
-    return parsed?.token || "";
-  } catch {
-    return "";
+  if (candidate) {
+    try {
+      const parsed = JSON.parse(candidate.clientPayload || "");
+      return parsed?.token || "";
+    } catch {
+      return "";
+    }
   }
+
+  for (const arg of args) {
+    if (typeof arg === "string") {
+      try {
+        const parsed = JSON.parse(arg);
+        if (parsed && typeof parsed === "object" && "token" in parsed) {
+          return parsed.token || "";
+        }
+      } catch {
+        // ignore non-token JSON string
+      }
+    }
+  }
+  return "";
 }
 
 export default async function handler(request, response) {

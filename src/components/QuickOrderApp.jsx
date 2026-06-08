@@ -316,7 +316,6 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
               body: JSON.stringify(data),
               signal: controller.signal,
             });
-            clearTimeout(id);
             const json = await res.json().catch(() => null);
             if (!res.ok || json?.success === false) throw new Error(json?.error || 'บันทึกรายการเบิกไม่สำเร็จ');
             return json;
@@ -324,6 +323,8 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
             lastErr = err;
             // small backoff before retry
             await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+          } finally {
+            clearTimeout(id);
           }
         }
         throw lastErr;
@@ -455,10 +456,14 @@ function QuickOrderApp({ gasConfigured, onOpenDashboard, branches = BRANCHES, br
 
       if (!name) rowErrors.push('ขาดชื่อพนักงาน');
       if (gender !== 'ชาย' && gender !== 'หญิง') rowErrors.push('เพศต้องระบุเป็น ชาย หรือ หญิง');
-      if (garmentType && !clothingTypes.includes(garmentType)) {
+      if (!garmentType) {
+        rowErrors.push('ไม่ได้ระบุแบบเสื้อ');
+      } else if (!clothingTypes.includes(garmentType)) {
         rowErrors.push(`ไม่รู้จักแบบเสื้อ "${garmentType}"`);
       }
-      if (gender && garmentType && size) {
+      if (!size) {
+        rowErrors.push('ไม่ได้ระบุไซส์');
+      } else if (gender && garmentType) {
         const allowedSizes = getSizeOptions(garmentType, gender);
         if (!allowedSizes.includes(size)) {
           rowErrors.push(`ไซส์ ${size} ไม่มีสำหรับ ${garmentType} (${gender})`);
