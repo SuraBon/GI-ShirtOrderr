@@ -3,6 +3,8 @@ import crypto from "node:crypto";
 const TOKEN_TTL_MS = 8 * 60 * 60 * 1000;
 const MAX_JSON_BYTES = 128 * 1024;
 const rateBuckets = new Map();
+let lastPruneTime = Date.now();
+const PRUNE_INTERVAL_MS = 10 * 60 * 1000; // prune every 10 minutes
 
 function base64url(value) {
   return Buffer.from(value).toString("base64url");
@@ -26,7 +28,7 @@ function getSessionSecret() {
   );
 }
 
-function safeEqual(left, right) {
+export function safeEqual(left, right) {
   const a = Buffer.from(String(left));
   const b = Buffer.from(String(right));
   return a.length === b.length && crypto.timingSafeEqual(a, b);
@@ -43,6 +45,17 @@ export function getClientIp(request) {
 
 export function rateLimit(request, { key = "default", limit = 30, windowMs = 60_000 } = {}) {
   const now = Date.now();
+
+  // Periodic pruning of expired buckets to prevent memory leak
+  if (now - lastPruneTime > PRUNE_INTERVAL_MS) {
+    for (const [k, bucket] of rateBuckets.entries()) {
+      if (bucket.resetAt <= now) {
+        rateBuckets.delete(k);
+      }
+    }
+    lastPruneTime = now;
+  }
+
   const bucketKey = `${key}:${getClientIp(request)}`;
   const current = rateBuckets.get(bucketKey);
   if (!current || current.resetAt <= now) {

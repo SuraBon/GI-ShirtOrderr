@@ -64,7 +64,9 @@ export default async function handler(request, response) {
       error?.message === "REQUEST_TOO_LARGE" ? 413 : 502,
       error?.message === "GAS_TIMEOUT"
         ? "Google Apps Script ตอบกลับช้าเกินไป กรุณาลองใหม่อีกครั้ง"
-        : "บันทึกข้อมูลแดชบอร์ดไม่สำเร็จ"
+        : error?.message === "GAS_HTML_RESPONSE"
+          ? "Google Sheets ตอบกลับเป็นหน้าเว็บ HTML (โปรดตรวจสอบสิทธิ์การแชร์ Google Apps Script)"
+          : "บันทึกข้อมูลแดชบอร์ดไม่สำเร็จ"
     );
   }
 }

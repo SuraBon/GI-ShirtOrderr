@@ -95,7 +95,9 @@ export default async function handler(request, response) {
       error?.message === "REQUEST_TOO_LARGE" ? 413 : 502,
       error?.message === "GAS_TIMEOUT"
         ? "Google Apps Script ตอบกลับช้าเกินไป กรุณาลองส่งใหม่อีกครั้ง"
-        : "ส่งคำสั่งเบิกไม่สำเร็จ"
+        : error?.message === "GAS_HTML_RESPONSE"
+          ? "Google Sheets ตอบกลับเป็นหน้าเว็บ HTML (โปรดตรวจสอบสิทธิ์การแชร์ Google Apps Script)"
+          : "ส่งคำสั่งเบิกไม่สำเร็จ"
     );
   }
 }

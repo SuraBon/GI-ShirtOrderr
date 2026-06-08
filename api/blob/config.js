@@ -114,14 +114,17 @@ export default async function handler(request, response) {
         return;
       }
 
+      let stockSyncError = false;
       const stockRows = await loadStockRowsFromGoogleSheets().catch((error) => {
         console.error("Failed to load stock rows from Google Sheets:", error);
+        stockSyncError = true;
         return [];
       });
       response.status(200).json({
         ...payload,
         config: mergeStockRowsIntoConfig(payload?.config, stockRows),
-        stockSource: stockRows.length ? "google-sheets" : "blob"
+        stockSource: stockRows.length ? "google-sheets" : "blob",
+        stockSyncError
       });
       return;
     }

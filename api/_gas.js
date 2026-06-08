@@ -33,6 +33,15 @@ export async function readGasJson(response) {
   const text = await response.text();
   if (!text) return { success: false };
 
+  const trimmedText = text.trim();
+  if (trimmedText.toLowerCase().startsWith("<!doctype") || trimmedText.toLowerCase().startsWith("<html")) {
+    const htmlError = new Error("GAS_HTML_RESPONSE");
+    htmlError.status = response.status;
+    htmlError.contentType = response.headers?.get?.("content-type") || "";
+    htmlError.preview = trimmedText.slice(0, 160);
+    throw htmlError;
+  }
+
   try {
     return JSON.parse(text);
   } catch (error) {

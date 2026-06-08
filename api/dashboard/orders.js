@@ -52,7 +52,9 @@ export default async function handler(request, response) {
       502,
       error?.message === "GAS_TIMEOUT"
         ? "Google Apps Script ตอบกลับช้าเกินไป กรุณาลองโหลดใหม่อีกครั้ง"
-        : "โหลดข้อมูลแดชบอร์ดจาก Google Sheets ไม่สำเร็จ"
+        : error?.message === "GAS_HTML_RESPONSE"
+          ? "Google Sheets ตอบกลับเป็นหน้าเว็บ HTML (โปรดตรวจสอบสิทธิ์การแชร์ Google Apps Script)"
+          : "โหลดข้อมูลแดชบอร์ดจาก Google Sheets ไม่สำเร็จ"
     );
   }
 }
