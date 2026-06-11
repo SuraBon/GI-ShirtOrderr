@@ -74,9 +74,10 @@ export function getBatchStatusStockMovements(batch, targetStatus) {
       .map((item) => {
         const currentStatus = item.status || ORDER_STATUS_PENDING;
         const requested = Number(item.qty || 0);
-        const willBeDelivered = targetStatus === ORDER_STATUS_DELIVERED;
-        const wasDelivered = currentStatus === ORDER_STATUS_DELIVERED;
-        const delta = willBeDelivered && !wasDelivered ? -requested : !willBeDelivered && wasDelivered ? requested : 0;
+        const isActive = (status) => status === ORDER_STATUS_DELIVERED;
+        const currentActive = isActive(currentStatus);
+        const targetActive = isActive(targetStatus);
+        const delta = targetActive && !currentActive ? -requested : !targetActive && currentActive ? requested : 0;
         return {
           type: item.type,
           gender,

@@ -14,10 +14,9 @@ export default async function handler(request, response) {
   try {
     const configuredPasscode =
       process.env.DASHBOARD_PASSCODE ||
-      process.env.VITE_DASHBOARD_PASSCODE ||
       "";
     if (!configuredPasscode) {
-      console.error("Missing DASHBOARD_PASSCODE or VITE_DASHBOARD_PASSCODE");
+      console.error("Missing DASHBOARD_PASSCODE");
       sendError(response, 500, "ยังไม่ได้ตั้งค่ารหัสเข้าแดชบอร์ด");
       return;
     }

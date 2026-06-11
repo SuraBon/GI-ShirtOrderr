@@ -1,6 +1,6 @@
 import { put } from "@vercel/blob";
-import { fetchGas, getConfiguredGasUrl, readGasJson } from "../_gas.js";
-import { getGasAdminToken, rateLimit, readJsonBody, requireAdmin } from "../_security.js";
+import { fetchGas, getConfiguredGasUrl } from "../_gas.js";
+import { rateLimit, readJsonBody, requireAdmin } from "../_security.js";
 import { readJsonBlob, rememberJsonBlob } from "./_json.js";
 
 function requireBlobToken(response) {
@@ -11,7 +11,6 @@ function requireBlobToken(response) {
 
 const CONFIG_PATH = "shirt-config/clothing-config.json";
 const MAX_CONFIG_ITEMS = 100;
-const STOCK_FIELDS = ["qty", "stockOpeningQty", "stockAdded", "stockWithdrawn", "stockAdjustedOut"];
 
 function runAfterResponse(request, promise) {
   if (typeof request.waitUntil === "function") {
@@ -35,74 +34,6 @@ async function syncStockToGoogleSheets(config) {
   });
 }
 
-async function loadStockRowsFromGoogleSheets() {
-  const gasUrl = getConfiguredGasUrl();
-  const adminToken = getGasAdminToken();
-  if (!gasUrl || !adminToken) return [];
-
-  const url = new URL(gasUrl);
-  url.searchParams.set("adminToken", adminToken);
-  url.searchParams.set("action", "stock");
-  const gasResponse = await fetchGas(url.toString(), { cache: "no-store", timeoutMs: 12_000 });
-  const result = await readGasJson(gasResponse);
-  return gasResponse.ok && result?.success !== false && Array.isArray(result?.data) ? result.data : [];
-}
-
-function getStockKey(type, gender, size) {
-  return [type, gender, size].map((value) => String(value || "").trim()).join("\u0000");
-}
-
-function normalizeStockFields(stockRow) {
-  const qty = Number(stockRow?.qty || 0);
-  const stockAdded = Number(stockRow?.stockAdded || 0);
-  const stockWithdrawn = Number(stockRow?.stockWithdrawn || 0);
-  const stockAdjustedOut = Number(stockRow?.stockAdjustedOut || 0);
-  const rawOpeningQty = Number(stockRow?.stockOpeningQty || 0);
-  const rawTotalStock = Number(stockRow?.totalStock || 0);
-  const hasLedgerTotal = rawOpeningQty + stockAdded - stockAdjustedOut > 0 || rawTotalStock > 0;
-  const stockOpeningQty = hasLedgerTotal
-    ? rawOpeningQty
-    : Math.max(0, qty + stockWithdrawn - stockAdded + stockAdjustedOut);
-
-  return {
-    qty,
-    stockOpeningQty,
-    stockAdded,
-    stockWithdrawn,
-    stockAdjustedOut,
-  };
-}
-
-function mergeStockRowsIntoConfig(config, stockRows) {
-  if (!Array.isArray(config) || !Array.isArray(stockRows) || !stockRows.length) return config;
-  const stockByKey = new Map(
-    stockRows.map((row) => [getStockKey(row.type, row.gender, row.size), row])
-  );
-
-  return config.map((item) => {
-    const nextGenderSizeRows = { ...(item.genderSizeRows || {}) };
-    for (const [gender, rows] of Object.entries(nextGenderSizeRows)) {
-      nextGenderSizeRows[gender] = Array.isArray(rows)
-        ? rows.map((row) => {
-            const stockRow = stockByKey.get(getStockKey(item.type, gender, row.size));
-            if (!stockRow) return row;
-            const normalizedStock = normalizeStockFields(stockRow);
-            return STOCK_FIELDS.reduce(
-              (nextRow, field) => ({ ...nextRow, [field]: normalizedStock[field] }),
-              row
-            );
-          })
-        : rows;
-    }
-
-    return {
-      ...item,
-      genderSizeRows: nextGenderSizeRows,
-      sizeRows: nextGenderSizeRows.ชาย || item.sizeRows,
-    };
-  });
-}
-
 export default async function handler(request, response) {
   if (requireBlobToken(response)) return;
 
@@ -114,17 +45,10 @@ export default async function handler(request, response) {
         return;
       }
 
-      let stockSyncError = false;
-      const stockRows = await loadStockRowsFromGoogleSheets().catch((error) => {
-        console.error("Failed to load stock rows from Google Sheets:", error);
-        stockSyncError = true;
-        return [];
-      });
       response.status(200).json({
         ...payload,
-        config: mergeStockRowsIntoConfig(payload?.config, stockRows),
-        stockSource: stockRows.length ? "google-sheets" : "blob",
-        stockSyncError
+        stockSource: "blob",
+        stockSyncError: false
       });
       return;
     }

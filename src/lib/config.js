@@ -232,9 +232,8 @@ export async function loadSharedClothingConfig() {
 export async function publishSharedClothingConfig(config) {
   const normalized = normalizeClothingConfig(config);
   const token = getAdminToken();
-  // Attempt publish with optimistic concurrency; retry once on 409 after reloading
   const expected = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
-  let response = await fetch('/api/blob/config', {
+  const response = await fetch('/api/blob/config', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -242,28 +241,6 @@ export async function publishSharedClothingConfig(config) {
     },
     body: JSON.stringify({ config: normalized, expectedUpdatedAt: expected }),
   });
-
-  if (response.status === 409) {
-    // Server indicates version mismatch; re-fetch latest, update local cache, and retry once
-    const server = await response.json().catch(() => null);
-    try {
-      await loadSharedClothingConfig();
-    } catch {
-      const error = new Error(server?.error || 'ข้อมูลแบบเสื้อมีการอัปเดตจากที่อื่น และโหลดข้อมูลล่าสุดไม่สำเร็จ');
-      error.status = 409;
-      error.server = server;
-      throw error;
-    }
-    const newExpected = localStorage.getItem(CLOTHING_CONFIG_UPDATED_AT_KEY) || null;
-    response = await fetch('/api/blob/config', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ config: normalized, expectedUpdatedAt: newExpected }),
-    });
-  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
@@ -314,7 +291,14 @@ export function getSizeOptions(type, gender) {
 
 export function getSizeOptionsWithLabels(type, gender) {
   if (!gender) return [];
-  const options = getSizeRows(type, gender).map(([size]) => [size, size]);
+  const clothing = findClothingConfig(type);
+  const rows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
+  const options = getSizeRows(type, gender).map(([size]) => {
+    const row = rows.find((r) => String(r.size).trim() === String(size).trim());
+    const available = row ? Number(row.qty || 0) : 0;
+    const label = `${size} (คงเหลือ ${available})`;
+    return [size, label];
+  });
   return [...options, [OTHER_SIZE, OTHER_SIZE]];
 }
 

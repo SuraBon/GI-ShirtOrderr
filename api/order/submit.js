@@ -1,4 +1,4 @@
-import { clearCachedDashboardOrders, fetchGas, getConfiguredGasUrl, readGasJson } from "../_gas.js";
+import { fetchGas, getConfiguredGasUrl, readGasJson, clearCachedDashboardOrders } from "../_gas.js";
 import { rateLimit, readJsonBody, sendError } from "../_security.js";
 
 const ORDER_STATUS_PENDING = "รอจัดส่ง";
@@ -19,24 +19,35 @@ function normalizePayload(payload) {
   if (!payload.batchId || !Array.isArray(payload.orders) || !payload.orders.length) return null;
   if (payload.orders.length > MAX_ORDERS) return null;
 
+  let hasInvalidQty = false;
+
   const orders = payload.orders
-    .map((order) => ({
-      name: cleanText(order?.name, 120),
-      gender: cleanText(order?.gender, 40),
-      items: Array.isArray(order?.items)
+    .map((order) => {
+      const items = Array.isArray(order?.items)
         ? order.items
             .slice(0, MAX_ITEMS_PER_ORDER)
-            .map((item) => ({
-              type: cleanText(item?.type, 120),
-              size: cleanText(item?.size, 80),
-              qty: cleanQty(item?.qty),
-            }))
+            .map((item) => {
+              const qty = cleanQty(item?.qty);
+              if (qty > 10) {
+                hasInvalidQty = true;
+              }
+              return {
+                type: cleanText(item?.type, 120),
+                size: cleanText(item?.size, 80),
+                qty,
+              };
+            })
             .filter((item) => item.type && item.size && item.qty > 0)
-        : [],
-    }))
+        : [];
+      return {
+        name: cleanText(order?.name, 120),
+        gender: cleanText(order?.gender, 40),
+        items,
+      };
+    })
     .filter((order) => order.name && order.gender && order.items.length);
 
-  if (!orders.length) return null;
+  if (hasInvalidQty || !orders.length) return null;
 
   const now = new Date().toISOString();
   return {
@@ -76,6 +87,7 @@ export default async function handler(request, response) {
       return;
     }
 
+    // Submit the order to Google Sheets
     const gasResponse = await fetchGas(gasUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },

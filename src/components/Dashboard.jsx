@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -8,18 +7,14 @@ import {
   ChevronUp,
   ClipboardList,
   Download,
-  Loader2,
   MoreHorizontal,
   Settings2,
-  Truck,
-  X,
 } from 'lucide-react';
 import {
   cn,
   formatDashboardDate,
   formatMonthLabel,
   formatMonthInputValue,
-  formatPhone,
   getMonthKey,
   getMonthKeyFromInput,
   uniqueSorted,
@@ -42,12 +37,14 @@ import {
   getClothingStockRows,
   setClothingStockRows,
 } from '../lib/stockHelpers';
-import { DashboardDataNotice, DashboardPageSkeleton, MiniMetric, MobileInfo, SkeletonDashboard, StatusBadge } from './DashboardCommon';
+import { DashboardDataNotice, DashboardPageSkeleton, MiniMetric, SkeletonDashboard, StatusBadge } from './DashboardCommon';
 import { ORDER_STATUS_CANCELED, ORDER_STATUS_DELIVERED, ORDER_STATUS_PENDING, ORDER_STATUSES, flattenBatches, normalizeBatch, normalizeOrderStatus } from '../lib/orderState';
 import { BRANCHES } from '../constants/branches';
-import { DashboardOverview, Field, Select, TextInput, GridInput, CustomSelect, BranchManager, InventoryManager } from '.';
+import { DashboardOverview, Field, Select, TextInput, BranchManager, InventoryManager } from '.';
 import { ConfirmDialog, ColumnSettingsDialog } from './SharedDialogs';
 import { DashboardInlineEmptyState } from './DashboardWorkflowPanels';
+import { PartialShipmentDialog } from './dashboard/PartialShipmentDialog';
+import { BatchDetailDialog } from './dashboard/BatchDetailDialog';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -394,6 +391,18 @@ function Dashboard({
     loadData();
   }, []);
 
+  useEffect(() => {
+    function handleStorageChange(event) {
+      if (event.key === CLOTHING_CONFIG_UPDATED_AT_KEY || event.key === 'gi-shirt-clothing-config') {
+        setClothingConfig(readClothingConfig());
+      }
+    }
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   function deriveBatchStatusFromOrders(orders, fallback = ORDER_STATUS_PENDING) {
     const statuses = orders.flatMap((order) =>
       order.items.map((item) => normalizeOrderStatus(item.status, fallback))
@@ -491,21 +500,7 @@ function Dashboard({
     });
   }
 
-  function publishStockConfigInBackground(nextConfig) {
-    publishSharedClothingConfig(nextConfig).catch((error) => {
-      if (isAuthFailure(error)) {
-        setAdminToken('');
-        onAuthExpired?.();
-        toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ', {
-          description: 'กรุณาเข้าสู่หน้าจัดการใหม่อีกครั้ง',
-        });
-        return;
-      }
-      toast.error('บันทึกสต๊อกไม่สำเร็จ', {
-        description: error?.message || 'กรุณากดโหลดใหม่เพื่อตรวจข้อมูลอีกครั้ง',
-      });
-    });
-  }
+
 
   function getStockAvailable(config, item) {
     if (!item || item.size === OTHER_SIZE) return Number.POSITIVE_INFINITY;
@@ -554,10 +549,10 @@ function Dashboard({
   }
 
   function getShipmentStockMovements(batch, shipmentItems) {
-    const desiredByKey = new Map(
+    const desiredActiveByKey = new Map(
       shipmentItems.map((item) => [
         [item.employeeName, item.gender, item.type, item.size].join('::'),
-        Number(item.shippedQty || 0),
+        Number(item.shippedQty || 0) + Number(item.pendingQty || 0),
       ])
     );
 
@@ -566,18 +561,18 @@ function Dashboard({
       return order.items
         .map((item) => {
           const requestedQty = Number(item.qty || 0);
-          const currentShippedQty = item.status === ORDER_STATUS_DELIVERED ? requestedQty : 0;
+          const currentActiveQty = (item.status === ORDER_STATUS_DELIVERED || item.status === ORDER_STATUS_PENDING) ? requestedQty : 0;
           const key = [order.name, gender, item.type, item.size].join('::');
-          const desiredShippedQty = desiredByKey.has(key)
-            ? Number(desiredByKey.get(key) || 0)
-            : currentShippedQty;
+          const desiredActiveQty = desiredActiveByKey.has(key)
+            ? Number(desiredActiveByKey.get(key) || 0)
+            : currentActiveQty;
 
           return {
             employeeName: order.name,
             gender,
             type: item.type,
             size: item.size,
-            delta: desiredShippedQty - currentShippedQty,
+            delta: desiredActiveQty - currentActiveQty,
           };
         })
         .filter((item) => item.delta !== 0 && item.size !== OTHER_SIZE);
@@ -623,9 +618,46 @@ function Dashboard({
       return;
     }
 
+    const nextConfig = adjustStockForStatusChange(latestConfig, batch, status);
+    const hasStockChanges = nextConfig !== latestConfig;
+
+    if (hasStockChanges) {
+      try {
+        await publishSharedClothingConfig(nextConfig);
+        setClothingConfig(nextConfig);
+        saveClothingConfig(nextConfig);
+      } catch (error) {
+        if (isAuthFailure(error)) {
+          setAdminToken('');
+          onAuthExpired?.();
+          toast.error('สิทธิ์เข้าหน้าจัดการหมดอายุ', {
+            id: loadingToastId,
+            description: 'กรุณาเข้าสู่หน้าจัดการใหม่อีกครั้ง',
+          });
+          setStatusLoadingId('');
+          return;
+        }
+        toast.error('บันทึกสต๊อกไม่สำเร็จ การอัปเดตสถานะถูกยกเลิก', {
+          id: loadingToastId,
+          description: error?.message || 'กรุณาลองใหม่อีกครั้ง',
+        });
+        setStatusLoadingId('');
+        return;
+      }
+    }
+
     try {
       await syncDashboardAction({ action: 'updateStatus', batchId, status, statusUpdatedAt });
     } catch (error) {
+      if (hasStockChanges) {
+        try {
+          await publishSharedClothingConfig(latestConfig);
+          setClothingConfig(latestConfig);
+          saveClothingConfig(latestConfig);
+        } catch (rollbackError) {
+          console.error('Failed to rollback stock after Sheets update failure:', rollbackError);
+        }
+      }
       if (isAuthFailure(error)) {
         setAdminToken('');
         onAuthExpired?.();
@@ -636,19 +668,13 @@ function Dashboard({
         setStatusLoadingId('');
         return;
       }
-      toast.error('อัปเดตสถานะไม่สำเร็จ', {
+      toast.error('อัปเดตสถานะไม่สำเร็จ (ระบบกู้คืนสต๊อกเรียบร้อย)', {
         id: loadingToastId,
         description: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแลระบบ',
       });
       setStatusLoadingId('');
       return;
     }
-
-    // Adjust stock configuration based on status transitions using latest config
-    const nextConfig = adjustStockForStatusChange(latestConfig, batch, status);
-    setClothingConfig(nextConfig);
-    saveClothingConfig(nextConfig);
-    publishStockConfigInBackground(nextConfig);
 
     applyBatchStatusLocally(batchId, status, statusUpdatedAt);
     setStatusLoadingId('');
@@ -694,23 +720,39 @@ function Dashboard({
         );
       }
 
-      // 1. Update statuses on Google Sheets
-      await syncDashboardAction({
-        action: 'shipItems',
-        batchId,
-        items: shipmentItems,
-        statusUpdatedAt,
-      });
-
-      // 2. Deduct shipped quantities from the local stock configuration
+      // Deduct shipped quantities from the local stock configuration first
       const nextConfig = applyShipmentStockMovements(latestConfig, stockMovements);
+      const hasStockChanges = nextConfig !== latestConfig;
 
-      setClothingConfig(nextConfig);
-      saveClothingConfig(nextConfig);
+      if (hasStockChanges) {
+        await publishSharedClothingConfig(nextConfig);
+        setClothingConfig(nextConfig);
+        saveClothingConfig(nextConfig);
+      }
 
-      publishStockConfigInBackground(nextConfig);
+      try {
+        // Update statuses on Google Sheets
+        await syncDashboardAction({
+          action: 'shipItems',
+          batchId,
+          items: shipmentItems,
+          statusUpdatedAt,
+        });
+      } catch (sheetsError) {
+        // Rollback stock update if Google Sheets fails
+        if (hasStockChanges) {
+          try {
+            await publishSharedClothingConfig(latestConfig);
+            setClothingConfig(latestConfig);
+            saveClothingConfig(latestConfig);
+          } catch (rollbackError) {
+            console.error('Failed to rollback stock after partial shipment Sheets failure:', rollbackError);
+          }
+        }
+        throw sheetsError;
+      }
 
-      // 3. Reflect the saved sheet update locally without reloading all dashboard rows.
+      // Reflect the saved sheet update locally without reloading all dashboard rows.
       applyShipmentLocally(batchId, shipmentItems, statusUpdatedAt);
 
       toast.success('บันทึกการจัดส่งสินค้าเรียบร้อยแล้ว', { id: loadingToastId });
@@ -1839,577 +1881,7 @@ function Dashboard({
 
 }
 
-function BatchItemMobileCard({ batch, order, item, isBusy, clothingConfig, onItemStatusChange }) {
-  const requested = Number(item.qty || 0);
-  const gender = order.gender || GENDERS[0];
-  const clothing = clothingConfig.find((configItem) => configItem.type === item.type);
-  const rows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
-  const stockRow = rows.find((row) => String(row.size) === String(item.size));
-  const currentStock = item.size === OTHER_SIZE ? requested : Number(stockRow?.qty || 0);
-  const currentStatus = item.status || ORDER_STATUS_PENDING;
-  const canShip =
-    currentStatus === ORDER_STATUS_DELIVERED || item.size === OTHER_SIZE || currentStock >= requested;
 
-  return (
-    <div className={cn('rounded-lg bg-[#F8FAFC] p-3', !canShip && 'bg-[#FEF2F2]')}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="break-words text-sm font-extrabold text-[#071638]">{item.type}</p>
-        <StatusBadge status={currentStatus} />
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs min-[520px]:grid-cols-4">
-        <MobileInfo label="ไซส์" value={item.size || '-'} compact />
-        <MobileInfo label="จำนวน" value={item.qty} compact strong />
-        <MobileInfo label="สต๊อก" value={item.size === OTHER_SIZE ? '-' : currentStock} compact />
-        <MobileInfo label="อัปเดต" value={formatDashboardDate(item.statusUpdatedAt || batch.statusUpdatedAt || batch.submittedAt)} compact />
-      </div>
-      {!canShip && currentStatus !== ORDER_STATUS_CANCELED && (
-        <p className="mt-2 text-xs font-black text-[#B91C1C]">สต๊อกไม่พอ (มี {currentStock})</p>
-      )}
-      <div className="flex flex-row items-center gap-2 flex-nowrap mt-3">
-        <button
-          type="button"
-          disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
-          onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_DELIVERED)}
-          className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          จัดส่งแล้ว
-        </button>
-        <button
-          type="button"
-          disabled={isBusy || currentStatus === ORDER_STATUS_PENDING}
-          onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_PENDING)}
-          className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          รอจัดส่ง
-        </button>
-        <button
-          type="button"
-          disabled={isBusy || currentStatus === ORDER_STATUS_CANCELED}
-          onClick={() => onItemStatusChange?.(batch, order, item, ORDER_STATUS_CANCELED)}
-          className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          ยกเลิก
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PartialShipmentDialog({ open, onClose, batch, clothingConfig, onShipConfirm, isBusy }) {
-  const [items, setItems] = useState([]);
-
-  useEffect(() => {
-    if (!batch) return;
-    const flatItems = batch.orders.flatMap((order) => {
-      const gender = order.gender || GENDERS[0];
-      return order.items.map((item) => {
-        const clothing = clothingConfig.find((c) => c.type === item.type);
-        const rows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
-        const stockRow = rows.find((r) => r.size === item.size);
-        const currentStock = item.size === OTHER_SIZE ? Number(item.qty || 0) : Number(stockRow?.qty || 0);
-
-        const isInactive =
-          item.status === ORDER_STATUS_DELIVERED || item.status === ORDER_STATUS_CANCELED;
-        const requestedQty = isInactive ? 0 : Number(item.qty || 0);
-
-        return {
-          employeeName: order.name,
-          gender,
-          type: item.type,
-          size: item.size,
-          requestedQty,
-          currentStock,
-          shippedQty: isInactive ? 0 : Math.min(requestedQty, currentStock),
-          isInactive,
-        };
-      });
-    });
-    setItems(flatItems);
-  }, [batch, clothingConfig]);
-
-  function handleShippedQtyChange(index, val) {
-    const maxShipped = Math.min(items[index].requestedQty, items[index].currentStock);
-    const nextVal = Math.max(0, Math.min(maxShipped, Number(val) || 0));
-    setItems((current) =>
-      current.map((item, idx) => {
-        if (idx !== index) return item;
-        return { ...item, shippedQty: nextVal };
-      })
-    );
-  }
-
-  function handleConfirm() {
-    const shipmentData = items
-      .filter((item) => !item.isInactive && item.requestedQty > 0)
-      .map((item) => ({
-        employeeName: item.employeeName,
-        gender: item.gender,
-        type: item.type,
-        size: item.size,
-        shippedQty: item.shippedQty,
-        pendingQty: item.requestedQty - item.shippedQty,
-      }));
-
-    const totalShipped = shipmentData.reduce((sum, item) => sum + item.shippedQty, 0);
-    if (totalShipped === 0) {
-      toast.error('กรุณาระบุจำนวนที่จะจัดส่งอย่างน้อย 1 ชิ้น');
-      return;
-    }
-
-    onShipConfirm(batch.batchId, shipmentData);
-    onClose();
-  }
-
-  const activeItems = items.filter((item) => !item.isInactive && item.requestedQty > 0);
-  const totalRequested = activeItems.reduce((sum, item) => sum + Number(item.requestedQty || 0), 0);
-  const totalShipped = activeItems.reduce((sum, item) => sum + Number(item.shippedQty || 0), 0);
-  const shipmentSummary = items
-    .filter((item) => !item.isInactive && Number(item.shippedQty || 0) > 0)
-    .slice(0, 4)
-    .map((item) => `${item.type} ${item.gender} ไซส์ ${item.size}: ${item.shippedQty} ชิ้น`);
-
-  return (
-    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="gi-overlay fixed inset-0 z-[60] bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content
-          aria-describedby={undefined}
-          className="fixed inset-x-3 bottom-3 z-[61] flex max-h-[85vh] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(54rem,90vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
-        >
-          <div className="flex items-center justify-between border-b border-[#E7EAF0] px-4 py-3">
-            <div>
-              <Dialog.Title className="text-lg font-black text-[#071638]">
-                จัดการจัดส่ง
-              </Dialog.Title>
-              <p className="text-xs font-semibold text-[#64748B] mt-0.5">
-                ระบุจำนวนที่สามารถจัดส่งได้ในรอบนี้ ส่วนที่ยังไม่ส่งจะคงสถานะเป็น "รอจัดส่ง"
-              </p>
-            </div>
-            <Dialog.Close
-              className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]"
-              aria-label="ปิด"
-            >
-              <X />
-            </Dialog.Close>
-          </div>
-
-          <div className="employee-scroll-region flex-1 overflow-auto p-4 bg-[#F8FAFC]">
-            {batch && (
-              <div className="mb-3 rounded-xl border border-[#DCE5F4] bg-white p-3 text-sm font-bold text-[#334155]">
-                <div className="grid gap-2 sm:grid-cols-4">
-                  <span>รายการ <strong>{batch.batchId}</strong></span>
-                  <span>สาขา <strong>{batch.branch || '-'}</strong></span>
-                  <span>พนักงาน <strong>{batch.orders.length} คน</strong></span>
-                  <span>จะตัดสต๊อก <strong>{totalShipped}/{totalRequested} ชิ้น</strong></span>
-                </div>
-                {shipmentSummary.length ? (
-                  <p className="mt-2 text-xs font-semibold text-[#64748B]">
-                    สรุปตัดสต๊อก: {shipmentSummary.join('; ')}
-                    {shipmentSummary.length >= 4 ? '; ...' : ''}
-                  </p>
-                ) : null}
-              </div>
-            )}
-            {activeItems.length === 0 ? (
-              <div className="py-8 text-center text-sm font-semibold text-[#64748B]">
-                ไม่มีรายการเสื้อที่รอจัดส่ง
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                {items.map((item, index) => {
-                  if (item.isInactive) return null;
-                  const pendingQty = item.requestedQty - item.shippedQty;
-
-                  let stockColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
-                  let stockText = `มีสต๊อกพอ (${item.currentStock} ชิ้น)`;
-
-                  if (item.currentStock === 0) {
-                    stockColor = 'text-rose-600 bg-rose-50 border-rose-200';
-                    stockText = 'สต๊อกหมด';
-                  } else if (item.currentStock < item.requestedQty) {
-                    stockColor = 'text-amber-600 bg-amber-50 border-amber-200';
-                    stockText = `สต๊อกไม่พอ (มี ${item.currentStock} ชิ้น)`;
-                  }
-
-                  return (
-                    <div
-                      key={`${item.employeeName}-${item.type}-${item.size}-${index}`}
-                      className="rounded-xl border border-[#DCE5F4] bg-white p-3 shadow-sm"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F1F5F9] pb-2 mb-2.5">
-                        <div>
-                          <p className="font-extrabold text-sm text-[#071638]">
-                            {item.employeeName} ({item.gender})
-                          </p>
-                          <p className="text-xs font-bold text-[#002B5B] mt-0.5">
-                            {item.type} · ไซส์ {item.size}
-                          </p>
-                        </div>
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold',
-                            stockColor
-                          )}
-                        >
-                          {stockText}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3 items-center text-center">
-                        <div>
-                          <p className="text-[11px] font-bold text-[#64748B]">จำนวนขอเบิก</p>
-                          <p className="text-base font-extrabold text-[#071638] mt-1">
-                            {item.requestedQty} ชิ้น
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold text-[#64748B]">จัดส่งรอบนี้</p>
-                          <div className="flex justify-center mt-1">
-                            <GridInput
-                              type="number"
-                              min={0}
-                              max={Math.min(item.requestedQty, item.currentStock)}
-                              value={String(item.shippedQty)}
-                              onChange={(value) => handleShippedQtyChange(index, value)}
-                              className="h-9 w-16 text-center rounded-lg border border-[#CBD5E1] text-sm font-black text-[#002B5B] focus:border-[#002B5B] focus:ring-2 focus:ring-[#DCE8FF] outline-none"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold text-[#64748B]">ยังไม่ส่ง</p>
-                          <p
-                            className={cn(
-                              'text-base font-extrabold mt-1',
-                              pendingQty > 0 ? 'text-amber-600' : 'text-[#64748B]'
-                            )}
-                          >
-                            {pendingQty} ชิ้น
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-[#E7EAF0] p-4 grid grid-cols-2 gap-3 sm:flex sm:justify-end sm:gap-3 bg-white">
-            <button
-              disabled={isBusy}
-              onClick={onClose}
-              className="min-h-11 rounded-xl border border-[#CBD5E1] bg-white px-5 text-sm font-bold text-[#071638] w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ยกเลิก
-            </button>
-            <button
-              disabled={isBusy}
-              onClick={handleConfirm}
-              className="min-h-11 rounded-xl bg-[#002B5B] px-5 text-sm font-bold text-white hover:bg-[#002144] shadow-sm transition w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isBusy ? 'กำลังบันทึก...' : 'ยืนยันการจัดส่ง'}
-            </button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
-function BatchDetailDialog({
-  batch,
-  onClose,
-  onStatusChange,
-  onItemStatusChange,
-  onDelete,
-  statusLoadingId = '',
-  deleteLoadingId = '',
-  onShipClick,
-  clothingConfig = [],
-}) {
-  const isUpdatingStatus = Boolean(batch && statusLoadingId === batch.batchId);
-  const isDeleting = Boolean(batch && deleteLoadingId === batch.batchId);
-  const isBusy = isUpdatingStatus || isDeleting;
-  function confirmDelete() {
-    if (batch && !isBusy) onDelete(batch.batchId);
-  }
-
-  const hasNoPendingItems =
-    batch &&
-    batch.orders
-      .flatMap((o) => o.items)
-      .every((item) => [ORDER_STATUS_DELIVERED, ORDER_STATUS_CANCELED].includes(item.status));
-  const shirtSummaryRows = useMemo(() => buildBatchItemSummary(batch), [batch]);
-
-  return (
-    <Dialog.Root open={Boolean(batch)} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="gi-overlay fixed inset-0 z-50 bg-[#0F172A]/45 backdrop-blur-sm" />
-        <Dialog.Content
-          aria-describedby={undefined}
-          className="fixed inset-x-3 bottom-3 z-50 max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(58rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2"
-        >
-          {batch && (
-            <>
-              <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[#E7EAF0] px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
-                <div className="min-w-0">
-                  <Dialog.Title className="break-words text-lg font-extrabold text-[#071638] sm:text-xl">
-                    {batch.companyName || 'ไม่ระบุบริษัท'}
-                  </Dialog.Title>
-                  <p className="mt-1 text-sm font-bold text-[#002B5B]">{batch.branch}</p>
-                  <p className="mt-1 break-words text-sm font-semibold text-[#64748B]">
-                    {batch.batchId}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <StatusBadge status={batch.status} />
-                  <Dialog.Close
-                    className="grid size-10 place-items-center rounded-full text-[#1F2937] hover:bg-[#F1F5F9]"
-                    aria-label="ปิด"
-                  >
-                    <X />
-                  </Dialog.Close>
-                </div>
-              </div>
-              <div className="max-h-[64vh] overflow-auto p-3 sm:p-4">
-                <div className="mb-4 grid gap-3 sm:grid-cols-5">
-                  <MiniMetric label="บริษัท" value={batch.companyName || '-'} />
-                  <MiniMetric label="ผู้ติดต่อ" value={batch.supervisorName || '-'} />
-                  <MiniMetric
-                    label="เบอร์ติดต่อ"
-                    value={formatPhone(batch.supervisorPhone) || '-'}
-                  />
-                  <MiniMetric label="จำนวนรวม" value={`${getBatchPieces(batch)} ชิ้น`} />
-                  <div className="min-w-0 rounded-xl bg-[#F4F7FC] px-3 py-3">
-                    <p className="truncate text-xs font-bold text-[#64748B]">สถานะ</p>
-                    <div className="mt-1">
-                      <CustomSelect
-                        value={batch.status}
-                        values={ORDER_STATUSES}
-                        disabled={isBusy}
-                        onChange={(status) => onStatusChange(batch.batchId, status)}
-                        compact
-                        usePortal={false}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <p className="mb-4 rounded-xl bg-[#EEF4FF] px-4 py-3 text-sm font-bold text-[#002B5B]">
-                  อัปเดตสถานะล่าสุด:{' '}
-                  {new Date(batch.statusUpdatedAt).toLocaleString('th-TH', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}
-                </p>
-                <div className="mb-4 flex flex-col gap-2">
-                  {!hasNoPendingItems && (
-                    <button
-                      onClick={onShipClick}
-                      disabled={isBusy}
-                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#002B5B] font-bold text-white shadow-sm transition hover:bg-[#002144] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Truck className="size-4" /> ดำเนินการจัดส่ง (แยกตามรายการ)
-                    </button>
-                  )}
-                  <button
-                    onClick={confirmDelete}
-                    disabled={isBusy}
-                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
-                    {isDeleting ? 'กำลังลบรายการเบิก' : 'ลบรายการเบิกนี้'}
-                  </button>
-                </div>
-                <section className="mb-4 overflow-hidden rounded-xl border border-[#DCE6F4] bg-white">
-                  <div className="flex min-w-0 items-center justify-between gap-3 bg-[#EEF4FF] px-3 py-3 sm:px-4">
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-extrabold text-[#071638]">สรุปรายการเสื้อ</h3>
-                      <p className="mt-1 text-xs font-bold text-[#64748B]">
-                        รวมตามเสื้อ เพศ ไซส์ และจำนวน
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm font-extrabold text-[#002B5B]">
-                      {getBatchPieces(batch)} ชิ้น
-                    </span>
-                  </div>
-                  <div className="grid gap-2 p-3 sm:hidden">
-                    {shirtSummaryRows.map((row) => (
-                      <div
-                        key={row.id}
-                        className="grid grid-cols-[1fr_auto] gap-3 rounded-lg bg-[#F8FAFC] p-3"
-                      >
-                        <div className="min-w-0">
-                          <p className="break-words text-sm font-extrabold text-[#071638]">
-                            {row.type}
-                          </p>
-                          <p className="mt-1 text-xs font-bold text-[#64748B]">
-                            {row.gender} · ไซส์ {row.size}
-                          </p>
-                        </div>
-                        <p className="shrink-0 text-right text-sm font-extrabold text-[#002B5B]">
-                          {row.qty} ชิ้น
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  <table className="hidden w-full table-fixed text-left text-sm sm:table">
-                    <thead className="text-xs font-bold text-[#44536A]">
-                      <tr>
-                        <th className="px-3 py-3 sm:px-4">เสื้อ</th>
-                        <th className="w-24 px-3 py-3 sm:w-28 sm:px-4">เพศ</th>
-                        <th className="w-20 px-3 py-3 sm:w-24 sm:px-4">ไซส์</th>
-                        <th className="w-20 px-3 py-3 text-right sm:w-24 sm:px-4">จำนวน</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {shirtSummaryRows.map((row) => (
-                        <tr key={row.id} className="border-t border-[#E2E8F0]">
-                          <td className="break-words px-3 py-3 font-bold sm:px-4">{row.type}</td>
-                          <td className="break-words px-3 py-3 sm:px-4">{row.gender}</td>
-                          <td className="break-words px-3 py-3 sm:px-4">{row.size}</td>
-                          <td className="px-3 py-3 text-right font-extrabold sm:px-4">
-                            {row.qty}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </section>
-                <div className="grid gap-3">
-                  {batch.orders.map((order) => (
-                    <div
-                      key={`${batch.batchId}-${order.name}`}
-                      className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white"
-                    >
-                      <div className="flex min-w-0 items-center justify-between gap-3 bg-[#EEF4FF] px-3 py-3 sm:px-4">
-                        <div className="min-w-0">
-                          <p className="break-words font-extrabold text-[#071638]">{order.name}</p>
-                          <p className="text-xs font-bold text-[#64748B]">{order.gender}</p>
-                        </div>
-                        <span className="shrink-0 text-sm font-extrabold text-[#002B5B]">
-                          {order.items.reduce((sum, item) => sum + Number(item.qty || 0), 0)} ชิ้น
-                        </span>
-                      </div>
-                      <div className="grid gap-2 p-3 sm:hidden">
-                          {order.items.map((item, itemIdx) => (
-                            <BatchItemMobileCard
-                              key={`${order.name}-${item.type}-${item.size}-${itemIdx}`}
-                              batch={batch}
-                              order={order}
-                              item={item}
-                              isBusy={isBusy}
-                              clothingConfig={clothingConfig}
-                              onItemStatusChange={onItemStatusChange}
-                            />
-                        ))}
-                      </div>
-                      <table className="batch-items-table hidden w-full text-left text-sm sm:table">
-                        <colgroup>
-                          <col className="batch-items-type-col" />
-                          <col className="batch-items-size-col" />
-                          <col className="batch-items-qty-col" />
-                          <col className="batch-items-status-col" />
-                        </colgroup>
-                        <thead className="text-xs font-bold text-[#44536A]">
-                          <tr>
-                            <th className="px-3 py-3 sm:px-4">ประเภท</th>
-                            <th className="w-16 px-3 py-3 sm:w-20 sm:px-4">ไซส์</th>
-                            <th className="w-16 px-3 py-3 text-right sm:w-20 sm:px-4">จำนวน</th>
-                            <th className="w-28 px-3 py-3 text-center sm:w-32 sm:px-4">สถานะ</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {order.items.map((item) => {
-                            const requested = Number(item.qty || 0);
-                            const gender = order.gender || GENDERS[0];
-                            const clothing = clothingConfig.find((c) => c.type === item.type);
-                            const rows = clothing?.genderSizeRows?.[gender] || clothing?.sizeRows || [];
-                            const stockRow = rows.find((row) => String(row.size) === String(item.size));
-                            const currentStock =
-                              item.size === OTHER_SIZE ? requested : Number(stockRow?.qty || 0);
-                            const currentStatus = item.status || ORDER_STATUS_PENDING;
-                            const canShip =
-                              currentStatus === ORDER_STATUS_DELIVERED ||
-                              item.size === OTHER_SIZE ||
-                              currentStock >= requested;
-                            return (
-                            <tr
-                              key={`${order.name}-${item.type}-${item.size}`}
-                              className={cn(
-                                'border-t border-[#E2E8F0]',
-                                !canShip &&
-                                  currentStatus !== ORDER_STATUS_DELIVERED &&
-                                  currentStatus !== ORDER_STATUS_CANCELED &&
-                                  'bg-[#FEF2F2]'
-                              )}
-                            >
-                              <td className="break-words px-3 py-3 font-bold sm:px-4">
-                                {item.type}
-                              </td>
-                              <td className="break-words px-3 py-3 sm:px-4">{item.size}</td>
-                              <td className="px-3 py-3 text-right font-extrabold sm:px-4">
-                                {item.qty}
-                              </td>
-                              <td className="px-3 py-3 text-center sm:px-4">
-                                <div className="batch-item-status-cell">
-                                  <StatusBadge status={currentStatus} />
-                                  <div className="flex flex-row items-center gap-2 flex-nowrap mt-1">
-                                    <button
-                                      type="button"
-                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                                      disabled={isBusy || currentStatus === ORDER_STATUS_DELIVERED || !canShip}
-                                      onClick={() =>
-                                        onItemStatusChange?.(batch, order, item, ORDER_STATUS_DELIVERED)
-                                      }
-                                      title={!canShip ? `สต๊อกไม่พอ (มี ${currentStock})` : 'อัปเดตเป็นจัดส่งแล้ว'}
-                                    >
-                                      จัดส่งแล้ว
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                                      disabled={isBusy || currentStatus === ORDER_STATUS_PENDING}
-                                      onClick={() =>
-                                        onItemStatusChange?.(batch, order, item, ORDER_STATUS_PENDING)
-                                      }
-                                    >
-                                      รอจัดส่ง
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                                      disabled={isBusy || currentStatus === ORDER_STATUS_CANCELED}
-                                      onClick={() =>
-                                        onItemStatusChange?.(batch, order, item, ORDER_STATUS_CANCELED)
-                                      }
-                                    >
-                                      ยกเลิก
-                                    </button>
-                                  </div>
-                                  {!canShip &&
-                                    currentStatus !== ORDER_STATUS_DELIVERED &&
-                                    currentStatus !== ORDER_STATUS_CANCELED && (
-                                    <span className="understock-flag">สต๊อกไม่พอ (มี {currentStock})</span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ))}
-                      
-                </div>
-              </div>
-            </>
-          )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
 
 function getBatchPieces(batch) {
   return flattenBatches([batch]).reduce((sum, row) => sum + Number(row.qty || 0), 0);
